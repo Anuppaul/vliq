@@ -1457,6 +1457,42 @@ export class LiquidGlassIntegration {
                     '[VLIQ][LiquidGlass] richer liquid optics v10 seeded'
                 );
         }
+
+        if (version < 11) {
+            // Thinner physical light band for the shared Liquid Glass rim.
+            // Migrate only the exact v10 stock value. Respect user-chosen
+            // Rim Width, including 0 (disabled), even across hot reloads.
+            let complete = true;
+            try {
+                const current = this._settings.get_double('glass-rim-width');
+                if (Math.abs(current - 3.7) < 0.0001)
+                    this._settings.set_double(
+                        'glass-rim-width',
+                        VLIQ_GLASS_ROLES.innerCard.optics.rim_width
+                    );
+            } catch (error) {
+                complete = false;
+                console.warn(
+                    '[VLIQ][LiquidGlass] thin rim v11 incomplete: ' + error
+                );
+            }
+            if (complete) {
+                try {
+                    this._vliqSettings.set_int(
+                        'glass-optics-profile-version', 11
+                    );
+                    version = 11;
+                } catch (error) {
+                    console.warn(
+                        '[VLIQ][LiquidGlass] thin rim v11 incomplete: ' + error
+                    );
+                }
+            }
+            if (version === 11)
+                console.log(
+                    '[VLIQ][LiquidGlass] thin shared optical rim v11 seeded'
+                );
+        }
     }
 
     _readSharedCardAppearance() {

@@ -33,7 +33,7 @@ const INNER_CARD_OPTICS = Object.freeze({
     chroma_strength: 1.85,
     specular_intensity: 0.78,
     shininess: 74.0,
-    rim_width: 3.7,
+    rim_width: 2.0,
     rim_intensity: 1.15,
     rim_directional_power: 1.55,
     rim_power: 2.05,

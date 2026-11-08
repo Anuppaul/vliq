@@ -675,7 +675,8 @@ float vliqCrystalGrain(vec2 pixel) {
     return micro + facet;
 }
 
-// Mac-style icy card silhouette, adaptive across black and white wallpaper.
+// One physical rim with two finishes: pale light at TL/BR, charcoal-gray
+// everywhere else. Reuse the existing backdrop/body sample; no extra pass.
 // Use the backdrop ALREADY sampled by the existing material (no extra texel
 // fetch, capture pass or layered CSS stroke). On bright wallpaper the line
 // is a *quiet* blue-gray (not a saturated blue outline); on dark wallpaper
@@ -699,16 +700,16 @@ vec3 vliqAdaptiveCardEdgeColor(
     );
 }
 
-// Inside-the-glass rim only. Two gently overlapping SDF bands read as one
-// soft 1-3px edge, not as a duplicate rectangular border or exterior halo.
+// Inside-the-glass rim only. One thin, anti-aliased SDF contour reaching
+// at most ~1.65px inward, not a doubled 3px stripe or an exterior halo.
 // The signed distance is negative inside the native rounded glass shape.
 // All smoothstep intervals are strictly increasing (avoids GNOME/GLES driver
 // bugs previously encountered in this shader).
 float vliqAdaptiveCardEdgeCoverage(float signedDistance) {
     float depth = max(-signedDistance, 0.0);
-    float hairline = 1.0 - smoothstep(0.12, 1.48, depth);
-    float innerFeather = 1.0 - smoothstep(0.70, 3.10, depth);
-    return clamp(hairline * 0.46 + innerFeather * 0.08, 0.0, 0.56);
+    float hairline = 1.0 - smoothstep(0.06, 0.88, depth);
+    float innerFeather = 1.0 - smoothstep(0.42, 1.65, depth);
+    return clamp(hairline * 0.40 + innerFeather * 0.05, 0.0, 0.46);
 }
 
 // [NEW] Adjust color saturation, contrast, brightness
@@ -1579,42 +1580,45 @@ void main() {
     // マイナス値への侵入を防ぐ
     litColor = max(litColor, 0.0);
 
-    // Single adaptive ice-blue optical rim for native GNOME cards.
-    // Existing gloss/refraction/specular remain intact; this thin cool band
-    // only makes their contour readable over both white and dark wallpaper.
+    // Single thin optical rim for native GNOME cards. Preserve the pale
+    // top-left/bottom-right glints, but use a neutral graphite/gray border
+    // for every other edge rather than leaving white light all around.
     // Because surface_light_enabled is 0 for real application windows, those
     // windows retain their original shadow-only appearance.
     //
     // No extra actor, new sampler or CSS border: tint only the *existing*
-    // glass body within ~3px of its signed-distance boundary. Composite
+    // glass body within ~1.65px of its signed-distance boundary. Composite
     // later multiplies by insideMask ONCE, preventing exterior blue halos,
     // opaque frames and the old fullscreen-darkening regression.
     if (surface_light_enabled > 0.5 &&
-        d > -3.10 && d < edgeFeather) {
-        vec3 edgeBlue = vliqAdaptiveCardEdgeColor(
+        d > -1.65 && d < edgeFeather) {
+        vec3 edgeLight = vliqAdaptiveCardEdgeColor(
             adjustedRefracted, litColor, vliq_frost_amount
         );
         float edgeCoverage = vliqAdaptiveCardEdgeCoverage(d);
-        // White backgrounds need a quieter blue-gray stroke; dark edges
-        // must remain unchanged. The selected edge color ALREADY encodes
-        // context brightness in its red channel (0.76 dark → 0.54 light).
-        // Recover that interpolation instead of repeating the backdrop/body
-        // luminance calculations and adding work at every edge pixel.
+        // edgeLight's red channel already encodes the current luminance.
+        // Neutral charcoal on bright backgrounds; restrained slate-gray
+        // on dark ones, with no second screen/backdrop texture fetch.
         float brightEdge = clamp(
-            (0.76 - edgeBlue.r) / (0.76 - 0.54), 0.0, 1.0
+            (0.76 - edgeLight.r) / (0.76 - 0.54), 0.0, 1.0
         );
+        vec3 edgeDark = mix(
+            vec3(0.36, 0.38, 0.41),
+            vec3(0.18, 0.20, 0.23),
+            brightEdge
+        );
+        // Highlight color is restricted to the existing TL/BR masks.
+        // In between, retain a thinner gray outline instead of zero rim.
+        vec3 edgeColor = mix(edgeDark, edgeLight, cornerGlint);
+        edgeCoverage *= mix(0.52, 1.0, cornerGlint);
         edgeCoverage *= mix(1.0, 0.58, brightEdge);
-        // The adaptive optical outline is the old full-height white edge.
-        // Clip its visibility to the same diagonal corner highlights.
-        edgeCoverage *= cornerGlint;
-        // Frosted uses a calmer contrast contour; its Crystal Edge Glow
-        // slider still controls the separate broad luminous highlight.
+        // Frosted retains a restrained contour, never another CSS stroke.
         edgeCoverage *= mix(
             1.0,
             0.87,
             clamp(vliq_frost_amount, 0.0, 1.0)
         );
-        litColor = mix(litColor, edgeBlue, edgeCoverage);
+        litColor = mix(litColor, edgeColor, edgeCoverage);
     }
 
     // Composite the glass OVER the shadow, in PREMULTIPLIED-alpha space.

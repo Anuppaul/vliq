@@ -80,15 +80,15 @@ function checkCurrent(map) {
         assert.equal(map.get(key), roles.innerCard.optics[uniform], key);
 }
 
-// Fresh v9 -> v10; the previous values were stored by the old profile.
+// Fresh v9 -> v10 -> v11; previous settings are migrated once.
 const fromV9 = migrate(v9, 9);
-assert.equal(fromV9.version, 10);
+assert.equal(fromV9.version, 11);
 assert.equal(fromV9.writes.length, 11);
 checkCurrent(fromV9.values);
 
-// Older machines use pinned historical v9 values before advancing to v10.
+// Older machines retain pinned v8 values before upgrading through v11.
 const fromV8 = migrate(v8, 8);
-assert.equal(fromV8.version, 10);
+assert.equal(fromV8.version, 11);
 assert.equal(fromV8.writes.length, 21);  // 10 in v9, then 11 in v10
 checkCurrent(fromV8.values);
 
@@ -99,7 +99,7 @@ customSettings.set('glass-chroma-strength', 0);
 customSettings.set('glass-rim-intensity', 0.34);
 customSettings.set('glass-ior', 1.94);
 const custom = migrate(customSettings, 9);
-assert.equal(custom.version, 10);
+assert.equal(custom.version, 11);
 assert.equal(custom.writes.length, 7);
 for (const key of [
     'glass-max-z', 'glass-chroma-strength', 'glass-rim-intensity',
@@ -108,9 +108,26 @@ for (const key of [
     assert.equal(custom.values.get(key), customSettings.get(key));
 
 // Migration is idempotent; no accidental every-login GSettings writes.
-const secondRun = migrate(fromV9.values, 10);
+const secondRun = migrate(fromV9.values, 11);
 assert.equal(secondRun.writes.length, 0);
-assert.equal(secondRun.version, 10);
+assert.equal(secondRun.version, 11);
+
+// Existing v10 installs have the previous 3.7px stock Rim Width. Reduce
+// only that exact seed, not an intentionally customized user preference.
+const v10 = new Map(fromV9.values);
+v10.set('glass-rim-width', 3.7);
+const slimmer = migrate(v10, 10);
+assert.equal(slimmer.version, 11);
+assert.deepEqual(slimmer.writes, [['glass-rim-width', 2.0]]);
+assert.equal(slimmer.values.get('glass-rim-width'), 2.0);
+for (const manualWidth of [0, 0.9, 1.6, 4.8]) {
+    const user = new Map(fromV9.values);
+    user.set('glass-rim-width', manualWidth);
+    const migrated = migrate(user, 10);
+    assert.equal(migrated.version, 11);
+    assert.equal(migrated.writes.length, 0);
+    assert.equal(migrated.values.get('glass-rim-width'), manualWidth);
+}
 
 assert.ok(roles.innerCard.optics.max_z > v9.get('glass-max-z'));
 assert.ok(roles.innerCard.optics.displacement_scale > v9.get('glass-displacement-scale'));
@@ -125,4 +142,4 @@ assert.equal(roles.innerCard.settingsOwnOptics, true);
 assert.equal(roles.innerCard.multiRegion, true);
 assert.ok(roles.innerCard.interaction.damping > 0 &&
           roles.innerCard.interaction.damping < 1);
-console.log('Liquid v8→v9→v10, custom values, and GPU frame budgets PASS.');
+console.log('Liquid v8→v11, thinner stock rim, custom settings and GPU frame budgets PASS.');
