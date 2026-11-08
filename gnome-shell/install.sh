@@ -28,8 +28,6 @@ HOT_AUX_FILES=(
 RUNTIME_FILES=(
     "runtime.js"
     "orbThemeRuntime.js"
-    "desktopClockWidget.js"
-    "desktopCalendarWidget.js"
     "runtime.css"
     "apps.js"
     "geometry.js"
@@ -67,6 +65,13 @@ fail() {
     exit 1
 }
 
+# Remove obsolete standalone widgets from legacy installations.
+# The built-in GNOME top-bar clock and Date Menu are not affected.
+remove_retired_widgets_in_dir() {
+    local root="$1"
+    rm -f "${root}/desktopClockWidget.js" "${root}/desktopCalendarWidget.js"
+}
+
 refresh_prefs_process() {
     # Ensure the new preferences module is on disk before closing the old
     # GNOME Extensions process (which may cache the previous JS module).
@@ -74,15 +79,15 @@ refresh_prefs_process() {
         fail "VLIQ preferences file was not installed."
     cmp -s "${SOURCE_DIR}/prefs.js" "${TARGET_DIR}/prefs.js" ||
         fail "Installed preferences differ from the requested checkout."
-    grep -Fq "'Widgets'," "${TARGET_DIR}/prefs.js" ||
-        fail "Widgets page missing from installed preferences."
-    grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
-        fail "Clock schema missing from installed extension."
+    if grep -Fq "'Widgets'," "${TARGET_DIR}/prefs.js" ||
+       grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml"; then
+        fail "Retired desktop widgets were left in installed VLIQ."
+    fi
 
     if command -v gapplication >/dev/null 2>&1; then
         gapplication quit org.gnome.Extensions >/dev/null 2>&1 || true
     fi
-    echo "Verified: Widgets preferences and clock schema installed."
+    echo "Verified: desktop widget controls and schema keys are retired."
     echo "Open settings with: gnome-extensions prefs ${UUID}"
 }
 
@@ -249,6 +254,7 @@ sync_hot_aux() {
         mkdir -p "$(dirname "${TARGET_DIR}/${file}")"
         cp -f "${SOURCE_DIR}/${file}" "${TARGET_DIR}/${file}"
     done
+    remove_retired_widgets_in_dir "${TARGET_DIR}"
 
     # Liquid Glass registers GObject classes whose type names live for the
     # lifetime of the GNOME Shell process. Keep one canonical vendor tree
@@ -282,6 +288,7 @@ sync_hot_aux() {
             mkdir -p "$(dirname "${live_dir}/${file}")"
             cp -f "${SOURCE_DIR}/${file}" "${live_dir}/${file}"
         done
+        remove_retired_widgets_in_dir "${live_dir}"
 
         # prefs.js imports the upstream preference implementation relative to
         # the extension root. A developer live-registration uses live_dir as
@@ -675,8 +682,6 @@ if command -v unzip >/dev/null 2>&1; then
     REQUIRED_PACKED_FILES=(
         "metadata.json"
         "extension.js"
-        "desktopClockWidget.js"
-        "desktopCalendarWidget.js"
         "topBarIslands.js"
         "prefs.js"
         "stylesheet.css"
@@ -728,6 +733,7 @@ for file in "${BOOTSTRAP_FILES[@]}" "${HOT_AUX_FILES[@]}" "${RUNTIME_FILES[@]}";
     mkdir -p "${parent}"
     cp -f "${SOURCE_DIR}/${file}" "${TARGET_DIR}/${file}"
 done
+remove_retired_widgets_in_dir "${TARGET_DIR}"
 
 for runtime_source in "${RUNTIME_DIRS[@]}"; do
     destination="${TARGET_DIR}/${runtime_source}"
@@ -751,7 +757,7 @@ record_bootstrap_identity
 refresh_prefs_process
 
 for installed_file in \
-    metadata.json extension.js desktopClockWidget.js desktopCalendarWidget.js topBarIslands.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
+    metadata.json extension.js topBarIslands.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
     runtime.js orbThemeRuntime.js terminalBackdropBlur.js runtime.css apps.js geometry.js \
     liquidGlassDock.js notificationGlass.js popupGlass.js shellCards.js; do
     [[ -f "${TARGET_DIR}/${installed_file}" ]] ||

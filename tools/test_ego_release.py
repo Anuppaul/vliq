@@ -35,6 +35,21 @@ class EGOReleaseArchiveTests(unittest.TestCase):
         self.assertEqual(manifest["shell-version"], ["50"])
         self.assertNotIn("version", manifest)
 
+    def test_retired_desktop_widgets_are_not_packaged(self):
+        names = set(self.package)
+        self.assertNotIn("desktopClockWidget.js", names)
+        self.assertNotIn("desktopCalendarWidget.js", names)
+        self.assertNotIn("clock-widget-enabled",
+                         self.package["schemas/org.gnome.shell.extensions.vliq.gschema.xml"]
+                         .decode("utf-8"))
+        self.assertNotIn("calendar-widget-enabled",
+                         self.package["schemas/org.gnome.shell.extensions.vliq.gschema.xml"]
+                         .decode("utf-8"))
+        self.assertNotIn("desktopClockWidget",
+                         self.package["orbThemeRuntime.js"].decode("utf-8"))
+        self.assertNotIn("desktopCalendarWidget",
+                         self.package["orbThemeRuntime.js"].decode("utf-8"))
+
     def test_two_schemas_are_in_top_level_standard_directory(self):
         schemas = {
             k for k in self.package

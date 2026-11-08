@@ -15,10 +15,6 @@ const MARGIN_LIMIT = 0; // full-width native panel, square corners, no shadow
 export class PanelGlassSurface {
     constructor(vendor, settings, readAppearance, options = {}) {
         this._cornerRadius = Math.max(0, options.cornerRadius ?? 0);
-        // Opt-in bounded desktop widgets reuse the very same panel
-        // material; ordinary panel callers keep their original size guard.
-        this._clockCard = options.clockCard === true ||
-            options.widgetCard === true;
         this._vendor = vendor;
         this._settings = settings;
         this._readAppearance = readAppearance;
@@ -135,26 +131,6 @@ export class PanelGlassSurface {
         this._effect.setPadding?.(0);
         this._effect.setShadowMaxRadius?.(0);
         this._effect.setCornerRadius?.(this._cornerRadius);
-        if (this._clockCard) {
-            // Clock must use the SAME illuminated optical material as VLIQ's
-            // Dock/cards. Turning surface light off also removed Fresnel rim,
-            // specular highlights and sheen, leaving a flat, dull backdrop
-            // despite a successfully composited shader. The old horizontal
-            // streak came from the retired 104px-margined preview material;
-            // Clock now uses the bounded native panel compositor instead.
-            // Keep surface lighting enabled while suppressing only the rear
-            // and inner shadow. The shared material controls still own tint,
-            // refraction, blur, Frosted Crystal grain and optical strength.
-            this._effect.setSurfaceLightEnabled?.(true);
-            // Disable only the Clock's long straight-edge sheen; keep the
-            // shared shader's broad interior sheen, corner glints and lens.
-            this._effect._uniforms?.set?.(
-                'vliq_clock_straight_edge_guard', 1.0
-            );
-            this._effect._uniforms?.set?.('ao_intensity', 0.0);
-            this._effect._uniforms?.set?.('shadow_radius', 0.0);
-            this._effect._uniforms?.set?.('shadow_intensity', 0.0);
-        }
         this._material?.queue_redraw?.();
     }
 
@@ -166,9 +142,7 @@ export class PanelGlassSurface {
             width <= 1 || height <= 1 ||
             // Defense-in-depth. The caller verifies native panel thickness
             // against its monitor before reaching this layer.
-            (this._clockCard
-                ? (width > 640 || height > 520)
-                : Math.min(width, height) > 240)) {
+            Math.min(width, height) > 240) {
             if (actor.opacity !== 0) {
                 actor.opacity = 0;
                 this._boundsDirty = true;

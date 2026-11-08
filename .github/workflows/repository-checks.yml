@@ -45,10 +45,8 @@ jobs:
           node tools/test_wallpaper_atmosphere_visual_strength.mjs
           node tools/test_store_bootstrap_async.mjs
           node tools/test_preview_glass.mjs
-          node tools/test_desktop_clock_widget.mjs
-          node tools/test_clock_panel_glass.mjs
           node tools/test_top_bar_islands.mjs
-          node tools/test_desktop_calendar_widget.mjs
+          node tools/test_widgets_removed.mjs
           node tools/test_preview_layout.mjs
           node tools/test_liquid_optics.mjs
           node tools/test_frosted_crystal.mjs
