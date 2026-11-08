@@ -10,6 +10,7 @@ import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {
+    GLASS_TEXT_PALETTE,
     VLIQ_GLASS_ADAPTERS,
     VLIQ_GLASS_ROLES,
     applyVLIQGlassRole,
@@ -66,13 +67,11 @@ const DATE_CARD_TEXT_DARK_CLASS = 'vliq-date-card-text-dark';
 const QUICK_CARD_TEXT_LIGHT_CLASS = 'vliq-quick-card-text-light';
 const QUICK_CARD_TEXT_DARK_CLASS = 'vliq-quick-card-text-dark';
 const QUICK_ACTIVE_CLASS = 'vliq-quick-active';
+const DATE_LIGHT_TEXT = GLASS_TEXT_PALETTE.light;
+const DATE_DARK_TEXT = GLASS_TEXT_PALETTE.dark;
+const DATE_TEXT_SWITCH_ADVANTAGE = 1.18;
+const DATE_MIN_READABLE_CONTRAST = 4.5;
 const DATE_CARD_SAMPLE_GRID = 28;
-// Shared by every Date Menu and Quick Settings card. Bright coloured glass
-// is NOT neutral white: it must keep white text regardless of luminance.
-const CARD_WHITE_MIN_CHANNEL = 226;
-const CARD_WHITE_MAX_SPREAD = 24;
-const CARD_WHITE_ENTER_RATIO = 0.74;
-const CARD_WHITE_EXIT_RATIO = 0.62;
 
 function finiteRect(values) {
     return values.every(Number.isFinite) &&
@@ -192,6 +191,59 @@ function quickCardState(actor) {
 function clampNumber(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
+
+function srgbToLinear(channel) {
+    const n = channel / 255;
+    return n <= 0.04045
+        ? n / 12.92
+        : Math.pow((n + 0.055) / 1.055, 2.4);
+}
+
+function rgbLuminance(r, g, b) {
+    return (
+        0.2126 * srgbToLinear(r) +
+        0.7152 * srgbToLinear(g) +
+        0.0722 * srgbToLinear(b)
+    );
+}
+
+function hexLuminance(hex) {
+    const value = Number.parseInt(hex.slice(1), 16);
+    return rgbLuminance(
+        (value >> 16) & 255,
+        (value >> 8) & 255,
+        value & 255
+    );
+}
+
+function trimmedMean(values, trimRatio = 0.30) {
+    if (!values.length)
+        return null;
+
+    const sorted = values.slice().sort((a, b) => a - b);
+    const trim = Math.min(
+        Math.floor(sorted.length * trimRatio),
+        Math.floor((sorted.length - 1) / 2)
+    );
+    const start = trim;
+    const end = sorted.length - trim;
+
+    let sum = 0;
+    for (let i = start; i < end; i++)
+        sum += sorted[i];
+
+    return sum / Math.max(1, end - start);
+}
+
+function contrastRatio(a, b) {
+    return (
+        (Math.max(a, b) + 0.05) /
+        (Math.min(a, b) + 0.05)
+    );
+}
+
+const DATE_LIGHT_LUMA = hexLuminance(DATE_LIGHT_TEXT);
+const DATE_DARK_LUMA = hexLuminance(DATE_DARK_TEXT);
 
 /**
  * Standard GNOME PopupMenu Liquid Glass.
@@ -1054,14 +1106,6 @@ class PopupGlassSurface {
         this._dateCardActors =
             found.map(item => item.actor);
 
-        // Initial paint is always white. An actual near-white sample is the
-        // only event that may switch a card to black; avoid a theme-colour
-        // flash while the asynchronous screenshot is in flight.
-        for (const actor of this._dateCardActors) {
-            if (!this._dateCardTextState.has(actor))
-                this._applyDateCardTextPolarity(actor, false);
-        }
-
         if (this._isQuickSettings) {
             this._rebuildQuickSignalEntries();
             this._quickNeedsRescan = false;
@@ -1513,7 +1557,7 @@ class PopupGlassSurface {
         });
     }
 
-    _dateCardWhiteRatio(frame, actor) {
+    _dateCardLuminance(frame, actor) {
         if (!frame || !actor)
             return null;
 
@@ -1522,83 +1566,141 @@ class PopupGlassSurface {
             return null;
 
         let [x, y, width, height] = rect;
-        // Sample the glass body, not antialiased edges or album artwork.
-        const insetX = dateCardClass(actor) === 'message'
+
+        // Sample the optical body, not the antialiased rim. Media cards also
+        // get a little more horizontal inset so album art cannot dominate the
+        // text polarity decision.
+        const klass = dateCardClass(actor);
+        const insetX = klass === 'message'
             ? Math.min(18, width * 0.08)
             : Math.min(8, width * 0.04);
         const insetY = Math.min(8, height * 0.08);
+
         x += insetX;
         y += insetY;
         width -= insetX * 2;
         height -= insetY * 2;
 
         const left = clampNumber(
-            Math.floor(x - frame.x), 0, frame.width - 1
+            Math.floor(x - frame.x),
+            0,
+            frame.width - 1
         );
         const top = clampNumber(
-            Math.floor(y - frame.y), 0, frame.height - 1
+            Math.floor(y - frame.y),
+            0,
+            frame.height - 1
         );
         const right = clampNumber(
             Math.ceil(x + width - frame.x),
-            left + 1, frame.width
+            left + 1,
+            frame.width
         );
         const bottom = clampNumber(
             Math.ceil(y + height - frame.y),
-            top + 1, frame.height
+            top + 1,
+            frame.height
         );
+
         if (right <= left || bottom <= top)
             return null;
 
+        const sampleWidth = right - left;
+        const sampleHeight = bottom - top;
         const step = Math.max(
             1,
-            Math.floor(Math.min(right - left, bottom - top) /
-                DATE_CARD_SAMPLE_GRID)
+            Math.floor(
+                Math.min(sampleWidth, sampleHeight) /
+                DATE_CARD_SAMPLE_GRID
+            )
         );
+
+        const values = [];
         const {data, stride, channels} = frame;
-        let nearWhite = 0;
-        let samples = 0;
 
         for (let py = top; py < bottom; py += step) {
             const row = py * stride;
+
             for (let px = left; px < right; px += step) {
                 const index = row + px * channels;
                 let r = data[index];
                 let g = data[index + 1];
                 let b = data[index + 2];
+
                 if (channels > 3) {
                     const alpha = data[index + 3];
                     if (alpha < 32)
                         continue;
+
                     if (alpha < 255) {
                         const inv = 255 / alpha;
-                        r = clampNumber(Math.round(r * inv), 0, 255);
-                        g = clampNumber(Math.round(g * inv), 0, 255);
-                        b = clampNumber(Math.round(b * inv), 0, 255);
+                        r = clampNumber(
+                            Math.round(r * inv),
+                            0,
+                            255
+                        );
+                        g = clampNumber(
+                            Math.round(g * inv),
+                            0,
+                            255
+                        );
+                        b = clampNumber(
+                            Math.round(b * inv),
+                            0,
+                            255
+                        );
                     }
                 }
-                samples++;
-                if (Math.min(r, g, b) >= CARD_WHITE_MIN_CHANNEL &&
-                    Math.max(r, g, b) - Math.min(r, g, b) <=
-                        CARD_WHITE_MAX_SPREAD)
-                    nearWhite++;
+
+                values.push(rgbLuminance(r, g, b));
             }
         }
 
-        // One existing captured frame supplies all card decisions. No new
-        // screenshot, extra GPU readback, or recurring poll is introduced.
-        return samples ? nearWhite / samples : null;
+        return trimmedMean(values, 0.30);
     }
 
-    _chooseDateCardDarkText(actor, whiteRatio) {
-        if (!Number.isFinite(whiteRatio))
+    _chooseDateCardDarkText(actor, luminance) {
+        if (!Number.isFinite(luminance))
             return null;
 
-        // Keep the previous colour inside the transition band to prevent
-        // flicker when a wallpaper or video moves behind translucent glass.
-        const wasDark = this._dateCardTextState.get(actor) === true;
-        return whiteRatio >= (
-            wasDark ? CARD_WHITE_EXIT_RATIO : CARD_WHITE_ENTER_RATIO
+        const lightContrast = contrastRatio(
+            luminance,
+            DATE_LIGHT_LUMA
         );
+        const darkContrast = contrastRatio(
+            luminance,
+            DATE_DARK_LUMA
+        );
+
+        const previous =
+            this._dateCardTextState.get(actor);
+
+        if (previous === undefined)
+            return darkContrast > lightContrast;
+
+        const current =
+            previous ? darkContrast : lightContrast;
+        const alternative =
+            previous ? lightContrast : darkContrast;
+
+        // A hard readability failure always wins immediately. Otherwise
+        // require a real contrast advantage before changing polarity, which
+        // keeps moving wallpaper/video highlights from making text ping-pong.
+        if (
+            current < DATE_MIN_READABLE_CONTRAST &&
+            alternative >= DATE_MIN_READABLE_CONTRAST
+        ) {
+            return !previous;
+        }
+
+        if (
+            alternative >
+            current * DATE_TEXT_SWITCH_ADVANTAGE
+        ) {
+            return !previous;
+        }
+
+        return previous;
     }
 
     _applyDateCardTextPolarity(actor, useDarkText) {
@@ -1773,12 +1875,12 @@ class PopupGlassSurface {
                 continue;
             }
 
-            const whiteRatio =
-                this._dateCardWhiteRatio(frame, actor);
+            const luminance =
+                this._dateCardLuminance(frame, actor);
             const dark =
                 this._chooseDateCardDarkText(
                     actor,
-                    whiteRatio
+                    luminance
                 );
 
             this._applyDateCardTextPolarity(

@@ -18,11 +18,10 @@ const SAMPLE_MARGIN_MIN = 48;
 const SAMPLE_MARGIN_MAX = 180;
 const TEXT_LIGHT_CLASS = 'vliq-notification-text-light';
 const TEXT_DARK_CLASS = 'vliq-notification-text-dark';
-// Match Date Menu/Quick Settings: black only over neutral near-white glass.
-const CARD_WHITE_MIN_CHANNEL = 226;
-const CARD_WHITE_MAX_SPREAD = 24;
-const CARD_WHITE_ENTER_RATIO = 0.74;
-const CARD_WHITE_EXIT_RATIO = 0.62;
+const LIGHT_TEXT = '#f7f8fc';
+const DARK_TEXT = '#17191f';
+const TEXT_SWITCH_ADVANTAGE = 1.18;
+const MIN_READABLE_CONTRAST = 4.5;
 
 function finiteRect(values) {
     return values.every(Number.isFinite) &&
@@ -33,6 +32,58 @@ function finiteRect(values) {
 function clampNumber(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
+
+function srgbToLinear(channel) {
+    const n = channel / 255;
+    return n <= 0.04045
+        ? n / 12.92
+        : Math.pow((n + 0.055) / 1.055, 2.4);
+}
+
+function rgbLuminance(r, g, b) {
+    return (
+        0.2126 * srgbToLinear(r) +
+        0.7152 * srgbToLinear(g) +
+        0.0722 * srgbToLinear(b)
+    );
+}
+
+function hexLuminance(hex) {
+    const value = Number.parseInt(hex.slice(1), 16);
+    return rgbLuminance(
+        (value >> 16) & 255,
+        (value >> 8) & 255,
+        value & 255
+    );
+}
+
+function contrastRatio(a, b) {
+    return (
+        (Math.max(a, b) + 0.05) /
+        (Math.min(a, b) + 0.05)
+    );
+}
+
+function trimmedMean(values, trimRatio = 0.30) {
+    if (!values.length)
+        return null;
+
+    const sorted = values.slice().sort((a, b) => a - b);
+    const trim = Math.min(
+        Math.floor(sorted.length * trimRatio),
+        Math.floor((sorted.length - 1) / 2)
+    );
+
+    let sum = 0;
+    for (let i = trim; i < sorted.length - trim; i++)
+        sum += sorted[i];
+
+    return sum / Math.max(1, sorted.length - trim * 2);
+}
+
+const LIGHT_LUMA = hexLuminance(LIGHT_TEXT);
+const DARK_LUMA = hexLuminance(DARK_TEXT);
+
 
 export class NotificationGlassManager {
     constructor(params) {
@@ -288,10 +339,6 @@ export class NotificationGlassManager {
         };
 
         this._materials.set(actor, material);
-        // Default to white while waiting for the first screenshot. GNOME's
-        // theme must never pick black over coloured or unmeasured glass.
-        actor.remove_style_class_name?.(TEXT_DARK_CLASS);
-        actor.add_style_class_name?.(TEXT_LIGHT_CLASS);
         this._connectGeometrySignals(material);
         this._applyAppearance(
             material,
@@ -532,63 +579,118 @@ export class NotificationGlassManager {
         });
     }
 
-    _bannerWhiteRatio(frame) {
+    _bannerLuminance(frame) {
         if (!frame)
             return null;
 
-        const insetX = Math.min(14, frame.width * 0.06);
-        const insetY = Math.min(10, frame.height * 0.10);
+        const insetX =
+            Math.min(14, frame.width * 0.06);
+        const insetY =
+            Math.min(10, frame.height * 0.10);
         const left = Math.floor(insetX);
         const top = Math.floor(insetY);
-        const right = Math.max(left + 1,
-            Math.ceil(frame.width - insetX));
-        const bottom = Math.max(top + 1,
-            Math.ceil(frame.height - insetY));
-        const step = Math.max(1, Math.floor(
-            Math.min(right - left, bottom - top) / 28
-        ));
+        const right = Math.max(
+            left + 1,
+            Math.ceil(frame.width - insetX)
+        );
+        const bottom = Math.max(
+            top + 1,
+            Math.ceil(frame.height - insetY)
+        );
+
+        const step = Math.max(
+            1,
+            Math.floor(
+                Math.min(
+                    right - left,
+                    bottom - top
+                ) / 28
+            )
+        );
+
+        const values = [];
         const {data, stride, channels} = frame;
-        let nearWhite = 0;
-        let samples = 0;
 
         for (let py = top; py < bottom; py += step) {
             const row = py * stride;
+
             for (let px = left; px < right; px += step) {
                 const index = row + px * channels;
                 let r = data[index];
                 let g = data[index + 1];
                 let b = data[index + 2];
+
                 if (channels > 3) {
                     const alpha = data[index + 3];
                     if (alpha < 32)
                         continue;
+
                     if (alpha < 255) {
                         const inv = 255 / alpha;
-                        r = clampNumber(Math.round(r * inv), 0, 255);
-                        g = clampNumber(Math.round(g * inv), 0, 255);
-                        b = clampNumber(Math.round(b * inv), 0, 255);
+                        r = clampNumber(
+                            Math.round(r * inv),
+                            0,
+                            255
+                        );
+                        g = clampNumber(
+                            Math.round(g * inv),
+                            0,
+                            255
+                        );
+                        b = clampNumber(
+                            Math.round(b * inv),
+                            0,
+                            255
+                        );
                     }
                 }
-                samples++;
-                if (Math.min(r, g, b) >= CARD_WHITE_MIN_CHANNEL &&
-                    Math.max(r, g, b) - Math.min(r, g, b) <=
-                        CARD_WHITE_MAX_SPREAD)
-                    nearWhite++;
+
+                values.push(
+                    rgbLuminance(r, g, b)
+                );
             }
         }
 
-        return samples ? nearWhite / samples : null;
+        return trimmedMean(values, 0.30);
     }
 
-    _chooseDarkText(material, whiteRatio) {
-        if (!Number.isFinite(whiteRatio))
+    _chooseDarkText(material, luminance) {
+        if (!Number.isFinite(luminance))
             return null;
 
-        // Hysteresis prevents a moving backdrop from flashing the glyphs.
-        return whiteRatio >= (
-            material.useDarkText === true
-                ? CARD_WHITE_EXIT_RATIO : CARD_WHITE_ENTER_RATIO
+        const lightContrast = contrastRatio(
+            luminance,
+            LIGHT_LUMA
         );
+        const darkContrast = contrastRatio(
+            luminance,
+            DARK_LUMA
+        );
+
+        const previous = material.useDarkText;
+        if (previous === null)
+            return darkContrast > lightContrast;
+
+        const current =
+            previous ? darkContrast : lightContrast;
+        const alternative =
+            previous ? lightContrast : darkContrast;
+
+        if (
+            current < MIN_READABLE_CONTRAST &&
+            alternative >= MIN_READABLE_CONTRAST
+        ) {
+            return !previous;
+        }
+
+        if (
+            alternative >
+            current * TEXT_SWITCH_ADVANTAGE
+        ) {
+            return !previous;
+        }
+
+        return previous;
     }
 
     _applyTextPolarity(material, useDarkText) {
@@ -655,12 +757,12 @@ export class NotificationGlassManager {
             return;
         }
 
-        const whiteRatio =
-            this._bannerWhiteRatio(frame);
+        const luminance =
+            this._bannerLuminance(frame);
         const useDarkText =
             this._chooseDarkText(
                 material,
-                whiteRatio
+                luminance
             );
 
         this._applyTextPolarity(

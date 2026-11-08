@@ -1225,32 +1225,13 @@
     color: rgba(23, 25, 31, 0.90) !important;
 }
 
-/* Main GNOME Calendar ONLY: white glyphs on every non-white background.
- * The popup scanner adds .vliq-date-card-text-dark strictly when the actual
- * sampled calendar glass is neutral white. Until that first sample, keep
- * white, regardless of Yaru theme. Do not affect Clock desktop widget or
- * other Date Menu cards. */
-.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-month-label,
-.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-month-header .pager-button,
-.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day-heading,
-.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day {
-    color: #ffffff !important;
-}
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-dark .calendar-month-label,
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-dark .calendar-month-header .pager-button,
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-dark .calendar-day-heading,
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-dark .calendar-day {
-    color: #111111 !important;
-}
-
-
-/* Today's date gets an accent-colored filled bead, but its glyph stays
- * white because the bead is colored (never a plain white backdrop). This
- * overrides the calendar-wide black text used only on neutral white glass. */
+/* Semantic calendar state: today follows the GNOME Appearance accent,
+ * not the adaptive black/white palette and not the Liquid Glass tint color.
+ * Keep the day bead itself neutral; only the meaning-bearing text is accented. */
 .vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today,
 .vliq-liquid-popup-content.datemenu-popover .vliq-date-card-text-light .calendar-day.calendar-today,
 .vliq-liquid-popup-content.datemenu-popover .vliq-date-card-text-dark .calendar-day.calendar-today {
-    color: #ffffff !important;
+    color: -st-accent-color !important;
     font-weight: 700;
 }
 
@@ -1335,8 +1316,7 @@
  * in the calendar and therefore remains immediately scannable. */
 .vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today {
     background-color: -st-accent-color !important;
-    /* Today has a colored accent bead, not a white background. */
-    color: #ffffff !important;
+    color: -st-accent-fg-color !important;
     border-color: rgba(255, 255, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
     opacity: 1;
@@ -1346,14 +1326,6 @@
 .vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus {
     border-color: rgba(255, 255, 255, 0.54) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-
-/* Today's filled accent bead remains white even if the larger calendar
- * card is white and other date glyphs switch to black. */
-.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day.calendar-today,
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-dark .calendar-day.calendar-today,
-.vliq-liquid-popup-content.datemenu-popover .calendar.vliq-date-card-text-light .calendar-day.calendar-today {
-    color: #ffffff !important;
 }
 
 /* Media controls remain crisp over their newly-glassed message card. */
