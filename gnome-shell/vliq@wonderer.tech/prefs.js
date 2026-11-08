@@ -615,6 +615,51 @@ export default class VLIQPreferences extends ExtensionPreferences {
         );
 
         // -----------------------------------------------------------------
+        // Top Header
+        // -----------------------------------------------------------------
+        const headerPage = addPage(
+            window,
+            'Top Header',
+            'go-top-symbolic'
+        );
+        const topHeader = new Adw.PreferencesGroup({
+            title: 'Top Header Layout',
+            description:
+                'Choose one full-width Liquid Glass header or three separate rounded sections. Applies immediately without moving GNOME controls.',
+        });
+        headerPage.add(topHeader);
+        const headerLayout = new Adw.ComboRow({
+            title: 'Header style',
+            subtitle:
+                '3-Part: Left / Date / Quick Settings. Full: one continuous top bar.',
+            model: Gtk.StringList.new([
+                '3-Part Header',
+                'Full Header',
+            ]),
+        });
+        const headerLayoutValues = ['split', 'full'];
+        let syncingHeaderLayout = false;
+        const syncHeaderLayout = () => {
+            syncingHeaderLayout = true;
+            headerLayout.selected = Math.max(
+                0, headerLayoutValues.indexOf(
+                    settings.get_string('top-header-layout')
+                )
+            );
+            syncingHeaderLayout = false;
+        };
+        syncHeaderLayout();
+        headerLayout.connect('notify::selected', () => {
+            if (!syncingHeaderLayout && headerLayout.selected < 2)
+                settings.set_string(
+                    'top-header-layout',
+                    headerLayoutValues[headerLayout.selected]
+                );
+        });
+        settings.connect('changed::top-header-layout', syncHeaderLayout);
+        topHeader.add(headerLayout);
+
+        // -----------------------------------------------------------------
         // Dock
         // -----------------------------------------------------------------
         const dockPage = addPage(

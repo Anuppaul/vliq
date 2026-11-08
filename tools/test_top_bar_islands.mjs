@@ -371,10 +371,113 @@ assert.equal(stageSignals.size, 0, 'second cleanup removes last frame hook');
 assert.equal(uiGroup.children.filter(x => x !== panelBox).length, 0,
     'no duplicate glass actors survive multiple enable/disable cycles');
 
+// FULL Header is a single panel-height square glass surface, selectable
+// via canonical VLIQ Settings while GNOME's native controls stay in place.
+const layoutSettings = new Actor();
+layoutSettings.mode = 'full';
+layoutSettings.get_string = key => {
+    assert.equal(key, 'top-header-layout');
+    return layoutSettings.mode;
+};
+layoutSettings.set_string = (key, next) => {
+    assert.equal(key, 'top-header-layout');
+    layoutSettings.mode = next;
+    layoutSettings.emit('changed::top-header-layout');
+};
+const beforeFull = glassSurfaces.length;
+const configurable = new TopBarIslands({
+    vendor: {}, settings: {},
+    layoutSettings, readAppearance: () => ({opacity: 0.05}),
+    panel, layout, display,
+});
+assert.equal(configurable.setup(), true);
+assert.equal(configurable._layoutMode, 'full');
+assert.equal(configurable._regions.length, 1);
+assert.equal(glassSurfaces.length, beforeFull + 1,
+    'Full Header creates exactly one bounded glass effect');
+assert.equal(stageSignals.size, 1,
+    'switchable header keeps exactly one stage callback');
+assert.ok(panel.classes.has('vliq-full-header'));
+assert.ok(!panel.classes.has('vliq-three-islands'));
+const full = configurable._regions[0];
+assert.equal(full.surface.options.cornerRadius, 0,
+    'Full Header uses square native-panel corners');
+assert.ok(full.surface.bounds.w > 1000 &&
+    full.surface.bounds.w <= layout.primaryMonitor.width,
+    'Full Header spans the native primary panel and no desktop area');
+assert.equal(full.surface.bounds.h, panelBox.height);
+for (const [actor, children] of [
+    [panel._leftBox, controls[0]], [panel._centerBox, controls[1]],
+    [panel._rightBox, controls[2]],
+]) {
+    for (let i = 0; i < children.length; i++)
+        assert.equal(actor.children[i], children[i],
+            'Header layouts must preserve native child actor identity');
+}
+full.surface._ready = true;
+configurable.sync();
+assert.ok(panel.classes.has('vliq-top-header-ready'),
+    'native fallback vanishes only after one actual glass composite');
+layoutSettings.set_string('top-header-layout', 'split');
+assert.equal(full.surface.destroyed, true,
+    'switching to 3-Part must remove full-width shader');
+assert.equal(configurable._regions.length, 3);
+assert.ok(!panel.classes.has('vliq-full-header'));
+assert.ok(!panel.classes.has('vliq-top-header-ready'));
+assert.ok(panel.classes.has('vliq-three-islands'));
+assert.ok(configurable._regions.every(r =>
+    r.surface.options.cornerRadius === 16));
+assert.equal(stageSignals.size, 1, 'mode switch cannot duplicate frame loop');
+const previousIslands = [...configurable._regions];
+layoutSettings.set_string('top-header-layout', 'full');
+assert.ok(previousIslands.every(r => r.surface.destroyed),
+    'three old shader actors must be destroyed on Full switch');
+assert.ok([panel._leftBox, panel._centerBox, panel._rightBox]
+    .every(actor => !actor.classes.has('vliq-panel-island')));
+assert.equal(configurable._regions.length, 1);
+assert.equal(stageSignals.size, 1);
+const fullAgain = configurable._regions[0];
+assert.equal(fullAgain.surface.bounds.h, panelBox.height);
+// Full Header retains the same synchronous native fullscreen semantics.
+fullscreen = true;
+display.emit('in-fullscreen-changed');
+assert.equal(fullAgain.surface.visible, false,
+    'Full Header must hide during fullscreen');
+fullscreen = false;
+display.emit('in-fullscreen-changed');
+assert.equal(fullAgain.surface.visible, true,
+    'Full Header must reappear with the native panel');
+fullAgain.surface._ready = true;
+configurable.sync();
+assert.ok(panel.classes.has('vliq-top-header-ready'));
+const originalPanelWidth = panelBox.width;
+panelBox.width = 0;
+configurable.sync();
+assert.equal(fullAgain.surface.visible, false,
+    'invalid native allocation cannot draw a desktop-wide glass layer');
+assert.ok(!panel.classes.has('vliq-top-header-ready'),
+    'hide must restore native fallback even at invalid bounds');
+panelBox.width = originalPanelWidth;
+configurable.sync();
+assert.equal(fullAgain.surface.visible, true);
+const beforeTickWrites = fullAgain.surface.boundsWrites;
+stage.tick();
+assert.equal(fullAgain.surface.boundsWrites, beforeTickWrites,
+    'stationary full header should not rewrite glass bounds');
+configurable.cleanup();
+assert.equal(stageSignals.size, 0);
+assert.equal(layoutSettings.signals.size, 0,
+    'layout GSettings handler must be disconnected on hot reload');
+assert.equal(uiGroup.children.filter(x => x !== panelBox).length, 0,
+    'no full-width glass left behind after cleanup');
+assert.ok(!panel.classes.has('vliq-full-header'));
+
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');
 assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-three-islands/);
+assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-full-header/);
+assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-full-header\.vliq-top-header-ready/);
 assert.match(css, /#panelLeft\.vliq-panel-island/);
 assert.match(css, /#panelCenter\.vliq-panel-island/);
 assert.match(css, /#panelRight\.vliq-panel-island/);
@@ -396,6 +499,8 @@ const begin = integration.indexOf('    _setupTopPanelGlass() {');
 const finish = integration.indexOf('    _setupNativeNotificationStyler() {', begin);
 assert.ok(begin >= 0 && finish > begin);
 const topSetup = integration.slice(begin, finish);
+assert.match(topSetup, /layoutSettings: this\._vliqSettings/,
+    'full/split setting must come from canonical VLIQ schema');
 assert.match(topSetup, /new TopBarIslands\(/,
     'new top bar must use the three-island manager');
 assert.doesNotMatch(topSetup, /new this\._vendor\.DashManager\(/,
@@ -411,6 +516,24 @@ assert.match(dynamicPanelCss, /background-color: transparent !important/,
     'dynamic CSS must keep the native full-width panel transparent');
 assert.doesNotMatch(dynamicPanelCss, /background-color: rgba/,
     'global Appearance updates cannot repaint a full-width tint');
+
+const schema = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/schemas/org.gnome.shell.extensions.vliq.gschema.xml',
+    import.meta.url
+), 'utf8');
+const prefs = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/prefs.js', import.meta.url
+), 'utf8');
+assert.match(schema, /name="top-header-layout" type="s"/);
+assert.match(schema, /<default>'split'<\/default>/,
+    'original three-part look is default');
+assert.match(prefs, /'Top Header Layout'/);
+assert.match(prefs, /'Top Header',/,
+    'layout selector has a dedicated preferences page');
+assert.match(prefs, /headerPage.add\(topHeader\)/,
+    'Header layout controls belong in the Top Header page');
+assert.match(prefs, /'Full Header'/);
+assert.match(prefs, /'3-Part Header'/);
 
 const installer = await readFile(new URL(
     '../gnome-shell/install.sh', import.meta.url

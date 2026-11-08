@@ -1,7 +1,8 @@
-// VLIQ GNOME 50 top bar: three independent rounded, refractive glass islands.
+// VLIQ GNOME 50 top bar: configurable full-width or three-part glass.
+// No GNOME panel actor is reparented and native controls keep their input.
 // Never reparent GNOME's panel buttons or modify their input handling.
-// Reuse the same bounded native PanelGlassSurface used by VLIQ's Dock panel,
-// Clock and Calendar; no full-width DashManager FBO and no new shader path.
+// Reuse one bounded PanelGlassSurface per visible region, not DashManager's
+// old full-monitor FBO; no extra shader, input surface or render timer.
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {frameDue} from './frameBudget.js';
@@ -27,10 +28,15 @@ function clamp(value, minimum, maximum) {
 }
 
 export class TopBarIslands {
-    constructor({vendor, settings, readAppearance, panel = Main.panel,
-        layout = Main.layoutManager, display = global.display}) {
+    constructor({vendor, settings, readAppearance, layoutSettings = null,
+        panel = Main.panel, layout = Main.layoutManager,
+        display = global.display}) {
         this._vendor = vendor;
         this._settings = settings;
+        // VLIQ's canonical schema controls the layout. The renderer's
+        // separate settings still control LiquidEffect optics.
+        this._layoutSettings = layoutSettings;
+        this._layoutMode = 'split';
         this._readAppearance = readAppearance;
         this._panel = panel;
         this._layout = layout;
@@ -81,24 +87,9 @@ export class TopBarIslands {
         this._host = host;
         this._panelRoot = root;
         try {
-            // A transparent native panel lets wallpaper show BETWEEN islands.
-            // Each island owns an isolated St fallback until GPU glass is ready.
-            panel.add_style_class_name('vliq-liquid-top-panel');
-            panel.add_style_class_name('vliq-three-islands');
-
-            for (const {role, actor} of actors) {
-                const surface = new PanelGlassSurface(
-                    this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS}
-                );
-                if (!surface.attach(host, root)) {
-                    surface.destroy();
-                    throw new Error('native glass creation failed: ' + role);
-                }
-                actor.add_style_class_name('vliq-panel-island');
-                actor.add_style_class_name('vliq-panel-island-' + role);
-                this._regions.push({role, actor, surface, ready: false, inactive: false, lastBounds: null});
-            }
+            // Setup follows the user's saved layout before the first
+            // compositor frame, avoiding an initial three-pill flash.
+            this._buildLayout(this._preferredLayout());
 
             this._enabled = true;
             // The native panel moves during Overview/fullscreen and can
@@ -116,11 +107,17 @@ export class TopBarIslands {
                     [actor, 'child-added'],
                     [actor, 'child-removed'],
                 ]),
+                [this._layoutSettings, 'changed::top-header-layout'],
             ]) {
                 try {
                     if (!actor?.connect)
                         continue;
-                    const id = actor.connect(signal, () => this.sync());
+                    const id = actor.connect(signal, () => {
+                        if (signal === 'changed::top-header-layout')
+                            this._switchLayout();
+                        else
+                            this.sync();
+                    });
                     if (id)
                         this._signals.push({actor, id});
                 } catch {
@@ -128,13 +125,116 @@ export class TopBarIslands {
                 }
             }
             this.sync();
-            console.log('[VLIQ][TopBar] three native rounded glass islands attached');
+            console.log(
+                '[VLIQ][TopBar] ' + this._layoutMode +
+                ' native optical header attached'
+            );
             return true;
         } catch (error) {
-            console.warn('[VLIQ][TopBar] islands fallback: ' + error);
+            console.warn('[VLIQ][TopBar] header fallback: ' + error);
             this.cleanup();
             return false;
         }
+    }
+
+    _preferredLayout() {
+        try {
+            return this._layoutSettings?.get_string?.('top-header-layout')
+                === 'full' ? 'full' : 'split';
+        } catch {
+            return 'split';
+        }
+    }
+
+    _disposeLayout() {
+        for (const region of this._regions) {
+            try { region.surface.destroy(); } catch {}
+            if (region.role === 'full')
+                continue;
+            for (const name of [
+                'vliq-panel-island-ready',
+                'vliq-panel-island-inactive',
+                'vliq-panel-island-' + region.role,
+                'vliq-panel-island',
+            ]) {
+                try { region.actor.remove_style_class_name(name); } catch {}
+            }
+        }
+        this._regions = [];
+        this._panel?.remove_style_class_name?.('vliq-three-islands');
+        this._panel?.remove_style_class_name?.('vliq-full-header');
+        this._panel?.remove_style_class_name?.('vliq-top-header-ready');
+        this._hasReportedReady = false;
+        this._lastStageSyncUs = 0;
+    }
+
+    _buildLayout(mode) {
+        this._layoutMode = mode;
+        const panel = this._panel;
+        panel.add_style_class_name('vliq-liquid-top-panel');
+        if (mode === 'full') {
+            // One edge-to-edge bounded panel. It is placed under the native
+            // panelBox and spans only its allocated 36-ish-pixel height.
+            const surface = new PanelGlassSurface(
+                this._vendor, this._settings, this._readAppearance,
+                {cornerRadius: 0}
+            );
+            if (!surface.attach(this._host, this._panelRoot)) {
+                surface.destroy();
+                throw new Error('full-header glass attach failed');
+            }
+            panel.add_style_class_name('vliq-full-header');
+            this._regions.push({
+                role: 'full', actor: panel, surface, ready: false,
+                inactive: false, lastBounds: null,
+            });
+        } else {
+            panel.add_style_class_name('vliq-three-islands');
+            for (const [role, key] of REGIONS) {
+                const actor = panel[key];
+                const surface = new PanelGlassSurface(
+                    this._vendor, this._settings, this._readAppearance,
+                    {cornerRadius: RADIUS}
+                );
+                if (!surface.attach(this._host, this._panelRoot)) {
+                    surface.destroy();
+                    throw new Error('island glass attach failed: ' + role);
+                }
+                actor.add_style_class_name('vliq-panel-island');
+                actor.add_style_class_name('vliq-panel-island-' + role);
+                this._regions.push({
+                    role, actor, surface, ready: false,
+                    inactive: false, lastBounds: null,
+                });
+            }
+        }
+    }
+
+    _switchLayout() {
+        if (!this._enabled)
+            return;
+        const next = this._preferredLayout();
+        if (next === this._layoutMode)
+            return;
+        // Dispose the old bounded material before creating the replacement;
+        // never keep a hidden full-width shader beneath the three islands.
+        this._disposeLayout();
+        try {
+            this._buildLayout(next);
+        } catch (error) {
+            console.warn(
+                '[VLIQ][TopBar] ' + next + ' mode unavailable: ' + error
+            );
+            this._disposeLayout();
+            // The accepted three-island layout is the safe rendering fallback.
+            try { this._buildLayout('split'); } catch (fallbackError) {
+                console.warn(
+                    '[VLIQ][TopBar] split fallback failed: ' + fallbackError
+                );
+                this._disposeLayout();
+            }
+        }
+        this.sync();
     }
 
     // All three native boxes share ONE compositor frame callback. Stable
@@ -197,6 +297,10 @@ export class TopBarIslands {
     }
 
     _syncNow() {
+        if (this._layoutMode === 'full') {
+            this._syncFullHeader();
+            return;
+        }
         if (!this._canShow()) {
             for (const region of this._regions)
                 this._hideRegion(region);
@@ -367,6 +471,67 @@ export class TopBarIslands {
         }
     }
 
+    _syncFullHeader() {
+        const region = this._regions[0];
+        if (!region || region.role !== 'full')
+            return;
+        const panel = this._panel;
+        const glass = region.surface;
+        const show = this._canShow();
+        const box = this._layout?.panelBox;
+        const monitor = this._layout?.primaryMonitor;
+        const hide = () => {
+            glass.hide();
+            region.lastBounds = null;
+            if (region.ready) {
+                panel.remove_style_class_name('vliq-top-header-ready');
+                region.ready = false;
+            }
+        };
+        if (!show || !box || !monitor) {
+            hide();
+            return;
+        }
+        // Clip to the native panel allocation and primary monitor, never
+        // cover the desktop. The full strip has square corners and follows
+        // the original panel's paint opacity.
+        const [x, y] = box.get_transformed_position?.() ?? [NaN, NaN];
+        const [width, height] = box.get_transformed_size?.() ?? [NaN, NaN];
+        const [hostX, hostY] =
+            this._host.get_transformed_position?.() ?? [0, 0];
+        if (![x, y, width, height, hostX, hostY].every(Number.isFinite)) {
+            hide();
+            return;
+        }
+        const left = Math.max(x, monitor.x);
+        const top = Math.max(y, monitor.y);
+        const right = Math.min(x + width, monitor.x + monitor.width);
+        const bottom = Math.min(y + height, monitor.y + monitor.height);
+        const w = right - left;
+        const h = bottom - top;
+        if (w <= 1 || h < MIN_HEIGHT || h > 240) {
+            hide();
+            return;
+        }
+        const opacity = panel.get_paint_opacity?.() ?? panel.opacity ?? 255;
+        const bounds = [left - hostX, top - hostY, w, h, opacity];
+        const previous = region.lastBounds;
+        if (!previous || bounds.some((v, i) => v !== previous[i])) {
+            glass.setBounds(...bounds);
+            region.lastBounds = bounds;
+        } else {
+            glass.syncFrame?.();
+        }
+        const ready = Boolean(glass.ready);
+        if (ready !== region.ready) {
+            region.ready = ready;
+            if (ready)
+                panel.add_style_class_name('vliq-top-header-ready');
+            else
+                panel.remove_style_class_name('vliq-top-header-ready');
+        }
+    }
+
     updateAppearance() {
         if (!this._enabled)
             return;
@@ -385,22 +550,8 @@ export class TopBarIslands {
             try { actor.disconnect(id); } catch {}
         }
         this._signals = [];
-        for (const region of this._regions) {
-            try { region.surface.destroy(); } catch {}
-            for (const name of [
-                'vliq-panel-island-ready',
-                'vliq-panel-island-inactive',
-                'vliq-panel-island-' + region.role,
-                'vliq-panel-island',
-            ]) {
-                try { region.actor.remove_style_class_name(name); } catch {}
-            }
-        }
-        this._regions = [];
-        try {
-            this._panel?.remove_style_class_name('vliq-three-islands');
-            this._panel?.remove_style_class_name('vliq-liquid-top-panel');
-        } catch {}
+        this._disposeLayout();
+        this._panel?.remove_style_class_name?.('vliq-liquid-top-panel');
         this._visibilityGate = null;
         this._host = null;
         this._panelRoot = null;

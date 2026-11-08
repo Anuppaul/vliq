@@ -207,6 +207,16 @@
       <summary>Diagnostic status of the Quick Settings brightness control</summary>
     </key>
 
+    <key name="top-header-layout" type="s">
+      <default>'split'</default>
+      <choices>
+        <choice value="split"/>
+        <choice value="full"/>
+      </choices>
+      <summary>Top header glass layout</summary>
+      <description>Split creates three rounded left/center/right islands. Full paints one bounded square-corner edge-to-edge strip without reparenting GNOME controls.</description>
+    </key>
+
     <key name="panel-menu-hover-switch" type="b">
       <default>false</default>
       <summary>Switch between open panel menus on hover</summary>

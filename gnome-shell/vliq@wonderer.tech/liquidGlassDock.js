@@ -2020,14 +2020,15 @@ export class LiquidGlassIntegration {
         if (this._topPanelIslands || !Main.panel)
             return;
 
-        // Three independent rounded optical cards track GNOME's native
-        // left/center/right allocations. Never reparent controls, override
-        // popup menus, or draw the previous full-width DashManager backdrop.
+        // One configurable native top bar: three independent islands or one
+        // full-width, square glass strip. Both use bounded PanelGlassSurface
+        // captures and leave GNOME controls and menus in place.
         let manager = null;
         try {
             manager = new TopBarIslands({
                 vendor: this._vendor,
                 settings: this._settings,
+                layoutSettings: this._vliqSettings,
                 readAppearance: () => this._readSharedCardAppearance(),
             });
             if (!manager.setup()) {
@@ -2041,8 +2042,8 @@ export class LiquidGlassIntegration {
 
             this._topPanelIslands = manager;
 
-            // Retain the GNOME 50 fullscreen guard: the native panelBox and
-            // all three independent glass actors must hide with fullscreen.
+            // Retain GNOME 50 fullscreen guard in both layouts:
+            // native panelBox and bounded glass hide together.
             this._fullscreenPanelChromeGuard =
                 new FullscreenPanelChromeGuard({
                     layout: Main.layoutManager,
@@ -2053,7 +2054,7 @@ export class LiquidGlassIntegration {
             this._fullscreenPanelChromeGuard.setup();
 
             console.log(
-                '[VLIQ][LiquidGlass] three rounded top-bar islands active'
+                '[VLIQ][LiquidGlass] configurable top-header glass active'
             );
         } catch (error) {
             try { this._fullscreenPanelChromeGuard?.cleanup(); } catch {}

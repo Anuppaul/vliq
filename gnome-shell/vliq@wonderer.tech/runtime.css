@@ -325,6 +325,24 @@
     -panel-corner-border-color: transparent;
 }
 
+/* User-selectable FULL Top Header. One bounded native-panel LiquidEffect
+ * stays below all GNOME controls. Stronger selector specificity wins over
+ * dynamically loaded #panel.vliq-liquid-top-panel transparency rules. */
+#panel.vliq-liquid-top-panel.vliq-full-header {
+    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
 /* End independent panel islands. Native GNOME menu controls are untouched. */
 
 /* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,
