@@ -108,6 +108,8 @@ export class BottomTaskbarPreview {
 
     _thumbnail(window) {
         const source = window.get_compositor_private();
+        if (!source)
+            throw new Error('window compositor actor is unavailable');
         const rect = window.get_frame_rect?.() ?? null;
         const sourceWidth = Math.max(1,
             rect?.width ?? source.width ?? THUMB_WIDTH);
@@ -179,7 +181,10 @@ export class BottomTaskbarPreview {
         });
         button.connect('clicked', () => {
             this.close();
-            this._activateWindow(window);
+            try { this._activateWindow(window); }
+            catch (error) {
+                console.warn('[VLIQ][TaskbarPreview] focus: ' + error);
+            }
         });
         return button;
     }
@@ -205,10 +210,17 @@ export class BottomTaskbarPreview {
             x_expand: false,
         });
 
-        if (shown.length) {
-            for (const window of shown)
+        let displayed = 0;
+        for (const window of shown) {
+            try {
                 popup.add_child(this._tile(window, item));
-        } else {
+                displayed++;
+            } catch {
+                // Native window can be destroyed between get_windows()
+                // and cloning. Skip that one thumbnail, not the popup.
+            }
+        }
+        if (displayed === 0) {
             popup.add_child(new St.Label({
                 style_class: 'vliq-taskbar-preview-empty',
                 text: item.app?.get_name?.() ?? 'Application',
