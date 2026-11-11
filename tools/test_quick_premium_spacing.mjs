@@ -13,7 +13,9 @@ const end = css.indexOf('/* VLIQ Spotlight', start);
 assert.ok(start >= 0 && end > start, 'premium Quick menu override exists');
 const quick = css.slice(start, end);
 function declarations(selector) {
-    const at = quick.indexOf(selector);
+    // Specific selectors can occur in a group that only sets radius before
+    // the later material/spacing declaration. Inspect the final override.
+    const at = quick.lastIndexOf(selector);
     assert.ok(at >= 0, 'missing CSS selector: ' + selector);
     const open = quick.indexOf('{', at);
     const close = quick.indexOf('}', open);
