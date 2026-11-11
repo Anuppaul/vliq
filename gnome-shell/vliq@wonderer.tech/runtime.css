@@ -1885,6 +1885,87 @@
     box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
 }
 
+/* Premium Quick Settings spacing — native Shell 50 layout, no DOM clones.
+ * QuickSettingsLayout reads spacing-rows / spacing-columns from theme nodes.
+ * Single-card ownership: split toggles have ONE outer card, while internal
+ * action buttons remain transparent with their native hit targets intact. */
+.vliq-liquid-popup-content.quick-settings.quick-settings,
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid {
+    spacing-rows: 10px;
+    spacing-columns: 10px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid {
+    padding: 4px 2px 6px 2px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-slider,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button {
+    border-radius: 11px !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    border: 0 !important;
+    border-radius: 11px !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+}
+/* Split toggle inner action is not a second card. Preserve click/toggle. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:checked,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:active,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:active {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle-separator {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-slider {
+    padding: 9px 11px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid .quick-settings-system-item {
+    margin-top: 3px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid .quick-slider .slider-bin {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Expanded submenu: one card per clickable option, with deliberate row gaps. */
+.vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-liquid-quick-menu-root .quick-toggle-menu-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
+    margin: 3px 6px;
+    padding: 9px 12px;
+    border-radius: 9px !important;
+}
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item-separator,
+.vliq-liquid-popup-content.quick-settings .popup-separator-menu-item-separator {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Keep the active slider bar and GNOME accent text; only decorative lines
+ * disappear. Calendar and Bottom Taskbar selectors are untouched. */
+
 /* VLIQ Spotlight ------------------------------------------------------- */
 
 /*
