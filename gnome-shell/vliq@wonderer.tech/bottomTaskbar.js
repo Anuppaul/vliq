@@ -183,6 +183,12 @@ export class BottomTaskbar {
                     error);
                 this._centerGroup = null;
             }
+            // Native workspace switcher is independent of the optional
+            // VLIQ Start icon. Keep it visible even if icon theme/creation
+            // fails, without reparenting GNOME's real Activities button.
+            this._activity = panel.statusArea?.activities?.container ?? null;
+            this._activityWasVisible = this._activity?.visible !== false;
+            this._activity?.show?.();
             try {
                 const icon = new St.Icon({
                     icon_name: 'start-here-symbolic',
@@ -205,14 +211,6 @@ export class BottomTaskbar {
                 });
                 (this._centerGroup ?? panel._centerBox)
                     .insert_child_at_index(this._start, 0);
-                // GNOME 50's native ActivitiesButton shows the workspace
-                // indicators and toggles Overview. Keep it at panelLeft,
-                // with VLIQ Start/apps centered separately in panelCenter.
-                this._activity =
-                    panel.statusArea?.activities?.container ?? null;
-                this._activityWasVisible =
-                    this._activity?.visible !== false;
-                this._activity?.show?.();
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] launcher unavailable: ' +
                     error);
