@@ -497,10 +497,14 @@ export class BottomTaskbar {
                 new St.Icon({icon_name: 'application-x-executable-symbolic',
                     icon_size: APP_ICON_SIZE});
             content.add_child(icon);
+            // A compact round running-app indicator centered under the
+            // native app icon, not a horizontal underline/dash.
             const dot = new St.Widget({
                 style_class: 'vliq-taskbar-running-dot',
                 reactive: false,
-                height: 2,
+                width: 5,
+                height: 5,
+                x_align: Clutter.ActorAlign.CENTER,
             });
             if (!runningApp)
                 dot.opacity = 0;
