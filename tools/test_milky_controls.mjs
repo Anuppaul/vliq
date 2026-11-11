@@ -60,6 +60,15 @@ const high = buildMilkyAppearanceCss({
 assert.match(high, /0\.900/);
 assert.match(high, /rgba\(255,255,255,0\.750\)/);
 assert.ok(high.includes('vliq-panel-island-inactive'));
+assert.doesNotMatch(high, /:not\\(/,
+    'St.Theme cannot reliably parse browser-only :not() selectors');
+const afterFill = high.lastIndexOf('background-color: transparent !important;');
+const beforeFill = high.indexOf('rgba(255,255,255,0.750)');
+assert.ok(afterFill > beforeFill,
+    'hidden islands must have a stronger explicit transparent override');
+assert.ok(high.includes(
+    '#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive'),
+    'center clock island must stay hidden while inactive');
 assert.equal(buildMilkyAppearanceCss({milky: false}), '',
     'Milky CSS must never override Liquid or Frosted');
 assert.equal(milkyPaintTokens({milkyOpacity: -1}).fill,

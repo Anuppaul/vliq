@@ -176,10 +176,11 @@ function buildMilkyAppearanceCss(state = {}) {
         return '';
     const {fill, rim} = milkyPaintTokens(state);
     const roots = [
-        // GNOME 3-Part: only visible islands, not empty/hidden boxes.
+        // St.Theme is NOT a browser CSS engine: do not use :not().
+        // Explicitly clear inactive islands after the main Milky paint.
         ...['panelLeft', 'panelCenter', 'panelRight'].map(id =>
             '.vliq-global-milky #panel.vliq-three-islands #' + id +
-            '.vliq-panel-island:not(.vliq-panel-island-inactive)'),
+            '.vliq-panel-island'),
         '#panel.vliq-liquid-top-panel.vliq-full-header',
         '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
         '.vliq-global-milky .vliq-liquid-popup-content',
@@ -204,13 +205,22 @@ function buildMilkyAppearanceCss(state = {}) {
     const all = [...roots, ...interactionRoots].flatMap(selector =>
         [selector, selector + ':hover', selector + ':focus',
             selector + ':active', selector + ':checked']);
-    // The extra :not(.inactive) is important: Milky density changes must
-    // never resurrect a GNOME island hidden by native allocation guards.
+    // The inactive override follows the fill, with strictly higher
+    // specificity. It must win even for an island that has shader-ready
+    // and inactive classes simultaneously during GNOME relayout.
+    const inactive = ['panelLeft', 'panelCenter', 'panelRight'].map(id =>
+        '.vliq-global-milky #panel.vliq-three-islands #' + id +
+        '.vliq-panel-island.vliq-panel-island-inactive');
     return all.join(',\n') + ' {\n' +
         '  background-color: ' + fill + ' !important;\n' +
         '  background-image: none !important;\n' +
         '  border: 0 !important;\n' +
         '  box-shadow: ' + rim + ' !important;\n' +
+        '}\n' + inactive.join(',\n') + ' {\n' +
+        '  background-color: transparent !important;\n' +
+        '  background-image: none !important;\n' +
+        '  border: 0 !important;\n' +
+        '  box-shadow: none !important;\n' +
         '}\n';
 }
 
@@ -2166,10 +2176,20 @@ export class LiquidGlassIntegration {
 
         GLib.file_set_contents(path, css);
 
-        this._unloadCardAppearanceStylesheet();
-
+        // Load FIRST. An invalid/missing St CSS selector must never destroy
+        // the last successfully loaded Appearance stylesheet. A theme
+        // swap occurs within one Shell event turn, so no extra paint frame.
         const file = Gio.File.new_for_path(path);
-        this._getShellTheme().load_stylesheet(file);
+        try {
+            this._getShellTheme().load_stylesheet(file);
+        } catch (error) {
+            try { file.delete(null); } catch {}
+            console.warn(
+                '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
+            );
+            return;
+        }
+        this._unloadCardAppearanceStylesheet();
         this._cardCssFile = file;
         this._cardCssSignature = css;
 
