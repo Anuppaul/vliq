@@ -185,6 +185,21 @@ export class SharedAdaptiveTextManager {
         );
     }
 
+    _bottomTaskbarClock() {
+        const panel = Main.panel;
+        if (!panel || !classesOf(panel).includes('vliq-bottom-taskbar'))
+            return null;
+
+        // GNOME Shell 50's DateMenuButton owns a native St.Label named
+        // _clockDisplay (also exposed as label_actor). Keep that actor:
+        // no duplicate text, no altered menu input or container ownership.
+        const dateMenu = panel.statusArea?.dateMenu;
+        const label = dateMenu?._clockDisplay ??
+            dateMenu?.label_actor ?? null;
+        return label instanceof St.Label && label.get_parent?.()
+            ? label : null;
+    }
+
     _isTarget(actor) {
         if (!actor)
             return false;
@@ -219,6 +234,14 @@ export class SharedAdaptiveTextManager {
 
         if (Main.panel)
             found.add(Main.panel);
+
+        // Unlike the three top islands, the bottom taskbar places the
+        // native clock on the far right. Its background may have opposite
+        // luminance to the rest of the panel, so it needs its OWN sample.
+        // Reuse the existing surface screenshot batch; no new stage hook.
+        const dateClock = this._bottomTaskbarClock();
+        if (dateClock)
+            found.add(dateClock);
 
         const walk = actor => {
             if (!actor)
@@ -335,9 +358,13 @@ export class SharedAdaptiveTextManager {
 
     _textActors(root) {
         const found = [];
+        // Only in Bottom mode: the clock must be styled from its separate
+        // local backdrop, never overwritten by the whole-panel sample.
+        const separatelySampledClock =
+            root === Main.panel ? this._bottomTaskbarClock() : null;
 
         const walk = actor => {
-            if (!actor)
+            if (!actor || actor === separatelySampledClock)
                 return;
 
             if (
@@ -359,7 +386,8 @@ export class SharedAdaptiveTextManager {
                 walk(child);
         };
 
-        if (root instanceof St.Entry)
+        if (root instanceof St.Entry ||
+            (root instanceof St.Label && root.visible))
             found.push(root);
         else
             walk(root);
@@ -713,8 +741,14 @@ export class SharedAdaptiveTextManager {
                 continue;
             }
 
-            const rect =
-                this._vendor.getTransformedRect(actor);
+            // Sample the button's full padded glass backdrop, not only
+            // the tight glyph rectangle (which would bias the histogram
+            // toward the PREVIOUS clock text colour). Style the actual
+            // native clock label using the resulting local polarity.
+            const sampleActor = actor === this._bottomTaskbarClock()
+                ? (Main.panel?.statusArea?.dateMenu?.container ?? actor)
+                : actor;
+            const rect = this._vendor.getTransformedRect(sampleActor);
 
             if (!finiteRect(rect))
                 continue;
