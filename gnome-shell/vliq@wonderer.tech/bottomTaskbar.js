@@ -509,6 +509,11 @@ export class BottomTaskbar {
                 const glass = entry?.manager?.bgActor;
                 if (glass && glass.opacity !== 0)
                     glass.opacity = 0;
+                // Ubuntu Dock Panel Mode uses a separate stage-level
+                // PanelGlassSurface, NOT the manager bgActor. Hide it
+                // before first taskbar paint. The integration's own stage
+                // guard prevents that glass from reappearing next frame.
+                entry?.panelLiquidSurface?.hide?.();
             } catch (error) {
                 if (!this._dockWarning) {
                     this._dockWarning = true;

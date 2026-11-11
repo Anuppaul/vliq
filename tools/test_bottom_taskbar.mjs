@@ -133,7 +133,17 @@ layout.getWorkAreaForMonitor = () => ({
 const display = new Actor();
 const dock = new Actor();
 const dockGlass = new Actor();
-const dockEntries = [{container: dock, manager: {bgActor: dockGlass}}];
+// Ubuntu Dock Panel Mode owns a SECOND stage-level glass actor; hiding only
+// dock.container and manager.bgActor leaves a visible 6-10px fringe.
+const dockPanelSurface = {
+    visible: true, hideCalls: 0,
+    hide() {this.visible = false;this.hideCalls++;},
+};
+const dockEntries = [{
+    container: dock,
+    manager: {bgActor: dockGlass},
+    panelLiquidSurface: dockPanelSurface,
+}];
 let launches = 0;
 let activatedWindow = null;
 const Main = {panel, layoutManager: layout,
@@ -192,6 +202,9 @@ assert.equal(dock.visible, false, 'legacy Ubuntu Dock is hidden');
 assert.equal(dock.opacity, 0);
 assert.equal(dock.reactive, false);
 assert.equal(dockGlass.opacity, 0);
+assert.equal(dockPanelSurface.visible, false,
+    'independent Ubuntu Dock Panel Mode glass must hide too');
+assert.ok(dockPanelSurface.hideCalls >= 1);
 taskbar._start.emit('clicked');
 assert.equal(launches, 1, 'VLIQ Start opens applications');
 // Pinned/stopped app launches; running/minimized app restores and raises.
@@ -244,6 +257,8 @@ stage.tick();
 assert.equal(dock.opacity, 0);
 assert.equal(dock.visible, false);
 assert.equal(dock.reactive, false, 'native Dock must not steal clicks');
+assert.ok(dockPanelSurface.hideCalls >= 2,
+    'native Dock glass remains hidden across repeated compositor frames');
 layout.primaryMonitor = {x: 1920, y: 0, width: 1280, height: 720};
 layout.emit('monitors-changed');
 assert.deepEqual(panelBox.get_position(), [1920, 684],
@@ -345,5 +360,67 @@ assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button'));
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar'));
+
+// Regression for the real VLIQ native-Dock glass *producer*. Ubuntu Dock
+// Panel Mode uses a stage-level PanelGlassSurface outside dock.container.
+// The bottom taskbar's own glass is the sole permitted visible panel FBO.
+const integrationSource = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/liquidGlassDock.js',
+    import.meta.url), 'utf8');
+const nativePanelMethod = integrationSource.match(
+    /^    _syncPanelBackdropGeometry\(entry\) \{[\s\S]*?(?=^    _setPanelLiquidReady\(entry, ready\) \{)/m
+)?.[0];
+assert.ok(nativePanelMethod,
+    'shipped Dock panel-glass geometry producer must exist');
+const nativeLayout = {
+    findIndexForActor: () => 0,
+    monitors: [{x: 0, y: 0, width: 1920, height: 1080,
+        inFullscreen: false}],
+    primaryIndex: 0,
+    primaryMonitor: {x: 0, y: 0, width: 1920, height: 1080},
+    uiGroup: {get_transformed_position: () => [0, 0]},
+};
+const drawNativeBackdrop = new Function('Main', 'global',
+    'return ({' + nativePanelMethod +
+    '})._syncPanelBackdropGeometry;'
+)({layoutManager: nativeLayout}, {stage});
+let oldGlassDraws = 0;
+let oldGlassHides = 0;
+let nativeReady = false;
+const oldDockGlass = {
+    ready: true,
+    hide() {oldGlassHides++;},
+    setBounds() {oldGlassDraws++;},
+};
+const nativeBackdropEntry = {
+    panelLiquidSurface: oldDockGlass,
+    panelBackdropSource: {
+        get_transformed_position: () => [0, 1044],
+        get_transformed_size: () => [1920, 36],
+        get_stage: () => stage,
+        mapped: true, visible: true,
+        get_paint_opacity: () => 255,
+    },
+};
+let isBottom = true;
+const nativeDockContext = {
+    isBottomTaskbarActive: () => isBottom,
+    _dockIsPanelMode: () => true,
+    _setPanelLiquidReady(_entry, ready) {nativeReady = ready;},
+};
+for (let i = 0; i < 120; i++)
+    drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 0,
+    'OLD Ubuntu Dock panel shader cannot repaint below/above the taskbar');
+assert.equal(oldGlassHides, 120,
+    'its independent glass is hidden on each scene update');
+assert.equal(nativeReady, false,
+    'old glass cannot keep a stale ready-state CSS seam');
+isBottom = false;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 1,
+    'old Dock glass resumes normally when bottom mode is disabled');
+assert.equal(nativeReady, true,
+    'returning to ordinary Ubuntu Dock restores native glass paint');
 
 console.log('Bottom Taskbar: Windows 11 centered Start/apps, running-window focus/restore/minimize, native tray spacing, Dock recovery and hot-swap PASS.');

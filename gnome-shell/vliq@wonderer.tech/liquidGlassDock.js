@@ -4363,6 +4363,17 @@ export class LiquidGlassIntegration {
         if (!surface || !source || !this._dockIsPanelMode())
             return;
 
+        // Bottom Taskbar owns the one bounded glass strip. Ubuntu Dock
+        // Panel Mode's independent uiGroup sibling can stay painted after
+        // its container/icons are hidden, making a second stripe or gap.
+        // Suppress the producer each frame; otherwise its own compositor
+        // callback would re-show the old glass immediately.
+        if (this.isBottomTaskbarActive()) {
+            surface.hide();
+            this._setPanelLiquidReady(entry, false);
+            return;
+        }
+
         try {
             const [x, y] = source.get_transformed_position();
             const [w, h] = source.get_transformed_size();
