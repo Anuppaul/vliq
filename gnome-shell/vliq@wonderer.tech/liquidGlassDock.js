@@ -592,12 +592,19 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
-                // Write Milky mode LAST so its fast shader path is enabled
-                // only after Frosted has been disabled and optics settled.
                 ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
             ]) {
-                if (Math.abs(this._settings.get_double(key) - value) > 0.0001)
-                    this._settings.set_double(key, value);
+                // Old cached schemas lack this optional key. Keep the native
+                // Milky renderer functional and retain all Liquid settings.
+                if (this._settings.settings_schema?.has_key?.(key) === false)
+                    continue;
+                try {
+                    if (Math.abs(this._settings.get_double(key) - value) > 0.0001)
+                        this._settings.set_double(key, value);
+                } catch (error) {
+                    if (key !== 'vliq-milky-mode')
+                        throw error;
+                }
             }
         } catch (error) {
             // Incompatible external/upstream vendor versions may not have
@@ -1502,6 +1509,7 @@ export class LiquidGlassIntegration {
     _readSharedCardAppearance() {
         if (!this._vliqSettings) {
             return {
+                milky: false,
                 opacity: 0,
                 tint: '#ffffff',
                 r: 255,
@@ -1576,6 +1584,7 @@ export class LiquidGlassIntegration {
         };
 
         return {
+            milky: this._vliqSettings.get_string('glass-style') === 'milky',
             opacity,
             tint,
             r,
@@ -1666,9 +1675,21 @@ export class LiquidGlassIntegration {
         this._orbGlassManager?.setDragActive?.(active);
     }
 
+    _syncMilkyAppearanceClass(enabled) {
+        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
+        if (!uiGroup)
+            return;
+        if (enabled)
+            uiGroup.add_style_class_name?.('vliq-global-milky');
+        else
+            uiGroup.remove_style_class_name?.('vliq-global-milky');
+    }
+
     _applySharedCardAppearance() {
         const state = this._readSharedCardAppearance();
 
+        // CSS-only Milky must work even with a cached legacy vendor module.
+        this._syncMilkyAppearanceClass(state.milky === true);
         this._popupGlassManager?.updateAppearance(state);
         this._shellCardGlassManager?.updateAppearance(state);
         this._previewGlassManager?.updateAppearance(state);
@@ -1682,9 +1703,14 @@ export class LiquidGlassIntegration {
         this._osdManager?.updateMaterialAppearance?.(state);
         this._topPanelIslands?.updateAppearance();
         for (const entry of this._nativeDashEntries) {
-            if (entry.manager)
+            if (entry.manager) {
                 this._applySharedDashMaterial(entry.manager, 'dock');
+                this._syncNativeDockVisualState(entry, true);
+            }
             entry.panelLiquidSurface?.updateAppearance?.();
+            if (entry.panelPaintActive && entry.panelBackgroundActor)
+                this._setDockPanelPremiumStyle(
+                    entry, entry.panelBackgroundActor);
         }
 
         console.log(
@@ -1813,6 +1839,7 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
+        this._syncMilkyAppearanceClass(false);
         if (
             this._cardAppearanceSettingId &&
             this._vliqSettings
@@ -3423,6 +3450,9 @@ export class LiquidGlassIntegration {
 
     _nativeDockGlassVisible(entry) {
         if (!entry?.container)
+            return false;
+        // Milky paints the native .dash-background, never this GPU actor.
+        if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
             return false;
 
         // The single bottom taskbar replaces Ubuntu Dock's visual strip.
