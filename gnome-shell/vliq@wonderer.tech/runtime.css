@@ -1519,10 +1519,9 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
-/* Date Menu flat card material — deliberately last in the Date section so
- * previous theme/day focus styles cannot restore a second rim or inset
- * highlight. Match taskbar window-preview tiles: one neutral 6% surface,
- * rounded 10px corners, no independent shader, border or shadow. */
+/* Date Menu flat card material: a single CSS body beneath the real outer
+ * Liquid Glass, with EXACT taskbar-icon interaction paint on hover/press.
+ * No second LiquidEffect or native border; use one inset highlight only. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
 .vliq-liquid-popup-content.datemenu-popover .calendar,
 .vliq-liquid-popup-content.datemenu-popover .events-button,
@@ -1533,12 +1532,14 @@
     background-color: rgba(255, 255, 255, 0.06) !important;
     background-image: none !important;
     border: 0 !important;
-    border-radius: 10px !important;
+    border-radius: 9px !important;
+    transition-duration: 120ms;
     box-shadow: none !important;
 }
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
 .vliq-liquid-popup-content.datemenu-popover .calendar:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar:focus,
 .vliq-liquid-popup-content.datemenu-popover .events-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .events-button:focus,
 .vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
@@ -1549,9 +1550,21 @@
 .vliq-liquid-popup-content.datemenu-popover .message:focus,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
-    background-color: rgba(255, 255, 255, 0.16) !important;
+    /* Exact .vliq-taskbar-app-button:hover material. */
+    background-color: rgba(245, 249, 255, 0.24) !important;
     border: 0 !important;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:active,
+.vliq-liquid-popup-content.datemenu-popover .events-button:active,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:active,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:active,
+.vliq-liquid-popup-content.datemenu-popover .message:active,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:active {
+    /* Exact .vliq-taskbar-app-button:active material. */
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
 /* Calendar inner controls may still show focus/selected state but must not
  * draw their own inner + outer border pair. The single accent-coloured
@@ -1826,6 +1839,47 @@
     color: -st-accent-color !important;
 }
 
+
+/* Bottom Taskbar icon-style interaction shared with native Quick Settings.
+ * GNOME QuickToggle is a single actor with BOTH quick-toggle and
+ * quick-toggle-has-menu classes, so target it once (not twice). Keep the
+ * existing nested LiquidEffect as the static glass substrate, preserving
+ * active-text accent and menu ownership. Only CSS changes during hover.
+ * The same surface values/radius/speed are used on app icons above. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-slider,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button {
+    border: 0 !important;
+    border-radius: 9px !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-slider:hover,
+.vliq-liquid-popup-content.quick-settings .quick-slider:focus,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:focus,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:hover,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle:active,
+.vliq-liquid-popup-content.quick-settings .quick-slider:active,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:active,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+/* Do not permanently fill ON/checked Quick toggles; the GNOME accent
+ * continues to communicate status via the text/icon. */
 
 /* VLIQ Spotlight ------------------------------------------------------- */
 
