@@ -4504,6 +4504,13 @@ export class LiquidGlassIntegration {
     }
 
     _dockPanelPaintShouldOwn(entry) {
+        // The old Ubuntu Dock ThemeManager can emit notify::style on every
+        // workspace/activation relayout. Never re-assert its panel backdrop
+        // while our Bottom Taskbar owns the sole visible glass surface.
+        // Checking only _dockIsPanelMode() here previously resurrected the
+        // second CSS painter even after _syncNativeDashEntryMode retired it.
+        if (this.ownsBottomTaskbarChrome())
+            return false;
         return Boolean(
             entry?.panelPaintActive ||
             this._dockIsPanelMode() ||
