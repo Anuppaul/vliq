@@ -365,6 +365,16 @@
 /* Windows 11-like CENTERED Start + apps. The entire group uses one
  * native panelCenter allocation; no fixed left-anchored launcher or
  * invisible box taking up half the monitor's useful width. */
+/* Any inherited Yaru/GNOME center-pill background must be neutralised:
+ * only VLIQ's single full-width glass material owns panel background. */
+#panel.vliq-bottom-taskbar #panelCenter,
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-center-group,
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-apps {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
 #panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-center-group {
     spacing: 7px;
     padding: 0px;
@@ -381,11 +391,19 @@
     border-radius: 9px;
     box-shadow: none !important;
 }
+/* Per-icon visual feedback, never one solid pill across all icons. */
 #panel.vliq-bottom-taskbar .vliq-taskbar-launcher:hover,
 #panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover,
 #panel.vliq-bottom-taskbar .vliq-taskbar-launcher:focus,
 #panel.vliq-bottom-taskbar .vliq-taskbar-app-button:focus {
-    background-color: rgba(255,255,255,0.12) !important;
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    transition-duration: 120ms;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:active,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-apps {
     spacing: 4px;
