@@ -380,11 +380,14 @@ export class TopBarIslands {
             this._switchLayout();
             return;
         }
-        // GNOME may relayout the native panel after mode activation.
-        // Re-anchor rather than leaving an outdated "Full active" state
-        // when the requested bottom panel exists but is not positioned.
-        if (wanted === 'bottom' && !this.isBottomTaskbarActive()) {
-            try { this._bottomTaskbar?._placePanel?.(); } catch {}
+        // GNOME can move the panel back to its native top position
+        // during monitor/work-area relayout. Repair a stale placement, but
+        // ALWAYS reconcile the published status: an early "unavailable"
+        // must clear after the first successful native allocation.
+        if (wanted === 'bottom') {
+            if (!this.isBottomTaskbarActive()) {
+                try { this._bottomTaskbar?._placePanel?.(); } catch {}
+            }
             const message = this.isBottomTaskbarActive()
                 ? this._activeStatus()
                 : 'Bottom Taskbar selected; native panel not at bottom';
