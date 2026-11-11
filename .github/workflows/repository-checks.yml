@@ -37,6 +37,7 @@ jobs:
           node tools/test_popup_overview_capture.mjs
           node tools/test_calendar_overview_backdrop.mjs
           node tools/test_calendar_flat_cards.mjs
+          node tools/test_popup_hover_card_parity.mjs
           node tools/test_quick_brightness.mjs
           node tools/test_fullscreen_panel_guard.mjs
           node tools/test_terminal_backdrop_blur.mjs
