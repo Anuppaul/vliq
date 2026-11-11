@@ -1840,46 +1840,50 @@
 }
 
 
-/* Bottom Taskbar icon-style interaction shared with native Quick Settings.
- * GNOME QuickToggle is a single actor with BOTH quick-toggle and
- * quick-toggle-has-menu classes, so target it once (not twice). Keep the
- * existing nested LiquidEffect as the static glass substrate, preserving
- * active-text accent and menu ownership. Only CSS changes during hover.
- * The same surface values/radius/speed are used on app icons above. */
+/* Quick Settings inner cards: same always-visible cool gray-white paint as
+ * the accepted Calendar inner cards. Hover/focus/checked remain visually
+ * neutral, while pressed is slightly stronger. GNOME's selected-state
+ * accent is preserved on labels/icons. Never tint the main popup itself.
+ * The nested Quick LiquidEffect remains the underlying optical material. */
 .vliq-liquid-popup-content.quick-settings .quick-toggle,
 .vliq-liquid-popup-content.quick-settings .quick-slider,
-.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button {
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button,
+.vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    background-image: none !important;
     border: 0 !important;
     border-radius: 9px !important;
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
     transition-duration: 120ms;
 }
 .vliq-liquid-popup-content.quick-settings .quick-toggle:hover,
 .vliq-liquid-popup-content.quick-settings .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle:checked,
 .vliq-liquid-popup-content.quick-settings .quick-slider:hover,
 .vliq-liquid-popup-content.quick-settings .quick-slider:focus,
 .vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:hover,
 .vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:checked,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:checked,
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:hover,
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {
-    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-color: rgba(219, 223, 229, 0.18) !important;
     border: 0 !important;
-    border-radius: 9px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
 }
 .vliq-liquid-popup-content.quick-settings .quick-toggle:active,
 .vliq-liquid-popup-content.quick-settings .quick-slider:active,
 .vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:active,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:active,
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:active {
-    background-color: rgba(245, 249, 255, 0.34) !important;
+    background-color: rgba(219, 223, 229, 0.27) !important;
     border: 0 !important;
-    border-radius: 9px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
 }
-/* Do not permanently fill ON/checked Quick toggles; the GNOME accent
- * continues to communicate status via the text/icon. */
 
 /* VLIQ Spotlight ------------------------------------------------------- */
 
