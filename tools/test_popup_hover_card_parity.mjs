@@ -124,6 +124,8 @@ assert.ok(!quickCss.includes('.quick-toggle-has-menu:hover'),
     'the same GNOME QuickToggle cannot draw two nested hover outlines');
 assert.ok(quickCss.includes('.quick-toggle:checked'),
     'checked Quick toggle retains the same neutral tile paint');
+assert.ok(popup.includes('_syncQuickSelectedClasses()'),
+    'Quick Settings checked accent is updated separately from old shader');
 assert.ok(css.includes('.vliq-liquid-quick-menu-root .vliq-quick-active StLabel'),
     'checked state remains communicated by native GNOME accent text');
 
