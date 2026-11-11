@@ -49,7 +49,6 @@ export class BottomTaskbar {
         this._originalCenterTranslation = 0;
         this._placingPanel = false;
         this._dockPaint = new Map();
-        this._dockStackOrder = new Map();
         this._dockVisibilityWatchers = new Map();
         this._dockConcealingActors = new Set();
         this._dockRootCache = new WeakMap();
@@ -699,25 +698,6 @@ export class BottomTaskbar {
         return root;
     }
 
-    _keepDockBehindPanel(root) {
-        const host = this._layout?.uiGroup;
-        const panelBox = this._layout?.panelBox;
-        if (!root || !host || !panelBox ||
-            root.get_parent?.() !== host ||
-            panelBox.get_parent?.() !== host)
-            return;
-        const children = host.get_children?.() ?? [];
-        const current = children.indexOf(root);
-        const panelIndex = children.indexOf(panelBox);
-        if (current < 0 || panelIndex < 0 || current < panelIndex)
-            return;
-        try {
-            if (!this._dockStackOrder.has(root))
-                this._dockStackOrder.set(root, {host, index: current});
-            host.set_child_below_sibling?.(root, panelBox);
-        } catch {}
-    }
-
     _concealDockActor(actor) {
         if (!actor || actor === this._panel ||
             actor === this._layout?.panelBox ||
@@ -727,6 +707,11 @@ export class BottomTaskbar {
 
         this._dockConcealingActors.add(actor);
         try {
+            // Capture the original state once, before any VLIQ writes.
+            // The native Dock may call show() during app focus/hover *after*
+            // our before-update callback has run. Observe the change and
+            // hide the old layer synchronously in the same signal turn,
+            // instead of permitting one frame of duplicate Dock paint.
             if (!this._dockPaint.has(actor)) {
                 this._dockPaint.set(actor, {
                     opacity: actor.opacity,
@@ -736,13 +721,12 @@ export class BottomTaskbar {
             }
             if (!this._dockVisibilityWatchers.has(actor)) {
                 const ids = [];
-                for (const signal of ['notify::visible', 'notify::opacity',
-                    'notify::reactive']) {
+                for (const signal of ['notify::visible', 'notify::opacity']) {
                     try {
                         const id = actor.connect?.(signal, () => {
                             if (this._enabled &&
-                                (actor.opacity !== 0 ||
-                                 actor.reactive !== false))
+                                (actor.visible !== false ||
+                                 actor.opacity !== 0))
                                 this._concealDockActor(actor);
                         });
                         if (id)
@@ -751,11 +735,8 @@ export class BottomTaskbar {
                 }
                 this._dockVisibilityWatchers.set(actor, ids);
             }
-            // Native Dash-to-Dock listens for notify::mapped. Repeated
-            // hide()/show() calls to an actor it owns re-trigger its mapping
-            // and animation lifecycle during every application focus.
-            // Never unmap that subtree: retain native visibility, force
-            // transparent paint, and stack the root behind Main.panel.
+            if (actor.visible !== false)
+                actor.hide?.();
             if (actor.opacity !== 0)
                 actor.opacity = 0;
             if (actor.reactive !== false)
@@ -779,10 +760,8 @@ export class BottomTaskbar {
                 // Dash-to-Dock's sibling background and input surfaces.
                 // Keep the original GNOME panelBox and its menus untouched.
                 const root = this._findNativeDockRoot(container);
-                if (root) {
-                    this._keepDockBehindPanel(root);
+                if (root)
                     this._concealDockActor(root);
-                }
                 this._concealDockActor(container);
 
                 // Defense-in-depth for late background reparenting and
@@ -868,14 +847,6 @@ export class BottomTaskbar {
             } catch {}
         }
         this._dockPaint.clear();
-        for (const [root, {host, index}] of this._dockStackOrder) {
-            try {
-                if (root.get_parent?.() === host)
-                    host.set_child_at_index?.(root, Math.min(index,
-                        (host.get_children?.().length ?? 1) - 1));
-            } catch {}
-        }
-        this._dockStackOrder.clear();
         this._dockRootCache = new WeakMap();
         this._lastMenuReconcileUs = 0;
         this._enabled = false;
