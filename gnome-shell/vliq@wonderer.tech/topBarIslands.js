@@ -299,6 +299,7 @@ export class TopBarIslands {
         this._bottomTaskbar?.cleanup?.();
         this._bottomTaskbar = null;
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar');
+        this._panel?.remove_style_class_name?.('vliq-system-dark-taskbar');
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar-glass-attached');
         this._panel?.remove_style_class_name?.('vliq-three-islands');
         this._panel?.remove_style_class_name?.('vliq-full-header');
@@ -307,10 +308,20 @@ export class TopBarIslands {
         this._lastStageSyncUs = 0;
     }
 
+    _syncSystemDarkTaskbarStyle() {
+        const active = this._layoutMode === 'bottom' &&
+            this._readAppearance?.()?.systemDarkTaskbar === true;
+        if (active)
+            this._panel?.add_style_class_name?.('vliq-system-dark-taskbar');
+        else
+            this._panel?.remove_style_class_name?.('vliq-system-dark-taskbar');
+    }
+
     _buildLayout(mode) {
         this._layoutMode = mode;
         const panel = this._panel;
         panel.add_style_class_name('vliq-liquid-top-panel');
+        this._syncSystemDarkTaskbarStyle();
         if (mode === 'full' || mode === 'bottom') {
             if (mode === 'bottom') {
                 this._bottomTaskbar = this._bottomTaskbarFactory({
@@ -328,7 +339,7 @@ export class TopBarIslands {
             const surface = new PanelGlassSurface(
                 this._vendor, this._settings, this._readAppearance,
                 {cornerRadius: 0, borderless: mode === 'bottom',
-                    charcoalHeader: mode === 'bottom'}
+                    systemDarkTaskbar: mode === 'bottom'}
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
@@ -368,7 +379,7 @@ export class TopBarIslands {
                 // A shader failure must never break GNOME's panel controls.
                 let surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS, charcoalHeader: true}
+                    {cornerRadius: RADIUS}
                 );
                 let cssFallback = false;
                 if (!surface.attach(this._host, this._panelRoot)) {
@@ -803,6 +814,7 @@ export class TopBarIslands {
     updateAppearance() {
         if (!this._enabled)
             return;
+        this._syncSystemDarkTaskbarStyle();
         for (const {surface} of this._regions)
             surface.updateAppearance();
         this.sync();

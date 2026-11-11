@@ -39,7 +39,7 @@ for (const id of ['panelLeft', 'panelCenter', 'panelRight']) {
         '.vliq-panel-island-inactive';
     assert.match(declarations(inactive), /background-color: transparent !important/);
 }
-assert.match(top, /\{cornerRadius: RADIUS, charcoalHeader: true\}/,
+assert.match(top, /\{cornerRadius: RADIUS\}/,
     '3-Part allocates real bounded Liquid/Frosted shaders');
 assert.match(top, /\{cornerRadius: RADIUS, cssOnly: true\}/,
     'GPU failure has safe CSS-only fallback');

@@ -229,15 +229,14 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glassStyle = new Adw.ComboRow({
             title: 'Material style',
             subtitle:
-                'Liquid refracts, Frosted diffuses, Milky is soft gray-white, and Dark Charcoal is a deep matte card with light text.',
+                'Liquid refracts, Frosted diffuses, and Milky creates a soft translucent gray-white card.',
             model: Gtk.StringList.new([
                 'Liquid Glass',
                 'Frosted Crystal',
                 'Milky Glass',
-                'Dark Charcoal',
             ]),
         });
-        const glassStyleValues = ['liquid', 'frosted', 'milky', 'charcoal'];
+        const glassStyleValues = ['liquid', 'frosted', 'milky'];
         let syncingGlassStyle = false;
         const syncGlassStyle = () => {
             syncingGlassStyle = true;
@@ -316,14 +315,14 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glass = new Adw.PreferencesGroup({
             title: 'Liquid Glass Controls',
             description:
-                'Original Liquid optics remain saved when switching to Frosted, Milky or Dark Charcoal.',
+                'Original Liquid optics remain saved when switching to Frosted or Milky.',
         });
         appearancePage.add(glass);
 
         addIntSpin(
             glass, settings, 'glass-blur',
             'Blur',
-            'Base backdrop blur for Liquid and Frosted; Milky and Dark Charcoal do not blur.',
+            'Base backdrop blur for Liquid and Frosted; Milky does not blur.',
             0, 80, 1
         );
         addIntSpin(
