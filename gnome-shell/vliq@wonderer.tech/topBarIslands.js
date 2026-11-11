@@ -286,6 +286,7 @@ export class TopBarIslands {
                 continue;
             for (const name of [
                 'vliq-panel-island-ready',
+                'vliq-panel-island-css-fallback',
                 'vliq-panel-island-inactive',
                 'vliq-panel-island-' + region.role,
                 'vliq-panel-island',
@@ -298,6 +299,7 @@ export class TopBarIslands {
         this._bottomTaskbar?.cleanup?.();
         this._bottomTaskbar = null;
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar');
+        this._panel?.remove_style_class_name?.('vliq-system-dark-taskbar');
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar-glass-attached');
         this._panel?.remove_style_class_name?.('vliq-three-islands');
         this._panel?.remove_style_class_name?.('vliq-full-header');
@@ -306,10 +308,20 @@ export class TopBarIslands {
         this._lastStageSyncUs = 0;
     }
 
+    _syncSystemDarkTaskbarStyle() {
+        const active = this._layoutMode === 'bottom' &&
+            this._readAppearance?.()?.systemDarkTaskbar === true;
+        if (active)
+            this._panel?.add_style_class_name?.('vliq-system-dark-taskbar');
+        else
+            this._panel?.remove_style_class_name?.('vliq-system-dark-taskbar');
+    }
+
     _buildLayout(mode) {
         this._layoutMode = mode;
         const panel = this._panel;
         panel.add_style_class_name('vliq-liquid-top-panel');
+        this._syncSystemDarkTaskbarStyle();
         if (mode === 'full' || mode === 'bottom') {
             if (mode === 'bottom') {
                 this._bottomTaskbar = this._bottomTaskbarFactory({
@@ -326,7 +338,8 @@ export class TopBarIslands {
             // panelBox and spans only its allocated 36-ish-pixel height.
             const surface = new PanelGlassSurface(
                 this._vendor, this._settings, this._readAppearance,
-                {cornerRadius: 0, borderless: mode === 'bottom'}
+                {cornerRadius: 0, borderless: mode === 'bottom',
+                    systemDarkTaskbar: mode === 'bottom'}
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
@@ -360,14 +373,29 @@ export class TopBarIslands {
             panel.add_style_class_name('vliq-three-islands');
             for (const [role, key] of REGIONS) {
                 const actor = panel[key];
-                const surface = new PanelGlassSurface(
+                // Three bounded island materials follow the selected global
+                // Appearance mode. Liquid and Frosted use the same shader;
+                // Milky hides the GPU material and paints the native card.
+                // A shader failure must never break GNOME's panel controls.
+                let surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
                     {cornerRadius: RADIUS}
                 );
+                let cssFallback = false;
                 if (!surface.attach(this._host, this._panelRoot)) {
                     surface.destroy();
-                    throw new Error('island glass attach failed: ' + role);
+                    console.warn('[VLIQ][TopBar] ' + role +
+                        ' glass unavailable; retaining native card fallback');
+                    surface = new PanelGlassSurface(
+                        this._vendor, this._settings, this._readAppearance,
+                        {cornerRadius: RADIUS, cssOnly: true}
+                    );
+                    if (!surface.attach(this._host, this._panelRoot))
+                        throw new Error('island fallback failed: ' + role);
+                    cssFallback = true;
                 }
+                if (cssFallback)
+                    actor.add_style_class_name('vliq-panel-island-css-fallback');
                 actor.add_style_class_name('vliq-panel-island');
                 actor.add_style_class_name('vliq-panel-island-' + role);
                 this._regions.push({
@@ -786,6 +814,7 @@ export class TopBarIslands {
     updateAppearance() {
         if (!this._enabled)
             return;
+        this._syncSystemDarkTaskbarStyle();
         for (const {surface} of this._regions)
             surface.updateAppearance();
         this.sync();

@@ -229,13 +229,14 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glassStyle = new Adw.ComboRow({
             title: 'Material style',
             subtitle:
-                'Liquid Glass retains the glossy v10 optics. Frosted Crystal adds soft diffusion, matte grain and subtle crystal edges.',
+                'Liquid refracts, Frosted diffuses, and Milky creates a soft translucent gray-white card.',
             model: Gtk.StringList.new([
                 'Liquid Glass',
                 'Frosted Crystal',
+                'Milky Glass',
             ]),
         });
-        const glassStyleValues = ['liquid', 'frosted'];
+        const glassStyleValues = ['liquid', 'frosted', 'milky'];
         let syncingGlassStyle = false;
         const syncGlassStyle = () => {
             syncingGlassStyle = true;
@@ -247,7 +248,8 @@ export default class VLIQPreferences extends ExtensionPreferences {
         };
         syncGlassStyle();
         glassStyle.connect('notify::selected', () => {
-            if (!syncingGlassStyle && glassStyle.selected < 2)
+            if (!syncingGlassStyle &&
+                glassStyle.selected < glassStyleValues.length)
                 settings.set_string(
                     'glass-style',
                     glassStyleValues[glassStyle.selected]
@@ -288,17 +290,39 @@ export default class VLIQPreferences extends ExtensionPreferences {
         syncFrostControls();
         settings.connect('changed::glass-style', syncFrostControls);
 
+        const milky = new Adw.PreferencesGroup({
+            title: 'Milky Glass',
+            description: 'Independent gray-white card controls. Changes apply live only while Milky Glass is selected.',
+        });
+        appearancePage.add(milky);
+        addIntSpin(milky, settings, 'milky-opacity',
+            'Milky density',
+            'How visible the milky-white surface is (0 = invisible, 100 = solid).',
+            0, 100, 1);
+        addIntSpin(milky, settings, 'milky-border',
+            'Edge highlight',
+            'Strength of the thin white inner rim (0 = none).',
+            0, 100, 1);
+        addIntSpin(milky, settings, 'milky-whiteness',
+            'White shade',
+            'Brighten the cool gray-white body toward pure white.',
+            0, 100, 1);
+        const syncMilkyControls = () =>
+            milky.set_sensitive(settings.get_string('glass-style') === 'milky');
+        syncMilkyControls();
+        settings.connect('changed::glass-style', syncMilkyControls);
+
         const glass = new Adw.PreferencesGroup({
             title: 'Liquid Glass Controls',
             description:
-                'Original v10 appearance values are retained when switching to Frosted Crystal.',
+                'Original Liquid optics remain saved when switching to Frosted or Milky.',
         });
         appearancePage.add(glass);
 
         addIntSpin(
             glass, settings, 'glass-blur',
             'Blur',
-            'Base backdrop blur. Both materials apply extra diffusion when above zero; zero disables it.',
+            'Base backdrop blur for Liquid and Frosted; Milky does not blur.',
             0, 80, 1
         );
         addIntSpin(

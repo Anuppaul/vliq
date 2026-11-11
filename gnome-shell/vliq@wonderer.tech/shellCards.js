@@ -232,6 +232,16 @@ class ShellCardSurface {
         if (!this._effect || !state)
             return;
 
+        this._milky = state.milky === true;
+        if (this._milky) {
+            this._material?.hide?.();
+            this._releaseSceneManager();
+            return;
+        }
+        // When leaving Milky the same native target receives its glass
+        // actor again without a new renderer or GObject registration.
+        this._sync();
+
         const role =
             VLIQ_GLASS_ROLES.shellCard;
         const adapter =
@@ -322,6 +332,11 @@ class ShellCardSurface {
             !this._target ||
             !this._material
         ) {
+            return;
+        }
+        if (this._milky) {
+            this._material.hide?.();
+            this._releaseSceneManager();
             return;
         }
 

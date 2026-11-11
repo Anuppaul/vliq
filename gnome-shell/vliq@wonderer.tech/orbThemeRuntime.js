@@ -9,6 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ControlsState} from 'resource:///org/gnome/shell/ui/overviewControls.js';
 
 import {collectOrbApps} from './apps.js';
+import {BottomTaskbarPreview} from './bottomTaskbarPreview.js';
 import {LiquidGlassIntegration} from './liquidGlassDock.js';
 import {SearchSurfaceManager} from './searchSurface.js';
 import {SpotlightSearchController} from './spotlightSearch.js';
@@ -241,6 +242,11 @@ export default class VLIQRuntime extends Extension {
         this._appPreviewAnchor = null;
         this._appPreviewPreferredSide = null;
         this._appPreviewHideTimeoutId = 0;
+        this._globalWindowPreview = new BottomTaskbarPreview({
+            layout: Main.layoutManager,
+        });
+        this._globalPreviewItems = new WeakMap();
+        this._globalPreviewAnchor = null;
         this._dockPreviewHooks = new Map();
         this._dockPreviewRescanId = 0;
         this._menuOpen = false;
@@ -386,6 +392,9 @@ export default class VLIQRuntime extends Extension {
         this._cancelOrbAutoFadeTimer();
         this._cancelAppPreviewHide();
         this._hideAppPreview(true);
+        this._globalWindowPreview?.destroy?.();
+        this._globalWindowPreview = null;
+        this._globalPreviewAnchor = null;
         this._quickBrightnessManager?.cleanup();
         this._quickBrightnessManager = null;
         this._terminalBackdropBlurManager?.cleanup();
@@ -1930,7 +1939,9 @@ export default class VLIQRuntime extends Extension {
             running &&
             this._settings.get_boolean('show-running-indicator')
         ) {
-            const dotSize = Math.max(3, Math.round(iconSize * 0.09));
+            // Identical 5px native white running indicator across Orb,
+            // Ubuntu Dock and Bottom Taskbar; never scale it with icon size.
+            const dotSize = 5;
             const dot = new St.Widget({
                 style_class: 'vliq-running-dot',
                 reactive: false,
@@ -1974,7 +1985,7 @@ export default class VLIQRuntime extends Extension {
                 }
             } else {
                 this._hideTooltip();
-                this._scheduleAppPreviewHide();
+                this._scheduleAppPreviewHide(button);
 
                 button.ease({
                     scale_x: 1,
@@ -2486,7 +2497,7 @@ export default class VLIQRuntime extends Extension {
                             );
                         }
                     } else {
-                        this._scheduleAppPreviewHide();
+                        this._scheduleAppPreviewHide(actor);
                     }
                 }
             );
@@ -2640,7 +2651,37 @@ export default class VLIQRuntime extends Extension {
         };
     }
 
+    _globalPreviewItem(app, anchorActor, preferredSide) {
+        if (!anchorActor || !app)
+            return null;
+        let item = this._globalPreviewItems?.get(anchorActor) ?? null;
+        if (!item) {
+            item = {app, button: anchorActor, side: preferredSide};
+            this._globalPreviewItems?.set(anchorActor, item);
+        } else {
+            item.app = app;
+            item.side = preferredSide;
+        }
+        return item;
+    }
+
     _showAppPreview(app, anchorActor, preferredSide = null) {
+        if (this._globalWindowPreview) {
+            const item = this._globalPreviewItem(
+                app, anchorActor, preferredSide);
+            if (!item)
+                return false;
+            const running = (app.get_windows?.() ?? []).some(w =>
+                !w.skip_taskbar && Boolean(w.get_compositor_private?.()));
+            if (!running) {
+                this._globalWindowPreview.close();
+                this._globalPreviewAnchor = null;
+                return false;
+            }
+            this._globalPreviewAnchor = anchorActor;
+            this._globalWindowPreview.onButtonHover(item, true);
+            return true;
+        }
         const windows = app.get_windows()
             .filter(window =>
                 !window.skip_taskbar &&
@@ -2979,7 +3020,19 @@ export default class VLIQRuntime extends Extension {
         );
     }
 
-    _scheduleAppPreviewHide() {
+    _scheduleAppPreviewHide(anchorActor = null) {
+        if (this._globalWindowPreview) {
+            // Late LEAVE from another icon must never dismiss the newly
+            // hovered icon's pending live preview.
+            const anchor = this._globalPreviewAnchor;
+            if (anchorActor && anchorActor !== anchor)
+                return;
+            const item = anchor
+                ? this._globalPreviewItems?.get(anchor) : null;
+            if (item)
+                this._globalWindowPreview.onButtonHover(item, false);
+            return;
+        }
         this._cancelAppPreviewHide();
 
         if (!this._appPreview)
@@ -3001,6 +3054,8 @@ export default class VLIQRuntime extends Extension {
     }
 
     _cancelAppPreviewHide() {
+        if (this._globalWindowPreview)
+            return; // Native preview manages its own leave grace.
         if (!this._appPreviewHideTimeoutId)
             return;
 
@@ -3009,6 +3064,10 @@ export default class VLIQRuntime extends Extension {
     }
 
     _hideAppPreview(immediate = false) {
+        if (this._globalWindowPreview) {
+            this._globalWindowPreview.close();
+            this._globalPreviewAnchor = null;
+        }
         const card = this._appPreview;
 
         this._appPreview = null;

@@ -586,47 +586,9 @@ class PopupGlassSurface {
         let dateInnerClone = null;
         let dateInnerEffect = null;
 
-        if (this._isDateMenu || this._isQuickSettings) {
-            dateInnerRoot = new this._vendor.UnpickableActor({
-                name: 'vliq-popup-inner-material-root',
-                reactive: false,
-            });
-            dateInnerRoot.set_size(1, 1);
-            dateInnerRoot.hide();
-
-            dateInnerLiquidBox = new this._vendor.UnpickableActor({
-                name: 'vliq-popup-inner-liquid-box',
-                reactive: false,
-            });
-            dateInnerLiquidBox.set_clip_to_allocation(true);
-            dateInnerLiquidBox.set_position(0, 0);
-            dateInnerLiquidBox.set_size(1, 1);
-            dateInnerRoot.add_child(dateInnerLiquidBox);
-
-            // Safe non-recursive source: dateInnerRoot is a sibling ABOVE
-            // root, while the clone points DOWN to root. root never contains
-            // dateInnerRoot, so this cannot form a paint cycle.
-            dateInnerClone = new Clutter.Clone({
-                source: root,
-                reactive: false,
-            });
-            dateInnerClone.set_position(0, 0);
-            dateInnerClone.set_size(1, 1);
-            dateInnerLiquidBox.add_child(dateInnerClone);
-
-            dateInnerEffect = new this._vendor.LiquidEffect({
-                extensionPath: this._vendor.root,
-                settings: this._settings,
-                owner: 'vliq-popup-inner-cards',
-            });
-            dateInnerEffect.setPadding?.(DATE_INNER_PAD);
-            dateInnerEffect.setIsDock?.(false);
-            dateInnerEffect.setSurfaceLightEnabled?.(true);
-            dateInnerEffect.setCornerRadius?.(16);
-            dateInnerEffect.setBlurMethod?.(1);
-            dateInnerEffect.setMultiRegionMode?.(true);
-            dateInnerLiquidBox.add_effect(dateInnerEffect);
-        }
+        // Both Date Menu and Quick Settings have ONE outer LiquidEffect.
+        // Their internal cards are native CSS gray-white tiles. Do not
+        // allocate a second clone-of-popup GPU effect/rim for either menu.
 
         try {
             const paintRoot =
@@ -953,6 +915,7 @@ class PopupGlassSurface {
         }
 
         const markDirty = () => {
+            this._syncQuickSelectedClasses();
             const wasDirty =
                 this._quickRegionDirty;
 
@@ -986,6 +949,24 @@ class PopupGlassSurface {
             } catch {
                 // Not every card actor exposes every property notification.
             }
+        }
+    }
+
+    _syncQuickSelectedClasses() {
+        if (!this._isQuickSettings)
+            return;
+
+        // Preserve GNOME's accent foreground on ON/checked tiles even
+        // though the old nested-region shader no longer tracks selection.
+        for (const actor of this._dateCardActors) {
+            const selected = quickCardState(actor).selected;
+            if (this._quickSelectedState.get(actor) === selected)
+                continue;
+            this._quickSelectedState.set(actor, selected);
+            if (selected)
+                actor.add_style_class_name?.(QUICK_ACTIVE_CLASS);
+            else
+                actor.remove_style_class_name?.(QUICK_ACTIVE_CLASS);
         }
     }
 
@@ -1109,6 +1090,7 @@ class PopupGlassSurface {
         if (this._isQuickSettings) {
             this._rebuildQuickSignalEntries();
             this._quickNeedsRescan = false;
+            this._syncQuickSelectedClasses();
         }
 
         const live = new Set(this._dateCardActors);
@@ -1180,6 +1162,17 @@ class PopupGlassSurface {
     _dateCardResponse(actor, klass, quickState = null) {
         if (this._isDateMenu && klass === 'calendar')
             return 0;
+
+        // Quick Settings has the exact same CSS hover/pressed card as the
+        // Bottom Taskbar app icons. The nested LiquidEffect keeps its
+        // stationary neutral glass base, but must NOT add a second
+        // shader-side hover response over the CSS inset highlight.
+        // Checked/active native accent and text polarity are handled
+        // independently in _syncDateInnerRegions().
+        if (this._isQuickSettings) {
+            this._dateCardResponses.set(actor, 0);
+            return 0;
+        }
 
         let pressed;
         let selected;
@@ -1917,6 +1910,18 @@ class PopupGlassSurface {
         if (!this._effect || !state)
             return;
 
+        // Paint native GNOME menu.box directly in Milky mode. Hide BOTH
+        // stage-level shader roots; leaving the nested date/quick material
+        // visible would put Liquid Glass underneath the new native card.
+        const wasMilky = this._milky === true;
+        this._milky = state.milky === true;
+        if (this._milky) {
+            this._root?.hide?.();
+            this._dateInnerRoot?.hide?.();
+            return;
+        }
+        if (wasMilky)
+            this._invalidateGeometry();
         this._fullSyncDirty = true;
         this._radius = readRadius(this._box);
 
@@ -2234,8 +2239,8 @@ class PopupGlassSurface {
     }
 
     syncFrame() {
-        if (this._destroyed)
-            return;
+        if (this._destroyed || this._milky)
+            return; // No shader frame or backdrop clones for native Milky.
 
         // Check BEFORE the fixed-FPS frame throttle: opening the Calendar
         // on Super/Overview must never show one stale browser-web frame.
@@ -2337,6 +2342,13 @@ class PopupGlassSurface {
     }
 
     _sync(shaderOnly) {
+        if (this._milky) {
+            if (!shaderOnly) {
+                this._root?.hide?.();
+                this._dateInnerRoot?.hide?.();
+            }
+            return; // Native Milky menu: no offscreen scene sync.
+        }
         // Actor visibility must be changed only during full layout/stage
         // sync, never from LiquidEffect's paint-time uniforms hook.
         if (!shaderOnly)
@@ -2459,13 +2471,10 @@ class PopupGlassSurface {
         }
 
         if (this._isDateMenu) {
-            this._syncDateInnerRegions(
-                monitorX,
-                monitorY,
-                screenW,
-                screenH,
-                !shaderOnly
-            );
+            // Date's inner surfaces are CSS-only; no nested shader region
+            // updates during the outer LiquidEffect paint hook.
+            if (!shaderOnly)
+                this._scanDateCardActors(false);
         } else if (this._isQuickSettings) {
             const overlayOpen =
                 Boolean(this._menu?._activeMenu?.isOpen);
@@ -2502,14 +2511,11 @@ class PopupGlassSurface {
                     this._quickNeedsRescan
                 )
             ) {
-                this._syncDateInnerRegions(
-                    monitorX,
-                    monitorY,
-                    screenW,
-                    screenH,
-                    this._quickNeedsRescan ||
-                        this._dateCardActors.length === 0
-                );
+                if (this._quickNeedsRescan ||
+                    this._dateCardActors.length === 0)
+                    this._scanDateCardActors(true);
+                this._syncQuickSelectedClasses();
+                this._quickRegionDirty = false;
             }
         }
 

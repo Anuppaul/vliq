@@ -422,7 +422,22 @@ export class OverviewCloseGlassManager {
         state = this._readAppearance()
     ) {
         this._appearance = state;
-        this._applyAppearance(state);
+        // The shared renderer normally hides native app icons and draws
+        // sharp clones over Liquid badges. Milky has no shader: restore
+        // the ORIGINAL native icons before hiding the clone layer.
+        for (const [actor, entry] of this._targets) {
+            if (entry.kind === 'icon') {
+                try {
+                    actor.opacity = state?.milky
+                        ? (entry.nativeOpacity ?? 255)
+                        : 0;
+                } catch {}
+            }
+        }
+        if (state?.milky)
+            this._root?.hide?.();
+        else
+            this._applyAppearance(state);
         this._lastRegionKey = '';
     }
 
@@ -643,7 +658,7 @@ export class OverviewCloseGlassManager {
             const nativeOpacity =
                 actor.opacity ?? 255;
 
-            if (kind === 'icon') {
+            if (kind === 'icon' && !this._appearance?.milky) {
                 try {
                     actor.opacity = 0;
                 } catch {}
@@ -1078,6 +1093,13 @@ export class OverviewCloseGlassManager {
             !this._root ||
             !this._effect
         ) {
+            return;
+        }
+        if (this._appearance?.milky) {
+            // Keep native Overview controls and window icons clickable;
+            // do not capture their backdrop or composite a glass layer.
+            this._root.hide?.();
+            this._scan(false);
             return;
         }
 

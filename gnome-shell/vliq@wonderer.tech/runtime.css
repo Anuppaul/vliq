@@ -280,12 +280,11 @@
     box-shadow: none;
 }
 
-/* GNOME 50 top bar: THREE detached dock-style glass islands.
- * Main.panel remains the native GNOME input host (Activities, Date Menu,
- * Quick Settings). Only its long background is cleared. Each native box
- * keeps a rounded low-opacity fallback until its own bounded LiquidEffect
- * has actually composited, at which point the true refractive material
- * underneath becomes visible. Do not alter native box width/padding/menus. */
+/* GNOME 50 3-Part Header: appearance-controlled materials.
+ * Liquid/Frosted: each native panel box has one bounded VLIQ shader under
+ * its controls. Milky: that shader is hidden and the accepted gray-white
+ * CSS card paints the original native box. No actor reparenting or new
+ * hover wrappers. Keep visual fallbacks for GPU initialization failures. */
 #panel.vliq-liquid-top-panel.vliq-three-islands {
     background-color: transparent !important;
     background-image: none !important;
@@ -301,28 +300,60 @@
     border: 0 !important;
     box-shadow: none !important;
 }
-/* Invisible/empty native groups must not leave orphaned CSS fallback pills.
- * Optical material opacity is already zero in this state. */
-#panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
-#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
-#panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
+/* Once a Liquid/Frosted GPU material is ready, it alone paints the
+ * main glass card; never stack a second CSS milky veil above it. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
     background-color: transparent !important;
     background-image: none !important;
-    border-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Milky mode is ALWAYS the original pure native card, even if the shader
+ * was previously ready before switching Appearance. The CSS fallback is
+ * identical when the shader fails to initialize. */
+.vliq-global-milky #panel.vliq-three-islands #panelLeft.vliq-panel-island,
+.vliq-global-milky #panel.vliq-three-islands #panelCenter.vliq-panel-island,
+.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island,
+#panel.vliq-three-islands #panelLeft.vliq-panel-island-css-fallback,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island-css-fallback,
+#panel.vliq-three-islands #panelRight.vliq-panel-island-css-fallback {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border-radius: 16px !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+/* Empty/inactive islands cannot paint orphan pills, in any material mode.
+ * Match the specificity of the Milky rules so hiding always wins. */
+.vliq-global-milky #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-milky #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
     box-shadow: none !important;
 }
 #panel.vliq-three-islands .panel-corner {
     -panel-corner-radius: 0px;
     -panel-corner-background-color: transparent;
     -panel-corner-border-color: transparent;
+}
+/* The island itself owns the surface. Avoid a second nested hover pill,
+ * in Liquid, Frosted and Milky. No change to click/focus handling. */
+#panel.vliq-three-islands .vliq-panel-island .panel-button,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:hover,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:focus,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:active,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:checked {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* User-selectable FULL Top Header. One bounded native-panel LiquidEffect
@@ -381,16 +412,30 @@
 }
 /* GNOME's original workspace/screen toggle remains at far left.
  * The centered VLIQ Start and app icons are intentionally unchanged. */
+/* Native workspace/Activities switcher: same premium gray-white card
+ * paint as Quick Settings, but only on hover/focus so idle bar stays clean.
+ * This touches paint only; native click/scroll and workspace switching stay
+ * owned by GNOME, without adding wrappers, padding, or layout offsets. */
 #panel.vliq-bottom-taskbar #panelLeft #panelActivities {
     margin-left: 8px;
     background-color: transparent !important;
+    background-image: none !important;
     border: 0 !important;
+    border-radius: 11px !important;
     box-shadow: none !important;
+    transition-duration: 120ms;
 }
 #panel.vliq-bottom-taskbar #panelLeft #panelActivities:hover,
-#panel.vliq-bottom-taskbar #panelLeft #panelActivities:focus,
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:focus {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+}
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:active,
 #panel.vliq-bottom-taskbar #panelLeft #panelActivities:checked {
-    background-color: rgba(245, 249, 255, 0.16) !important;
+    background-color: rgba(219, 223, 229, 0.27) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
 }
 /* Windows 11-like CENTERED Start + apps. The entire group uses one
  * native panelCenter allocation; no fixed left-anchored launcher or
@@ -434,6 +479,42 @@
 #panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active {
     background-color: rgba(245, 249, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+/* Bottom Taskbar's Calendar/Date and Quick Settings buttons use the same
+ * individual hover cards as running-app icons. This changes PAINT only;
+ * native indicator size, popup menu and input allocation are unchanged. */
+#panel.vliq-bottom-taskbar #panelRight .panel-button {
+    border-radius: 9px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
+}
+#panel.vliq-bottom-taskbar #panelRight .panel-button:hover,
+#panel.vliq-bottom-taskbar #panelRight .panel-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+#panel.vliq-bottom-taskbar #panelRight .panel-button:active,
+#panel.vliq-bottom-taskbar #panelRight .panel-button:checked {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+/* Date/Clock: retain the accepted outer milky hover card from the
+ * shared #panelRight .panel-button rules above. GNOME DateMenuButton
+ * contains a nested .clock-display-box, which can receive another rounded
+ * theme highlight. Only that INNER box has its paint suppressed.
+ * Do not alter the native label, button geometry or menu activation. */
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:hover,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:focus,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:active,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:checked {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-apps {
     spacing: 4px;
@@ -515,30 +596,73 @@
 
 /* Keep ONLY the native GNOME Date/Clock white in Bottom Taskbar.
  * The rest of the panel retains its existing adaptive text palette. */
-#panel.vliq-bottom-taskbar #panelRight .clock {
+/* GNOME/Yaru paints a separate rounded pill on the inner .clock label
+ * for .clock-display:hover/:focus/:checked. Keep the OUTER milky Date
+ * button hover card, but suppress the clock label's own theme paint. */
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:hover .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:focus .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:active .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:checked .clock {
     color: #ffffff !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* End independent panel islands. Native GNOME menu controls are untouched. */
 
-/* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,
- * focus and active paint are softened to sit on the parent glass material. */
-.vliq-liquid-top-panel .panel-button {
-    background-color: transparent;
-    background-image: none;
-    box-shadow: none;
+/* Shared native GNOME indicator buttons in ALL VLIQ header layouts:
+ * 3-Part Header (Date in panelCenter), Full Header and Bottom Taskbar
+ * (Date relocated to panelRight). Match the existing taskbar icon hover
+ * material without changing allocation, click targets, icons or spacing.
+ * These paint-only rules are intentionally independent of glass-style:
+ * both Liquid Glass and Frosted Crystal use the same inner-card system. */
+#panel.vliq-liquid-top-panel .panel-button {
+    border-radius: 9px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
 }
 
-.vliq-liquid-top-panel .panel-button:hover,
-.vliq-liquid-top-panel .panel-button:focus {
-    background-color: rgba(255, 255, 255, 0.08);
-    box-shadow: none;
+#panel.vliq-liquid-top-panel .panel-button:hover,
+#panel.vliq-liquid-top-panel .panel-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
 
-.vliq-liquid-top-panel .panel-button:active,
-.vliq-liquid-top-panel .panel-button:checked {
-    background-color: rgba(255, 255, 255, 0.12);
-    box-shadow: none;
+#panel.vliq-liquid-top-panel .panel-button:active,
+#panel.vliq-liquid-top-panel .panel-button:checked {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* GNOME/Yaru can draw two MORE pills inside the native DateMenuButton:
+ * .clock-display-box and the .clock label. Suppress their paint in all
+ * three layouts, leaving exactly the ONE outer .panel-button hover card.
+ * Foreground color is deliberately NOT overridden here: Bottom Taskbar
+ * keeps its fixed white clock; Full/3-Part keep adaptive text contrast. */
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:hover,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:focus,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:active,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:checked,
+#panel.vliq-liquid-top-panel .clock-display:hover .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:focus .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:active .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:checked .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display .clock,
+#panel.vliq-liquid-top-panel .clock-display:hover .clock,
+#panel.vliq-liquid-top-panel .clock-display:focus .clock,
+#panel.vliq-liquid-top-panel .clock-display:active .clock,
+#panel.vliq-liquid-top-panel .clock-display:checked .clock {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* The only stage-level blur used for Ubuntu Dock Panel Mode is constrained
@@ -1256,48 +1380,12 @@
  * ---------------------------------------------------------------------- */
 
 /* Date / Calendar -------------------------------------------------------- */
-/* The outer popover already owns the first LiquidEffect. These native cards
- * are made paint-transparent because PopupGlass now places a second shared
- * multi-region LiquidEffect between the outer glass and GNOME content. */
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
-.vliq-liquid-popup-content.datemenu-popover .calendar,
-.vliq-liquid-popup-content.datemenu-popover .events-button,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
-.vliq-liquid-popup-content.datemenu-popover .weather-button,
-.vliq-liquid-popup-content.datemenu-popover .message,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
-
-/* Hover/press is only a thin interaction sheen; the actual material remains
- * the nested shader underneath, so the card never turns back into a flat box. */
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .events-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .events-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .message:hover,
-.vliq-liquid-popup-content.datemenu-popover .message:focus,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
-    background-color: rgba(255, 255, 255, 0.038) !important;
-    border-color: rgba(255, 255, 255, 0.075) !important;
-}
-
-.vliq-liquid-popup-content.datemenu-popover .message:active,
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:active,
-.vliq-liquid-popup-content.datemenu-popover .events-button:active,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:active,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:active,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:active {
-    background-color: rgba(255, 255, 255, 0.075) !important;
-}
+/* One outer LiquidEffect only. Today, calendar, events, clocks, weather and
+ * messages are lightweight regular St cards like VLIQ's window-preview tiles.
+ * Quick Settings retains its existing independent inner glass pods. */
+/* Date Menu card bodies and hover paint are defined once near the end of
+ * this section. They are normal CSS cards, never nested LiquidEffect
+ * materials. The outer Date Menu Liquid Glass remains unchanged. */
 
 /* Keep the two-column divider quiet; no fake second panel behind the cards. */
 .vliq-liquid-popup-content.datemenu-popover .message-list {
@@ -1534,11 +1622,77 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
+/* Date Menu: restrained cool gray-white cards, visible at rest.
+ * Main popover retains its single LiquidEffect; no nested card shader.
+ * The native calendar GRID itself deliberately has no enclosing card. */
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
+.vliq-liquid-popup-content.datemenu-popover .events-button,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
+.vliq-liquid-popup-content.datemenu-popover .weather-button,
+.vliq-liquid-popup-content.datemenu-popover .message,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+    transition-duration: 120ms;
+}
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .events-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .events-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .message:hover,
+.vliq-liquid-popup-content.datemenu-popover .message:focus,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
+    /* Hover does not add a second milky-white layer. */
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:active,
+.vliq-liquid-popup-content.datemenu-popover .events-button:active,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:active,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:active,
+.vliq-liquid-popup-content.datemenu-popover .message:active,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:active {
+    background-color: rgba(219, 223, 229, 0.27) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
+}
+/* The calendar grid remains visually integrated into the OUTER glass.
+ * Keep month/day controls, current-day GNOME accent, and keyboard input. */
+.vliq-liquid-popup-content.datemenu-popover .calendar,
+.vliq-liquid-popup-content.datemenu-popover .calendar:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar:focus {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .calendar-month-label,
+.vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day-heading,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:focus,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:active,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:selected,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
 /* Quick Settings --------------------------------------------------------- */
-/* Quick Settings now uses the SAME PopupGlass nested-card pipeline as Date
- * Menu. Native pod paint is cleared so the shared clone-of-parent
- * LiquidEffect is the visible card; CSS only supplies interaction/selection
- * hints and never another opaque card, border or shadow. */
+/* Quick Settings retains its existing nested glass pod pipeline. Native
+ * pod paint is cleared so its clone-of-parent LiquidEffect remains visible. */
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
 .vliq-liquid-popup-content.quick-settings .quick-toggle,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button,
@@ -1789,6 +1943,132 @@
 }
 
 
+/* Quick Settings inner cards: same always-visible cool gray-white paint as
+ * the accepted Calendar inner cards. Hover/focus/checked remain visually
+ * neutral, while pressed is slightly stronger. GNOME's selected-state
+ * accent is preserved on labels/icons. Never tint the main popup itself.
+ * The nested Quick LiquidEffect remains the underlying optical material. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-slider,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button,
+.vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+    transition-duration: 120ms;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle:checked,
+.vliq-liquid-popup-content.quick-settings .quick-slider:hover,
+.vliq-liquid-popup-content.quick-settings .quick-slider:focus,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:checked,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:checked,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:hover,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle:active,
+.vliq-liquid-popup-content.quick-settings .quick-slider:active,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:active,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button:active,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:active {
+    background-color: rgba(219, 223, 229, 0.27) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
+}
+
+/* Premium Quick Settings spacing — native Shell 50 layout, no DOM clones.
+ * QuickSettingsLayout reads spacing-rows / spacing-columns from theme nodes.
+ * Single-card ownership: split toggles have ONE outer card, while internal
+ * action buttons remain transparent with their native hit targets intact. */
+.vliq-liquid-popup-content.quick-settings.quick-settings,
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid {
+    spacing-rows: 10px;
+    spacing-columns: 10px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid {
+    padding: 4px 2px 6px 2px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-slider,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button {
+    border-radius: 11px !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(219, 223, 229, 0.18) !important;
+    border: 0 !important;
+    border-radius: 11px !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
+}
+/* Split toggle inner action is not a second card. Preserve click/toggle. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:checked,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:active,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:active {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-toggle-separator {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.quick-settings .quick-slider {
+    padding: 9px 11px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid .quick-settings-system-item {
+    margin-top: 3px;
+}
+.vliq-liquid-popup-content.quick-settings .quick-settings-grid .quick-slider .slider-bin {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Expanded submenu: one card per clickable option, with deliberate row gaps. */
+.vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-liquid-quick-menu-root .quick-toggle-menu-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
+    margin: 3px 6px;
+    padding: 9px 12px;
+    border-radius: 9px !important;
+}
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item-separator,
+.vliq-liquid-popup-content.quick-settings .popup-separator-menu-item-separator {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Keep the active slider bar and GNOME accent text; only decorative lines
+ * disappear. Calendar and Bottom Taskbar selectors are untouched. */
+
 /* VLIQ Spotlight ------------------------------------------------------- */
 
 /*
@@ -1882,4 +2162,230 @@
 
 .vliq-spotlight-result-labels {
     spacing: 1px;
+}
+
+/* Global Milky appearance. The 3-Part Header's native gray-white card is
+ * the canonical paint material. These rules target only VLIQ-managed Shell
+ * surfaces, NEVER window content or the desktop wallpaper. VLIQ's JS
+ * disables its shader actors while this class is active. */
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-liquid-popup-content,
+.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content,
+.vliq-global-milky .popup-menu-content.datemenu-popover,
+.vliq-global-milky .popup-menu-content.quick-settings {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-liquid-shell-card,
+.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card,
+.vliq-global-milky .vliq-native-notification-glass,
+.vliq-global-milky .vliq-native-notification-glass:hover,
+.vliq-global-milky .vliq-native-notification-glass:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-orb-face-v2,
+.vliq-global-milky .vliq-orb-face-v2:hover,
+.vliq-global-milky .vliq-orb-face-v2:focus,
+.vliq-global-milky .vliq-app-button,
+.vliq-global-milky .vliq-app-button:hover,
+.vliq-global-milky .vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-spotlight-glass-entry,
+.vliq-global-milky .vliq-spotlight-glass-results {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+/* Floating and panel Ubuntu Dock share one native .dash-background, which
+ * is a SIBLING of the icon container. Leave every app icon untouched. */
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background,
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background,
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background.vliq-native-panel-liquid-ready,
+.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-glass-background,
+.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-panel-background {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+
+/* Native GNOME volume/brightness OSD. Vendor's UI container is restored as
+ * the Milky card while its original icons, slider and fade remain native. */
+.vliq-global-milky .vliq-milky-osd {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+
+/* Overview: same Milky circles, no duplicate LiquidEffect or opacity-zero
+ * native app icons. WindowPreview still owns every input/hit target. */
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:hover,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:focus,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:active,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:hover,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+
+
+/* VLIQ app icon consistency -----------------------------------------------
+ * Same exact Bottom Taskbar hover/pressed material everywhere:
+ * - Ubuntu Dock floating and extended/panel modes
+ * - GNOME Overview Dash
+ * - Orb radial app buttons
+ * Keep every native icon, running state, click target and padding intact.
+ * Paint only the existing icon/indicator actors; NO new clone or timer. */
+
+/* Ubuntu Dock: state is owned by GNOME's app-well-app actor. Avoid styling
+ * .dash-item-container as a whole (that makes a continuous row highlight). */
+#dashtodockDashContainer .dash-item-container .app-well-app .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps .overview-icon {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
+}
+#dashtodockDashContainer .dash-item-container .app-well-app:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .app-well-app:focus .overview-icon,
+#dashtodockDashContainer .dash-item-container .app-well-app.focused .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:focus .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:focus .overview-icon {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+#dashtodockDashContainer .dash-item-container .app-well-app:active .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:active .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:active .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:active .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:active .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:active .overview-icon {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* GNOME native dots remain the ONLY indication of running state. Do not
+ * duplicate them with another St.Widget; preserve native offset and position
+ * in left/right/top/bottom Dock orientations. */
+#dashtodockDashContainer .app-well-app-running-dot,
+#dashtodockDashContainer .app-grid-running-dot,
+#overviewGroup #dash .app-well-app-running-dot,
+#overviewGroup #dash .app-grid-running-dot,
+.vliq-running-dot,
+#panel.vliq-bottom-taskbar .vliq-taskbar-running-dot {
+    min-width: 5px;
+    min-height: 5px;
+    background-color: rgba(235, 244, 255, 0.94) !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+}
+
+/* Orb: same native 120ms milky card on hover. The existing radial actor
+ * retains circular hit testing, scale animation and app launch behavior. */
+.vliq-app-button:hover,
+.vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    transition-duration: 120ms;
+}
+.vliq-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    background-image: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+.vliq-global-milky .vliq-app-button {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+.vliq-global-milky .vliq-app-button:hover,
+.vliq-global-milky .vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* Follow GNOME Quick Settings' native Dark Style ONLY on Bottom Taskbar.
+ * The JS class exists iff this layout is Bottom and the native desktop
+ * color-scheme is prefer-dark. Full Header, 3-Part, Dock, menus, and
+ * notifications retain their normal GNOME/VLIQ material styles. */
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar,
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar.vliq-top-header-ready,
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar.vliq-bottom-taskbar-glass-attached,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar {
+    background-color: rgba(29,31,35,0.98) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: inset 0 1px rgba(255,255,255,0.13) !important;
+}
+
+/* GNOME task-completion/unread notification count on Bottom Taskbar icons.
+ * Overlay is inside the native 24px icon allocation: no extra app slot,
+ * no second indicator, and the accepted 5px running dot remains below. */
+#panel.vliq-bottom-taskbar .vliq-taskbar-icon-holder {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-notification-badge {
+    min-width: 14px;
+    min-height: 14px;
+    padding: 0px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffffff !important;
+    background-color: rgba(214, 49, 69, 0.98) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.32) !important;
+    border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }

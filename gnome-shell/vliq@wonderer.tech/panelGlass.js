@@ -16,6 +16,13 @@ export class PanelGlassSurface {
     constructor(vendor, settings, readAppearance, options = {}) {
         this._cornerRadius = Math.max(0, options.cornerRadius ?? 0);
         this._borderless = options.borderless === true;
+        // True 3-Part milky cards: CSS alone paints the native GNOME
+        // island boxes. No LiquidEffect/Clutter actor is allocated.
+        this._cssOnly = options.cssOnly === true;
+        // Only Bottom Taskbar follows the GNOME native Dark Style.
+        this._systemDarkTaskbar = options.systemDarkTaskbar === true;
+        this._milky = false;
+        this._requestedOpacity = 255;
         this._vendor = vendor;
         this._settings = settings;
         this._readAppearance = readAppearance;
@@ -31,7 +38,11 @@ export class PanelGlassSurface {
     }
 
     attach(group, dockRoot) {
-        if (this._material || !group || !dockRoot)
+        if (!group || !dockRoot)
+            return false;
+        if (this._cssOnly)
+            return true;
+        if (this._material)
             return false;
         let material = null;
         let manager = null;
@@ -99,9 +110,19 @@ export class PanelGlassSurface {
     }
 
     updateAppearance() {
-        if (!this._effect || this._destroyed)
+        if (this._destroyed)
             return;
         const state = this._readAppearance?.() ?? {};
+        const flat = state.milky === true ||
+            (this._systemDarkTaskbar && state.systemDarkTaskbar === true);
+        if (this._milky !== flat) {
+            this._milky = flat;
+            this._boundsDirty = true;
+            if (this._material)
+                this._material.opacity = flat ? 0 : this._requestedOpacity;
+        }
+        if (!this._effect)
+            return;
         let brightness = null;
         let contrast = null;
         let saturation = null;
@@ -169,7 +190,8 @@ export class PanelGlassSurface {
         }
         if (!actor.visible)
             actor.show?.();
-        const nextOpacity = Math.max(0, Math.min(255, opacity));
+        this._requestedOpacity = Math.max(0, Math.min(255, opacity));
+        const nextOpacity = this._milky ? 0 : this._requestedOpacity;
         if (actor.opacity !== nextOpacity)
             actor.opacity = nextOpacity;
         this.syncFrame();
@@ -183,6 +205,8 @@ export class PanelGlassSurface {
     }
 
     get ready() {
+        if (this._cssOnly || this._milky)
+            return !this._destroyed;
         return Boolean(
             !this._destroyed &&
             this._effect?._shadersLoaded &&
@@ -207,6 +231,8 @@ export class PanelGlassSurface {
     }
 
     syncFrame() {
+        if (this._milky)
+            return;
         if (this._destroyed || !this._material || !this._sceneRoot ||
             !this._sceneManager || !this._material.mapped ||
             this._material.opacity === 0)

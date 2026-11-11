@@ -72,6 +72,9 @@ const controls = {
     'frost-density': 78,
     'frost-grain': 55,
     'frost-edge-glow': 52,
+    'milky-opacity': 24,
+    'milky-border': 20,
+    'milky-whiteness': 0,
 };
 const canonical = {
     get_string: key => {

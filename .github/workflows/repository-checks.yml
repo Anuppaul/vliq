@@ -36,6 +36,11 @@ jobs:
           node tools/test_native_dock_settings.mjs
           node tools/test_popup_overview_capture.mjs
           node tools/test_calendar_overview_backdrop.mjs
+          node tools/test_calendar_flat_cards.mjs
+          node tools/test_popup_hover_card_parity.mjs
+          node tools/test_global_header_popup_parity.mjs
+          node tools/test_three_part_main_card.mjs
+          node tools/test_quick_premium_spacing.mjs
           node tools/test_quick_brightness.mjs
           node tools/test_fullscreen_panel_guard.mjs
           node tools/test_terminal_backdrop_blur.mjs
@@ -48,6 +53,8 @@ jobs:
           node tools/test_top_bar_islands.mjs
           node tools/test_bottom_taskbar.mjs
           node tools/test_bottom_taskbar_preview.mjs
+          node tools/test_global_preview_router.mjs
+          node tools/test_global_icon_paint.mjs
           node tools/test_bottom_taskbar_borderless.mjs
           node tools/test_bottom_taskbar_date_contrast.mjs
           node tools/test_desktop_layout_preferences.mjs
@@ -55,6 +62,11 @@ jobs:
           node tools/test_preview_layout.mjs
           node tools/test_liquid_optics.mjs
           node tools/test_frosted_crystal.mjs
+          node tools/test_milky_glass.mjs
+          node tools/test_milky_controls.mjs
+          node tools/test_milky_stylesheet_live.mjs
+          node tools/test_milky_global_integration.mjs
+          node tools/test_system_dark_bottom_taskbar.mjs
           node tools/test_adaptive_blue_edge.mjs
           # Validate the modified vendored modules as well as VLIQ's own JS.
           node --input-type=module --check < gnome-shell/vliq@wonderer.tech/vendor/liquid-glass/dist/liquidEffect.js

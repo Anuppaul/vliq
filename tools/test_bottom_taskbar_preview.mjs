@@ -262,6 +262,62 @@ assert.ok(narrow._popup.x >= 8);
 narrow.destroy();
 assert.equal(chromeAdds, chromeRemoves);
 
+// Global reuse: the SAME live preview also anchors to Orb and any
+// Ubuntu Dock orientation, without depending on a bottom panel allocation.
+layout.primaryMonitor = {x: 0, y: 0, width: 1920, height: 1080};
+layout.monitors = [
+    {x: 0, y: 0, width: 1920, height: 1080},
+    {x: 1920, y: 0, width: 1280, height: 1024},
+];
+panelBox.y = 0; // 3-Part / Full Header layout
+const positions = [
+    {side: 'bottom', x: 800, y: 50, lower: true},
+    {side: 'top', x: 800, y: 900, upper: true},
+    {side: 'right', x: 5, y: 360, right: true},
+    {side: 'left', x: 1750, y: 360, left: true},
+];
+for (const position of positions) {
+    const anchor = new Button({
+        x: position.x, y: position.y, width: 44, height: 44,
+    });
+    uiGroup.add_child(anchor);
+    const shared = new BottomTaskbarPreview({layout});
+    const reference = {app, button: anchor, side: position.side};
+    shared.onButtonHover(reference, true);
+    tick(260);
+    assert.ok(shared._popup, position.side + ' popup exists');
+    if (position.lower)
+        assert.ok(shared._popup.y > position.y + 44,
+            'top-mounted Orb preview opens beneath its icon');
+    if (position.upper)
+        assert.ok(shared._popup.y < position.y,
+            'bottom-mounted Dock preview opens above its icon');
+    if (position.right)
+        assert.ok(shared._popup.x > position.x + 44,
+            'left Dock preview opens on its right');
+    if (position.left)
+        assert.ok(shared._popup.x < position.x,
+            'right Dock preview opens on its left');
+    shared.destroy();
+    uiGroup.remove_child(anchor);
+}
+const secondMonitor = new Button({x: 2080, y: 900, width: 44, height: 44});
+uiGroup.add_child(secondMonitor);
+const otherDisplay = new BottomTaskbarPreview({layout});
+otherDisplay.onButtonHover({
+    app, button: secondMonitor, side: 'top',
+}, true);
+tick(260);
+assert.ok(otherDisplay._popup.x >= 1920 + 8,
+    'global preview stays within the anchor monitor');
+assert.ok(otherDisplay._popup.x +
+    otherDisplay._popup.get_preferred_width(-1)[1] <= 3200 - 8,
+    'preview must not overflow the second display');
+otherDisplay.destroy();
+uiGroup.remove_child(secondMonitor);
+assert.equal(chromeAdds, chromeRemoves,
+    'all global hover previews release Chrome after mode changes');
+
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');

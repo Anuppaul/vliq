@@ -129,7 +129,50 @@ manager.cleanup();
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');
-assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
-    'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
+const clockPaintStart = css.indexOf(
+    '/* GNOME/Yaru paints a separate rounded pill on the inner .clock label');
+assert.ok(clockPaintStart >= 0, 'nested GNOME clock pill override is present');
+const clockPaintEnd = css.indexOf('}', clockPaintStart);
+const clockPaint = css.slice(clockPaintStart, clockPaintEnd);
+for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
+    const nativeSelector = '#panel.vliq-bottom-taskbar #panelRight ' +
+        '.clock-display' + state + ' .clock';
+    assert.ok(clockPaint.includes(nativeSelector),
+        'native clock label paint suppressed during ' + (state || 'idle'));
+}
+assert.ok(clockPaint.includes('color: #ffffff !important'),
+    'clock text stays pure white');
+assert.ok(clockPaint.includes('background-color: transparent !important'),
+    'GNOME clock label cannot paint a second pill background');
+assert.ok(clockPaint.includes('box-shadow: none !important'),
+    'GNOME clock label cannot paint a second inset highlight');
+
+// Date gets the same outer milky card as the other right-side panel
+// indicators; both its nested .clock-display-box and .clock label paint are suppressed.
+const outerStart = css.indexOf(
+    '#panel.vliq-bottom-taskbar #panelRight .panel-button:hover,');
+const outerEnd = css.indexOf('}', outerStart);
+assert.ok(outerStart >= 0 && outerEnd > outerStart);
+const outerHover = css.slice(outerStart, outerEnd);
+assert.ok(outerHover.includes('rgba(245, 249, 255, 0.24)'),
+    'Date retains original milky outer hover fill');
+assert.ok(outerHover.includes('inset 0 0 0 1px rgba(255, 255, 255, 0.20)'),
+    'Date retains original outer inset rim');
+for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
+    const selector = '#panel.vliq-bottom-taskbar #panelRight ' +
+        '.clock-display .clock-display-box' + state;
+    assert.ok(css.includes(selector),
+        'only nested Date paint is cleared at ' + (state || 'idle'));
+}
+const innerStart = css.indexOf('/* Date/Clock: retain the accepted outer');
+const innerEnd = css.indexOf('}', innerStart);
+assert.ok(innerStart >= 0 && innerEnd > innerStart);
+const innerClear = css.slice(innerStart, innerEnd);
+assert.ok(innerClear.includes('background-color: transparent !important'),
+    'nested clock background cannot paint a second card');
+assert.ok(innerClear.includes('box-shadow: none !important'),
+    'nested clock inset shadow is removed');
+assert.ok(!css.includes('.panel-button.clock-display:hover'),
+    'outer Date milky card must not be suppressed');
 
 console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');

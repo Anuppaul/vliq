@@ -81,6 +81,14 @@ const DOCK_PANEL_GLASS_STYLE =
     'border-color: transparent; ' +
     'border-radius: 0px; ' +
     'box-shadow: none;';
+// An explicit inline native Dock fallback is needed even when the GNOME
+// theme has a higher-priority rule for the sibling .dash-background.
+const DOCK_PANEL_MILKY_STYLE =
+    'background-color: rgba(245,249,255,0.24); ' +
+    'background-image: none; ' +
+    'border-color: transparent; ' +
+    'border-radius: 0px; ' +
+    'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20);';
 const DOCK_PANEL_BACKDROP_NAME = 'vliq-dock-panel-local-backdrop';
 // Panel-local frosted glass: the blur effect is applied to Ubuntu Dock's
 // native .dash-background only, never to the whole monitor. A thin highlight
@@ -145,6 +153,77 @@ function parseHexRgb(value) {
     }
 
     return [255, 255, 255];
+}
+
+// Single source for Milky colors across every VLIQ-owned native Shell card.
+// Keep Liquid/Frosted selectors completely untouched by these optional rules.
+function milkyPaintTokens(state = {}) {
+    const opacity = clampNumber(state.milkyOpacity ?? 0.24, 0, 1);
+    const border = clampNumber(state.milkyBorder ?? 0.20, 0, 1);
+    const white = clampNumber(state.milkyWhiteness ?? 0, 0, 1);
+    const rgb = [245, 249, 255].map(channel =>
+        Math.round(channel + (255 - channel) * white));
+    return {
+        fill: 'rgba(' + rgb.join(',') + ',' + opacity.toFixed(3) + ')',
+        rim: border <= 0 ? 'none' :
+            'inset 0 0 0 1px rgba(255,255,255,' +
+                border.toFixed(3) + ')',
+    };
+}
+
+function buildMilkyAppearanceCss(state = {}) {
+    // Charcoal reuses native flat surface handling, but must NEVER inherit
+    // Milky's white density/shade/edge controls or generated paint.
+    if (!state.milky)
+        return '';
+    const {fill, rim} = milkyPaintTokens(state);
+    const roots = [
+        // St.Theme is NOT a browser CSS engine: do not use :not().
+        // Explicitly clear inactive islands after the main Milky paint.
+        ...['panelLeft', 'panelCenter', 'panelRight'].map(id =>
+            '.vliq-global-milky #panel.vliq-three-islands #' + id +
+            '.vliq-panel-island'),
+        '#panel.vliq-liquid-top-panel.vliq-full-header',
+        '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
+        '.vliq-global-milky .vliq-liquid-popup-content',
+        '.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content',
+        '.vliq-global-milky .popup-menu-content.datemenu-popover',
+        '.vliq-global-milky .popup-menu-content.quick-settings',
+        '.vliq-global-milky .vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-native-notification-glass',
+        '.vliq-global-milky .vliq-milky-osd',
+        '.vliq-global-milky .vliq-orb-face-v2',
+        '.vliq-global-milky .vliq-spotlight-glass-entry',
+        '.vliq-global-milky .vliq-spotlight-glass-results',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background',
+        '.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass',
+        '.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass',
+    ];
+    const interactionRoots = [
+        '.vliq-global-milky .vliq-app-button',
+    ];
+    const all = [...roots, ...interactionRoots].flatMap(selector =>
+        [selector, selector + ':hover', selector + ':focus',
+            selector + ':active', selector + ':checked']);
+    // The inactive override follows the fill, with strictly higher
+    // specificity. It must win even for an island that has shader-ready
+    // and inactive classes simultaneously during GNOME relayout.
+    const inactive = ['panelLeft', 'panelCenter', 'panelRight'].map(id =>
+        '.vliq-global-milky #panel.vliq-three-islands #' + id +
+        '.vliq-panel-island.vliq-panel-island-inactive');
+    return all.join(',\n') + ' {\n' +
+        '  background-color: ' + fill + ' !important;\n' +
+        '  background-image: none !important;\n' +
+        '  border: 0 !important;\n' +
+        '  box-shadow: ' + rim + ' !important;\n' +
+        '}\n' + inactive.join(',\n') + ' {\n' +
+        '  background-color: transparent !important;\n' +
+        '  background-image: none !important;\n' +
+        '  border: 0 !important;\n' +
+        '  box-shadow: none !important;\n' +
+        '}\n';
 }
 
 function canonicalExtensionRoot() {
@@ -489,6 +568,7 @@ export class LiquidGlassIntegration {
         this._cardAppearanceApplyId = 0;
         this._desktopInterfaceSettings = null;
         this._desktopAccentChangedId = 0;
+        this._desktopColorSchemeChangedId = 0;
         this._cardCssFile = null;
         this._cardCssSignature = '';
         this._cardCssCounter = 0;
@@ -578,8 +658,8 @@ export class LiquidGlassIntegration {
             return;
 
         try {
-            const enabled =
-                this._vliqSettings.get_string('glass-style') === 'frosted';
+            const mode = this._vliqSettings.get_string('glass-style');
+            const enabled = mode === 'frosted';
             const fraction = key =>
                 clampNumber(this._vliqSettings.get_int(key), 0, 100) / 100;
             const grain = fraction('frost-grain');
@@ -592,9 +672,22 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
+                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
+                ['vliq-milky-opacity', fraction('milky-opacity')],
+                ['vliq-milky-border', fraction('milky-border')],
+                ['vliq-milky-whiteness', fraction('milky-whiteness')],
             ]) {
-                if (Math.abs(this._settings.get_double(key) - value) > 0.0001)
-                    this._settings.set_double(key, value);
+                // Old cached schemas lack this optional key. Keep the native
+                // Milky renderer functional and retain all Liquid settings.
+                if (this._settings.settings_schema?.has_key?.(key) === false)
+                    continue;
+                try {
+                    if (Math.abs(this._settings.get_double(key) - value) > 0.0001)
+                        this._settings.set_double(key, value);
+                } catch (error) {
+                    if (key !== 'vliq-milky-mode')
+                        throw error;
+                }
             }
         } catch (error) {
             // Incompatible external/upstream vendor versions may not have
@@ -633,6 +726,11 @@ export class LiquidGlassIntegration {
             this._loadStylesheet();
 
         this._enabled = true;
+        // Paint Milky natively from the FIRST frame, before popup/dock
+        // managers start attaching; prevent a one-frame Liquid flash.
+        this._syncMilkyAppearanceClass(
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+        );
 
         // Hook GNOME's existing wallpaper actors before creating Orb/Popup
         // glass and the shared BackgroundMirror. Original (default) does
@@ -849,7 +947,9 @@ export class LiquidGlassIntegration {
                 this._logger,
                 VLIQ_GLASS_ROLES.osdCard
             );
+            this._installMilkyOsdAdapter();
             this._osdManager.setup();
+            this._syncMilkyOsdMaterial();
         });
 
         // PopupMenu.prototype is the single outer-card path for Date Menu,
@@ -1499,6 +1599,11 @@ export class LiquidGlassIntegration {
     _readSharedCardAppearance() {
         if (!this._vliqSettings) {
             return {
+                milky: false,
+                systemDarkTaskbar: false,
+                milkyOpacity: 0.24,
+                milkyBorder: 0.20,
+                milkyWhiteness: 0,
                 opacity: 0,
                 tint: '#ffffff',
                 r: 255,
@@ -1573,6 +1678,14 @@ export class LiquidGlassIntegration {
         };
 
         return {
+            milky: this._vliqSettings.get_string('glass-style') === 'milky',
+            // GNOME Quick Settings owns color-scheme; never write to it.
+            // Only the Bottom Taskbar layout consumes this native flag.
+            systemDarkTaskbar: this._desktopInterfaceSettings?.get_string?.(
+                'color-scheme') === 'prefer-dark',
+            milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
+            milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
+            milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), 0, 100) / 100,
             opacity,
             tint,
             r,
@@ -1663,9 +1776,58 @@ export class LiquidGlassIntegration {
         this._orbGlassManager?.setDragActive?.(active);
     }
 
+    _syncMilkyOsdMaterial(enabled = this._milkyModeActive) {
+        for (const state of this._osdManager?._osdStates ?? []) {
+            try {
+                if (enabled) {
+                    state.bgActor?.hide?.();
+                    if (state.bgActor)
+                        state.bgActor.opacity = 0;
+                    state.targetBox?.add_style_class_name?.('vliq-milky-osd');
+                } else {
+                    state.targetBox?.remove_style_class_name?.('vliq-milky-osd');
+                }
+            } catch {}
+        }
+    }
+
+    _installMilkyOsdAdapter() {
+        const osd = this._osdManager;
+        if (!osd || osd._vliqMilkySyncWrapped ||
+            typeof osd._syncGeometry !== 'function')
+            return;
+        // Wrap the *instance* so this works with a hot-cached vendor module.
+        // Never re-register an existing GObject or mutate the vendor source.
+        const original = osd._syncGeometry.bind(osd);
+        osd._syncGeometry = state => {
+            if (this._milkyModeActive) {
+                state?.bgActor?.hide?.();
+                state?.targetBox?.add_style_class_name?.('vliq-milky-osd');
+                return; // Native OSD keeps its input/volume progress UI.
+            }
+            state?.targetBox?.remove_style_class_name?.('vliq-milky-osd');
+            return original(state);
+        };
+        osd._vliqMilkySyncWrapped = true;
+    }
+
+    _syncMilkyAppearanceClass(enabled) {
+        this._milkyModeActive = enabled;
+        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
+        if (uiGroup) {
+            if (enabled)
+                uiGroup.add_style_class_name?.('vliq-global-milky');
+            else
+                uiGroup.remove_style_class_name?.('vliq-global-milky');
+        }
+        this._syncMilkyOsdMaterial(enabled);
+    }
+
     _applySharedCardAppearance() {
         const state = this._readSharedCardAppearance();
 
+        // CSS-only Milky must work even with a cached legacy vendor module.
+        this._syncMilkyAppearanceClass(state.milky === true);
         this._popupGlassManager?.updateAppearance(state);
         this._shellCardGlassManager?.updateAppearance(state);
         this._previewGlassManager?.updateAppearance(state);
@@ -1679,9 +1841,14 @@ export class LiquidGlassIntegration {
         this._osdManager?.updateMaterialAppearance?.(state);
         this._topPanelIslands?.updateAppearance();
         for (const entry of this._nativeDashEntries) {
-            if (entry.manager)
+            if (entry.manager) {
                 this._applySharedDashMaterial(entry.manager, 'dock');
+                this._syncNativeDockVisualState(entry, true);
+            }
             entry.panelLiquidSurface?.updateAppearance?.();
+            if (entry.panelPaintActive && entry.panelBackgroundActor)
+                this._setDockPanelPremiumStyle(
+                    entry, entry.panelBackgroundActor);
         }
 
         console.log(
@@ -1755,9 +1922,13 @@ export class LiquidGlassIntegration {
                 this._desktopAccentChangedId =
                     this._desktopInterfaceSettings.connect(
                         'changed::accent-color',
-                        () => {
-                            this._queueSharedCardAppearanceApply();
-                        }
+                        () => this._queueSharedCardAppearanceApply()
+                    );
+                // GNOME Quick Settings -> Dark Style updates this key.
+                this._desktopColorSchemeChangedId =
+                    this._desktopInterfaceSettings.connect(
+                        'changed::color-scheme',
+                        () => this._queueSharedCardAppearanceApply()
                     );
             } catch (error) {
                 this._desktopInterfaceSettings = null;
@@ -1789,12 +1960,18 @@ export class LiquidGlassIntegration {
                             'date-menu-glass-filter-opacity',
                             'glass-live-scene-fps',
                             'glass-style',
+                            'milky-opacity',
+                            'milky-border',
+                            'milky-whiteness',
                             'frost-density',
                             'frost-grain',
                             'frost-edge-glow',
                         ].includes(key)) {
                             if ([
                                 'glass-style',
+                                'milky-opacity',
+                                'milky-border',
+                                'milky-whiteness',
                                 'frost-density',
                                 'frost-grain',
                                 'frost-edge-glow',
@@ -1810,6 +1987,7 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
+        this._syncMilkyAppearanceClass(false);
         if (
             this._cardAppearanceSettingId &&
             this._vliqSettings
@@ -1835,6 +2013,13 @@ export class LiquidGlassIntegration {
             } catch {}
         }
         this._desktopAccentChangedId = 0;
+        if (this._desktopInterfaceSettings && this._desktopColorSchemeChangedId) {
+            try {
+                this._desktopInterfaceSettings.disconnect(
+                    this._desktopColorSchemeChangedId);
+            } catch {}
+        }
+        this._desktopColorSchemeChangedId = 0;
         this._desktopInterfaceSettings = null;
 
         if (this._cardAppearanceApplyId) {
@@ -1936,8 +2121,10 @@ export class LiquidGlassIntegration {
             '.modal-dialog.vliq-liquid-shell-card .modal-dialog-button:default {\n' +
             '  background-color: ' + accentColor + ' !important;\n' +
             '  color: #ffffff !important;\n' +
-            '}\n' +            '.vliq-running-dot {\n' +
-            '  background-color: ' + accentColor + ' !important;\n' +
+            '}\n' +            // Running indicators are always the accepted Bottom Taskbar
+            // cool-white, never the desktop's changing accent color.
+            '.vliq-running-dot {\n' +
+            '  background-color: rgba(235, 244, 255, 0.94) !important;\n' +
             '}\n' +
             '.vliq-native-notification-glass,\n' +
             '.vliq-native-notification-glass:hover,\n' +
@@ -1980,7 +2167,8 @@ export class LiquidGlassIntegration {
             ') !important;\n' +
             '  background-image: none !important;\n' +
             '  box-shadow: none !important;\n' +
-            '}\n';
+            '}\n' +
+            buildMilkyAppearanceCss(state);
 
         if (
             this._cardCssFile &&
@@ -2007,10 +2195,20 @@ export class LiquidGlassIntegration {
 
         GLib.file_set_contents(path, css);
 
-        this._unloadCardAppearanceStylesheet();
-
+        // Load FIRST. An invalid/missing St CSS selector must never destroy
+        // the last successfully loaded Appearance stylesheet. A theme
+        // swap occurs within one Shell event turn, so no extra paint frame.
         const file = Gio.File.new_for_path(path);
-        this._getShellTheme().load_stylesheet(file);
+        try {
+            this._getShellTheme().load_stylesheet(file);
+        } catch (error) {
+            try { file.delete(null); } catch {}
+            console.warn(
+                '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
+            );
+            return;
+        }
+        this._unloadCardAppearanceStylesheet();
         this._cardCssFile = file;
         this._cardCssSignature = css;
 
@@ -3421,6 +3619,12 @@ export class LiquidGlassIntegration {
     _nativeDockGlassVisible(entry) {
         if (!entry?.container)
             return false;
+        // Only VLIQ Milky replaces Ubuntu Dock GPU glass. GNOME Dark
+        // Style never changes the native Dock compositor ownership.
+        try {
+            if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
+                return false;
+        } catch {}
 
         // The single bottom taskbar replaces Ubuntu Dock's visual strip.
         // Retain its native state, but never paint a second overlapping
@@ -4551,9 +4755,18 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        const desired = entry.panelLiquidReady
-            ? DOCK_PANEL_GLASS_STYLE
-            : DOCK_PANEL_PREMIUM_STYLE;
+        const desired =
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+                ? (() => {
+                    const tokens = milkyPaintTokens(
+                        this._readSharedCardAppearance());
+                    return 'background-color: ' + tokens.fill + '; ' +
+                        'background-image: none; border-color: transparent; ' +
+                        'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
+                })()
+                : (entry.panelLiquidReady
+                    ? DOCK_PANEL_GLASS_STYLE
+                    : DOCK_PANEL_PREMIUM_STYLE);
         if (current === desired)
             return;
 
