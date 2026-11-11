@@ -174,7 +174,7 @@ function milkyPaintTokens(state = {}) {
 function buildMilkyAppearanceCss(state = {}) {
     // Charcoal reuses native flat surface handling, but must NEVER inherit
     // Milky's white density/shade/edge controls or generated paint.
-    if (!state.milky || state.charcoal)
+    if (!state.milky)
         return '';
     const {fill, rim} = milkyPaintTokens(state);
     const roots = [
@@ -568,6 +568,7 @@ export class LiquidGlassIntegration {
         this._cardAppearanceApplyId = 0;
         this._desktopInterfaceSettings = null;
         this._desktopAccentChangedId = 0;
+        this._desktopColorSchemeChangedId = 0;
         this._cardCssFile = null;
         this._cardCssSignature = '';
         this._cardCssCounter = 0;
@@ -671,7 +672,7 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
-                ['vliq-milky-mode', ['milky', 'charcoal'].includes(mode) ? 1.0 : 0.0],
+                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
                 ['vliq-milky-opacity', fraction('milky-opacity')],
                 ['vliq-milky-border', fraction('milky-border')],
                 ['vliq-milky-whiteness', fraction('milky-whiteness')],
@@ -727,10 +728,8 @@ export class LiquidGlassIntegration {
         this._enabled = true;
         // Paint Milky natively from the FIRST frame, before popup/dock
         // managers start attaching; prevent a one-frame Liquid flash.
-        const initialMaterial = this._vliqSettings?.get_string?.('glass-style');
         this._syncMilkyAppearanceClass(
-            ['milky', 'charcoal'].includes(initialMaterial),
-            initialMaterial === 'charcoal'
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
         );
 
         // Hook GNOME's existing wallpaper actors before creating Orb/Popup
@@ -1601,7 +1600,7 @@ export class LiquidGlassIntegration {
         if (!this._vliqSettings) {
             return {
                 milky: false,
-                charcoal: false,
+                systemDarkTaskbar: false,
                 milkyOpacity: 0.24,
                 milkyBorder: 0.20,
                 milkyWhiteness: 0,
@@ -1679,12 +1678,11 @@ export class LiquidGlassIntegration {
         };
 
         return {
-            // The "milky" flag is the shared CSS-only material switch.
-            // Both Milky and Charcoal bypass VLIQ's refractive shaders.
-            // A separate "charcoal" flag chooses the dark paint palette.
-            milky: ['milky', 'charcoal'].includes(
-                this._vliqSettings.get_string('glass-style')),
-            charcoal: this._vliqSettings.get_string('glass-style') === 'charcoal',
+            milky: this._vliqSettings.get_string('glass-style') === 'milky',
+            // GNOME Quick Settings owns color-scheme; never write to it.
+            // Only the Bottom Taskbar layout consumes this native flag.
+            systemDarkTaskbar: this._desktopInterfaceSettings?.get_string?.(
+                'color-scheme') === 'prefer-dark',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
             milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), 0, 100) / 100,
@@ -1813,20 +1811,14 @@ export class LiquidGlassIntegration {
         osd._vliqMilkySyncWrapped = true;
     }
 
-    _syncMilkyAppearanceClass(enabled, charcoal = false) {
-        // Both flat materials suppress VLIQ-owned glass producers. Apply
-        // exactly one native paint class, preserving all window/menu input.
+    _syncMilkyAppearanceClass(enabled) {
         this._milkyModeActive = enabled;
         const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
         if (uiGroup) {
-            if (enabled && !charcoal)
+            if (enabled)
                 uiGroup.add_style_class_name?.('vliq-global-milky');
             else
                 uiGroup.remove_style_class_name?.('vliq-global-milky');
-            if (charcoal)
-                uiGroup.add_style_class_name?.('vliq-global-charcoal');
-            else
-                uiGroup.remove_style_class_name?.('vliq-global-charcoal');
         }
         this._syncMilkyOsdMaterial(enabled);
     }
@@ -1835,8 +1827,7 @@ export class LiquidGlassIntegration {
         const state = this._readSharedCardAppearance();
 
         // CSS-only Milky must work even with a cached legacy vendor module.
-        this._syncMilkyAppearanceClass(
-            state.milky === true, state.charcoal === true);
+        this._syncMilkyAppearanceClass(state.milky === true);
         this._popupGlassManager?.updateAppearance(state);
         this._shellCardGlassManager?.updateAppearance(state);
         this._previewGlassManager?.updateAppearance(state);
@@ -1931,9 +1922,13 @@ export class LiquidGlassIntegration {
                 this._desktopAccentChangedId =
                     this._desktopInterfaceSettings.connect(
                         'changed::accent-color',
-                        () => {
-                            this._queueSharedCardAppearanceApply();
-                        }
+                        () => this._queueSharedCardAppearanceApply()
+                    );
+                // GNOME Quick Settings -> Dark Style updates this key.
+                this._desktopColorSchemeChangedId =
+                    this._desktopInterfaceSettings.connect(
+                        'changed::color-scheme',
+                        () => this._queueSharedCardAppearanceApply()
                     );
             } catch (error) {
                 this._desktopInterfaceSettings = null;
@@ -2018,6 +2013,13 @@ export class LiquidGlassIntegration {
             } catch {}
         }
         this._desktopAccentChangedId = 0;
+        if (this._desktopInterfaceSettings && this._desktopColorSchemeChangedId) {
+            try {
+                this._desktopInterfaceSettings.disconnect(
+                    this._desktopColorSchemeChangedId);
+            } catch {}
+        }
+        this._desktopColorSchemeChangedId = 0;
         this._desktopInterfaceSettings = null;
 
         if (this._cardAppearanceApplyId) {
@@ -3617,11 +3619,10 @@ export class LiquidGlassIntegration {
     _nativeDockGlassVisible(entry) {
         if (!entry?.container)
             return false;
-        // Both flat materials paint the real native Dock background.
-        // Never display a second GPU glass plate underneath them.
+        // Only VLIQ Milky replaces Ubuntu Dock GPU glass. GNOME Dark
+        // Style never changes the native Dock compositor ownership.
         try {
-            if (['milky', 'charcoal'].includes(
-                this._vliqSettings?.get_string?.('glass-style')))
+            if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
                 return false;
         } catch {}
 
@@ -4754,15 +4755,8 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        // Keep the native GNOME Dock geometry. Only replace the material
-        // for VLIQ's two CSS-only styles; never rewrite Liquid/Frosted prefs.
-        const mode = this._vliqSettings?.get_string?.('glass-style');
-        const desired = mode === 'charcoal'
-            ? 'background-color: rgba(29,31,35,0.98); ' +
-                'background-image: none; border-color: transparent; ' +
-                'border-radius: 0px; ' +
-                'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13);'
-            : (mode === 'milky'
+        const desired =
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
                 ? (() => {
                     const tokens = milkyPaintTokens(
                         this._readSharedCardAppearance());
@@ -4772,7 +4766,7 @@ export class LiquidGlassIntegration {
                 })()
                 : (entry.panelLiquidReady
                     ? DOCK_PANEL_GLASS_STYLE
-                    : DOCK_PANEL_PREMIUM_STYLE));
+                    : DOCK_PANEL_PREMIUM_STYLE);
         if (current === desired)
             return;
 
