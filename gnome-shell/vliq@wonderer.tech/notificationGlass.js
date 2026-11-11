@@ -927,11 +927,12 @@ export class NotificationGlassManager {
             return;
         }
         if (this._appearance?.milky) {
-            // The original NotificationMessage paints the single native
-            // Milky card; never leave a second shader/filter behind it.
-            material.root?.hide?.();
-            if (!shaderOnly)
+            // Paint-time shader hooks must not change actor visibility.
+            // The native NotificationMessage is the sole Milky card.
+            if (!shaderOnly) {
+                material.root?.hide?.();
                 this._releaseSceneManager(material);
+            }
             return;
         }
 
