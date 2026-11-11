@@ -426,13 +426,14 @@ layout.primaryMonitor = {x: 1920, y: 0, width: 1280, height: 720};
 layout.emit('monitors-changed');
 assert.equal(taskbar._appStrip.get_children().length, 3,
     'full app strip returns on wider monitor');
+const beforeExitButtons = taskbar._appStrip.get_children().slice(0, 2);
 running = [appBeta];
 appSystem.emit('app-state-changed');
 assert.equal(taskbar._appStrip.get_children().length, 2,
     'running-only icon disappears when app exits');
-assert.equal(taskbar._appStrip.get_children()[0], previousButton,
+assert.equal(taskbar._appStrip.get_children()[0], beforeExitButtons[0],
     'unrelated running icon exit must preserve pinned icon 1');
-assert.equal(taskbar._appStrip.get_children()[1], previousBetaButton,
+assert.equal(taskbar._appStrip.get_children()[1], beforeExitButtons[1],
     'unrelated running icon exit must preserve pinned icon 2');
 const extraMenu = menu();
 panel.statusArea.newExtension = {menu: extraMenu};
