@@ -781,7 +781,12 @@ export default class VLIQRuntime extends Extension {
 
     _connectSignals() {
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
-            if (key === 'top-header-layout') {
+            if (key === 'top-header-layout' ||
+                key === 'top-header-runtime-status') {
+                // The active native layout may change one second after a
+                // saved preference (when Shell recovers a missed signal).
+                // Reconcile the standalone Orb as soon as the compositor
+                // publishes what actually became active.
                 this._syncOrbTaskbarMode();
                 return;
             }

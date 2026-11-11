@@ -11,6 +11,11 @@ import {BottomTaskbar} from './bottomTaskbar.js';
 import {primaryPanelIsFullscreen} from './fullscreenPanelGuard.js';
 
 const STAGE_SYNC_FPS = 24;
+// GSettings changes normally arrive as signals. A low-cost reconciliation
+// also repairs missed signals and runtime hot-reload ordering on idle desktops.
+const LAYOUT_RECONCILE_SECONDS = 1;
+const MAX_LAYOUT_RETRIES = 3;
+const LAYOUT_RETRY_COOLDOWN_US = 4_000_000;
 const RADIUS = 16;
 const INSET_Y = 2;
 const SIDE_MARGIN = 6;
@@ -60,6 +65,11 @@ export class TopBarIslands {
         this._hasReportedReady = false;
         this._lastStageSyncUs = 0;
         this._syncing = false;
+        this._switchingLayout = false;
+        this._layoutWatchId = 0;
+        this._failedDesired = null;
+        this._failedAttempts = 0;
+        this._retryNotBeforeUs = 0;
     }
 
     isBottomTaskbarActive() {
@@ -147,10 +157,30 @@ export class TopBarIslands {
 
         this._host = host;
         this._panelRoot = root;
+        let initialFailure = null;
         try {
-            // Setup follows the user's saved layout before the first
-            // compositor frame, avoiding an initial three-pill flash.
-            this._buildLayout(this._preferredLayout());
+            // Prefer the saved layout on the very first compositor frame.
+            // If GNOME has not finished creating optional native controls,
+            // keep the manager/listeners alive in a safe split fallback.
+            // Otherwise the requested Bottom mode becomes permanently
+            // unreachable until VLIQ is reinstalled.
+            const requested = this._preferredLayout();
+            try {
+                this._buildLayout(requested);
+            } catch (error) {
+                console.warn('[VLIQ][TopBar] startup ' +
+                    requested + ' failed: ' + error);
+                this._disposeLayout();
+                if (requested === 'split')
+                    throw error;
+                initialFailure = 'Error activating ' + requested +
+                    ' at startup: ' + String(error);
+                this._failedDesired = requested;
+                this._failedAttempts = 1;
+                this._retryNotBeforeUs =
+                    GLib.get_monotonic_time() + LAYOUT_RETRY_COOLDOWN_US;
+                this._buildLayout('split');
+            }
 
             this._enabled = true;
             // The native panel moves during Overview/fullscreen and can
@@ -158,6 +188,20 @@ export class TopBarIslands {
             // transformed native allocations, not saved/stale coordinates.
             this._stageSignal = global.stage.connect(
                 'before-update', () => this._syncStageFrame()
+            );
+            // A selected layout can be committed by a separate
+            // Preferences process even while Shell is idle and does not
+            // paint a frame. Reconcile once/second to recover missed
+            // GSettings notifications without polling on every frame.
+            this._layoutWatchId = GLib.timeout_add_seconds(
+                GLib.PRIORITY_DEFAULT,
+                LAYOUT_RECONCILE_SECONDS,
+                () => {
+                    if (!this._enabled)
+                        return GLib.SOURCE_REMOVE;
+                    this._reconcileLayout();
+                    return GLib.SOURCE_CONTINUE;
+                }
             );
             for (const [actor, signal] of [
                 [layout, 'monitors-changed'],
@@ -174,10 +218,16 @@ export class TopBarIslands {
                     if (!actor?.connect)
                         continue;
                     const id = actor.connect(signal, () => {
-                        if (signal === 'changed::top-header-layout')
-                            this._switchLayout();
-                        else
+                        if (signal === 'changed::top-header-layout') {
+                            // Explicit user selection overrides any
+                            // cooldown from a previous failed attempt.
+                            this._failedDesired = null;
+                            this._failedAttempts = 0;
+                            this._retryNotBeforeUs = 0;
+                            this._reconcileLayout();
+                        } else {
                             this.sync();
+                        }
                     });
                     if (id)
                         this._signals.push({actor, id});
@@ -186,7 +236,9 @@ export class TopBarIslands {
                 }
             }
             this.sync();
-            this._publishLayoutStatus(this._activeStatus());
+            this._publishLayoutStatus(
+                initialFailure ?? this._activeStatus()
+            );
             console.log(
                 '[VLIQ][TopBar] ' + this._layoutMode +
                 ' native optical header attached'
@@ -196,12 +248,8 @@ export class TopBarIslands {
             console.warn('[VLIQ][TopBar] header fallback: ' + error +
                 '\\n' + (error?.stack ?? ''));
             this.cleanup();
-            if (this._preferredLayout() === 'bottom') {
-                try {
-                    this._layoutSettings?.set_string?.(
-                        'top-header-layout', 'split');
-                } catch {}
-            }
+            // Never rewrite the selected layout on GNOME initialization
+            // failure. The user must be able to inspect and retry it.
             this._publishLayoutStatus(
                 'Error: desktop layout initialization failed: ' +
                 String(error)
@@ -313,55 +361,93 @@ export class TopBarIslands {
         }
     }
 
+    _reconcileLayout() {
+        if (!this._enabled || this._switchingLayout)
+            return;
+        const wanted = this._preferredLayout();
+        if (wanted !== this._layoutMode) {
+            // A failed renderer must NOT rewrite the user's choice to
+            // "split". Keep the selected mode and expose the failure.
+            if (this._failedDesired !== wanted) {
+                this._failedDesired = null;
+                this._failedAttempts = 0;
+                this._retryNotBeforeUs = 0;
+            }
+            const now = GLib.get_monotonic_time();
+            if (this._failedAttempts >= MAX_LAYOUT_RETRIES ||
+                now < this._retryNotBeforeUs)
+                return;
+            this._switchLayout();
+            return;
+        }
+        // GNOME may relayout the native panel after mode activation.
+        // Re-anchor rather than leaving an outdated "Full active" state
+        // when the requested bottom panel exists but is not positioned.
+        if (wanted === 'bottom' && !this.isBottomTaskbarActive()) {
+            try { this._bottomTaskbar?._placePanel?.(); } catch {}
+            const message = this.isBottomTaskbarActive()
+                ? this._activeStatus()
+                : 'Bottom Taskbar selected; native panel not at bottom';
+            this._publishLayoutStatus(message);
+        }
+    }
+
     _switchLayout() {
-        if (!this._enabled)
+        if (!this._enabled || this._switchingLayout)
             return;
         const next = this._preferredLayout();
         if (next === this._layoutMode)
             return;
-        // Dispose the old bounded material before creating the replacement;
-        // never keep a hidden full-width shader beneath the three islands.
-        this._disposeLayout();
+        this._switchingLayout = true;
         let failureMessage = null;
         try {
-            this._buildLayout(next);
-        } catch (error) {
-            failureMessage = 'Error activating ' + next +
-                ': ' + String(error);
-            console.warn(
-                '[VLIQ][TopBar] ' + next + ' mode unavailable: ' +
-                error + '\\n' + (error?.stack ?? '')
-            );
+            // The previous material and its GNOME actor adaptations must
+            // be cleaned up before building another rendering mode.
             this._disposeLayout();
-            // The accepted three-island layout is the safe rendering fallback.
-            try { this._buildLayout('split'); } catch (fallbackError) {
+            try {
+                this._buildLayout(next);
+                this._failedDesired = null;
+                this._failedAttempts = 0;
+                this._retryNotBeforeUs = 0;
+            } catch (error) {
+                failureMessage = 'Error activating ' + next +
+                    ': ' + String(error);
                 console.warn(
-                    '[VLIQ][TopBar] split fallback failed: ' + fallbackError
+                    '[VLIQ][TopBar] ' + next + ' mode unavailable: ' +
+                    error + '\\n' + (error?.stack ?? '')
                 );
                 this._disposeLayout();
-            }
-            // The GSettings selection must reflect what actually rendered.
-            // Otherwise Orb hides for "bottom" even though only the top
-            // header exists, leaving no visible launcher control.
-            if (next === 'bottom') {
                 try {
-                    this._layoutSettings?.set_string?.(
-                        'top-header-layout', 'split'
+                    this._buildLayout('split');
+                } catch (fallbackError) {
+                    failureMessage += '; split fallback failed: ' +
+                        String(fallbackError);
+                    console.warn(
+                        '[VLIQ][TopBar] split fallback failed: ' +
+                        fallbackError
                     );
-                } catch {}
+                    this._disposeLayout();
+                }
+                this._failedDesired = next;
+                this._failedAttempts++;
+                this._retryNotBeforeUs =
+                    GLib.get_monotonic_time() + LAYOUT_RETRY_COOLDOWN_US;
+                // Do not set_string('top-header-layout','split') here.
+                // That used to discard a user-selected Bottom Taskbar
+                // and re-enter the GSettings callback recursively.
             }
-        }
-        this.sync();
-        this._publishLayoutStatus(
-            typeof failureMessage === 'string'
-                ? failureMessage : this._activeStatus()
-        );
-        // At this point the previous mode has fully torn down and the new
-        // mode owns the native panel. Reconcile Ubuntu Dock's real paint
-        // pipeline, not merely its icon actor opacity.
-        try { this._onLayoutChanged?.(this._layoutMode); }
-        catch (error) {
-            console.warn('[VLIQ][TopBar] Dock mode sync failed: ' + error);
+            this.sync();
+            this._publishLayoutStatus(
+                failureMessage ?? this._activeStatus()
+            );
+            try { this._onLayoutChanged?.(this._layoutMode); }
+            catch (error) {
+                console.warn(
+                    '[VLIQ][TopBar] Dock mode sync failed: ' + error
+                );
+            }
+        } finally {
+            this._switchingLayout = false;
         }
     }
 
@@ -671,6 +757,10 @@ export class TopBarIslands {
 
     cleanup() {
         this._enabled = false;
+        if (this._layoutWatchId) {
+            try { GLib.source_remove(this._layoutWatchId); } catch {}
+            this._layoutWatchId = 0;
+        }
         if (this._stageSignal) {
             try { global.stage.disconnect(this._stageSignal); } catch {}
             this._stageSignal = 0;
@@ -687,6 +777,10 @@ export class TopBarIslands {
         this._hasReportedReady = false;
         this._lastStageSyncUs = 0;
         this._syncing = false;
+        this._switchingLayout = false;
+        this._failedDesired = null;
+        this._failedAttempts = 0;
+        this._retryNotBeforeUs = 0;
         this._publishLayoutStatus('Inactive — GNOME Shell runtime stopped');
     }
 }

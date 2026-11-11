@@ -12,6 +12,27 @@ const source = (await readFile(new URL(
 let nextSignal = 1;
 let stageTimeUs = 1000000;
 const stageSignals = new Map();
+const layoutTimers = new Map();
+const glib = {
+    PRIORITY_DEFAULT: 0,
+    SOURCE_REMOVE: 0,
+    SOURCE_CONTINUE: 1,
+    get_monotonic_time: () => stageTimeUs,
+    timeout_add_seconds(_priority, seconds, fn) {
+        assert.equal(seconds, 1, 'one low-cost reconciliation/second');
+        const id = nextSignal++;
+        layoutTimers.set(id, fn);
+        return id;
+    },
+    source_remove(id) {layoutTimers.delete(id);},
+};
+function reconcileAfter(elapsedUs = 1000000) {
+    stageTimeUs += elapsedUs;
+    for (const [id, fn] of [...layoutTimers]) {
+        if (fn() === glib.SOURCE_REMOVE)
+            layoutTimers.delete(id);
+    }
+}
 const stage = {
     connect(signal, fn) {
         assert.equal(signal, 'before-update');
@@ -150,7 +171,7 @@ const TopBarIslands = new Function(
     MockPanelGlassSurface,
     () => fullscreen,
     {log() {}, warn() {}},
-    {get_monotonic_time: () => stageTimeUs},
+    glib,
     (now, last, fps) =>
         !last || now < last || now - last >= 1000000 / fps
 );
@@ -161,6 +182,8 @@ const instance = new TopBarIslands({
 assert.equal(instance.setup(), true);
 assert.equal(glassSurfaces.length, 3);
 assert.equal(stageSignals.size, 1, 'one stage sync for all three islands');
+assert.equal(layoutTimers.size, 1,
+    'only one idle-layout reconciliation watchdog is active');
 assert.equal(instance._regions.length, 3);
 assert.ok(panel.classes.has('vliq-three-islands'));
 assert.equal(instance.setup(), true, 'repeated setup is idempotent');
@@ -373,6 +396,8 @@ assert.equal(stageSignals.size, 1,
     'hot reload must leave only one active top-bar frame callback');
 instance.cleanup();
 assert.equal(stageSignals.size, 0, 'second cleanup removes last frame hook');
+assert.equal(layoutTimers.size, 0,
+    'hot reload removes old reconciliation timer');
 assert.equal(uiGroup.children.filter(x => x !== panelBox).length, 0,
     'no duplicate glass actors survive multiple enable/disable cycles');
 
@@ -427,9 +452,23 @@ const configurable = new TopBarIslands({
 assert.equal(configurable.setup(), true);
 assert.equal(configurable._layoutMode, 'full');
 assert.equal(layoutSettings.status, 'Full Header active');
+// Reproduce real-world failure: Preferences saved bottom but the
+// running Shell never received changed::top-header-layout.
+layoutSettings.mode = 'bottom'; // persist without emitting a change signal
+assert.equal(configurable._layoutMode, 'full');
+reconcileAfter();
+assert.equal(configurable._layoutMode, 'bottom',
+    'idle watchdog must recover a missed cross-process Settings signal');
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar active (Liquid Glass)');
+assert.equal(configurable.isBottomTaskbarActive(), true);
+assert.equal(bottomSessions.length, 1);
+layoutSettings.set_string('top-header-layout', 'full');
+assert.equal(configurable._layoutMode, 'full');
+assert.equal(layoutSettings.status, 'Full Header active');
 assert.equal(configurable._regions.length, 1);
-assert.equal(glassSurfaces.length, beforeFull + 1,
-    'Full Header creates exactly one bounded glass effect');
+assert.ok(glassSurfaces.length >= beforeFull + 2,
+    'live layout reconciliation creates bounded new glass surfaces');
 assert.equal(stageSignals.size, 1,
     'switchable header keeps exactly one stage callback');
 assert.ok(panel.classes.has('vliq-full-header'));
@@ -512,8 +551,9 @@ assert.equal(configurable._regions.length, 1);
 assert.ok(panel.classes.has('vliq-bottom-taskbar'));
 assert.ok(panel.classes.has('vliq-full-header'));
 assert.ok(!panel.classes.has('vliq-three-islands'));
-assert.equal(bottomSessions.length, 1);
-assert.equal(bottomSessions[0].active, true);
+assert.equal(bottomSessions.length, 2,
+    'each independent bottom activation gets one native session');
+assert.equal(bottomSessions.at(-1).active, true);
 assert.equal(configurable._regions[0].surface.options.cornerRadius, 0);
 assert.equal(configurable._regions[0].surface.bounds.h, panelBox.height);
 assert.equal(configurable._regions[0].surface.bounds.y,
@@ -525,7 +565,7 @@ layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(configurable._regions[0].surface, oldBottomSurface,
     'repeating current layout must not recreate GPU material');
 layoutSettings.set_string('top-header-layout', 'full');
-assert.equal(bottomSessions[0].active, false,
+assert.equal(bottomSessions.at(-1).active, false,
     'exit restores original GNOME panel and Dock state');
 assert.equal(dockModeUpdates.at(-1), 'full',
     'native Dock appearance is restored upon return to Full Header');
@@ -601,14 +641,80 @@ const failedBottom = new TopBarIslands({
 assert.equal(failedBottom.setup(), true);
 layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(failedBottom._layoutMode, 'split');
-assert.equal(layoutSettings.mode, 'split',
-    'failed bottom activation reverts stored preference to actual layout');
+assert.equal(layoutSettings.mode, 'bottom',
+    'native failure must not overwrite the requested user preference');
 assert.match(layoutSettings.status, /Error activating bottom/,
     'visible Settings status explains why bottom mode could not start');
 assert.equal(failedBottom.isBottomTaskbarActive(), false);
 assert.equal(stageSignals.size, 1);
+// Retry at most three times with a four-second cooldown; retain a concrete
+// failure in Settings instead of silently saying Full Header is active.
+const errorMessage = layoutSettings.status;
+for (let n = 0; n < 2; n++) {
+    reconcileAfter(5000000);
+    assert.equal(failedBottom._failedAttempts, n + 2);
+    assert.match(layoutSettings.status, /Error activating bottom/);
+}
+assert.equal(failedBottom._failedAttempts, 3);
+reconcileAfter(5000000);
+assert.equal(failedBottom._failedAttempts, 3,
+    'repeated failures cannot cause endless renderer re-creation');
+assert.equal(layoutSettings.mode, 'bottom');
+assert.equal(layoutSettings.status, errorMessage,
+    'last concrete activation error stays visible');
 failedBottom.cleanup();
 assert.equal(stageSignals.size, 0);
+
+// If GNOME starts with 'bottom' requested before native indicators
+// become available, keep the preference AND manager active rather than
+// rewriting it to split and losing the change listener permanently.
+layoutSettings.mode = 'bottom';
+const startupAttempts = [];
+const recovering = new TopBarIslands({
+    vendor: {}, settings: {},
+    layoutSettings, readAppearance: () => ({opacity: 0.05}),
+    panel, layout, display,
+    bottomTaskbarFactory() {
+        const attempt = {active: false};
+        startupAttempts.push(attempt);
+        return {
+            setup() {
+                if (startupAttempts.length === 1)
+                    return false;
+                attempt.active = true;
+                panelBox.y = monitor.height - panelBox.height;
+                return true;
+            },
+            cleanup() {
+                attempt.active = false;
+                panelBox.y = monitor.y;
+            },
+            get active() {return attempt.active;},
+        };
+    },
+});
+assert.equal(recovering.setup(), true,
+    'startup with unavailable Bottom controls keeps the manager alive');
+assert.equal(layoutSettings.mode, 'bottom',
+    'transient startup failure must preserve saved bottom selection');
+assert.equal(recovering._layoutMode, 'split',
+    'native GNOME remains operational until retry');
+assert.match(layoutSettings.status, /Error activating bottom at startup/,
+    'user sees a real failure instead of a stale Full Header status');
+assert.equal(layoutTimers.size, 1,
+    'initial failure keeps its delayed retry watcher installed');
+reconcileAfter(5000000);
+assert.equal(recovering._layoutMode, 'bottom',
+    'initial native startup failure recovers without reopening Settings');
+assert.equal(recovering.isBottomTaskbarActive(), true);
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar active (Liquid Glass)');
+assert.equal(startupAttempts.length, 2,
+    'one failed startup followed by exactly one successful retry');
+recovering.cleanup();
+assert.equal(layoutTimers.size, 0);
+assert.equal(panelBox.y, 0);
+layoutSettings.mode = 'split';
 
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url

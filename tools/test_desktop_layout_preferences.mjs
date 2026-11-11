@@ -88,4 +88,42 @@ assert.equal(reopened.row.selected, 2,
     'external CLI selection should update the ComboRow');
 assert.equal(reopened.settings.writes.length, 2);
 
+// Preferences must display both values independently. This is essential
+// when Shell still reports Full Header while a separate Preferences process
+// saved 'bottom': show the requested value instead of misleading the user.
+const requestedBegin = prefSource.indexOf('const savedLayoutRow =');
+const requestedEnd = prefSource.indexOf(
+    '// Show what the running Shell actually activated', requestedBegin);
+assert.ok(requestedBegin >= 0 && requestedEnd > requestedBegin,
+    'a distinct saved-layout diagnostic row exists');
+const requestedSnippet = prefSource.slice(requestedBegin, requestedEnd);
+assert.match(requestedSnippet, /'Saved layout request'/);
+assert.match(requestedSnippet, /get_string\('top-header-layout'\)/);
+assert.match(requestedSnippet, /changed::top-header-layout/);
+const notifications = new Map();
+const fakeSettings = {
+    choice: 'full',
+    get_string(key) {
+        assert.equal(key, 'top-header-layout');
+        return this.choice;
+    },
+    connect(signal, callback) {notifications.set(signal, callback);},
+};
+const diagnosticGroup = {rows: [], add(row) {this.rows.push(row);}};
+const requestedRow = new Function('Adw', 'settings', 'topHeader',
+    requestedSnippet + '\nreturn savedLayoutRow;')(
+    {ActionRow: class {
+        constructor(props) {Object.assign(this, props);}
+    }},
+    fakeSettings,
+    diagnosticGroup);
+assert.equal(requestedRow.subtitle, 'full');
+fakeSettings.choice = 'bottom';
+notifications.get('changed::top-header-layout')();
+assert.equal(requestedRow.subtitle, 'bottom',
+    'requested diagnostic changes even if compositor remains Full Header');
+assert.equal(diagnosticGroup.rows[0], requestedRow);
+assert.match(prefSource, /'Active desktop layout'/,
+    'actual Shell status stays separate from persisted request');
+
 console.log('Desktop Layout Preferences: split/full/bottom selection and live GSettings binding PASS.');

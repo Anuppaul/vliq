@@ -661,6 +661,19 @@ export default class VLIQPreferences extends ExtensionPreferences {
         settings.connect('changed::top-header-layout', syncHeaderLayout);
         topHeader.add(headerLayout);
 
+        // This is the persisted value from GSettings, independent of
+        // compositor activation. It distinguishes a stale/cached prefs UI
+        // from a correctly saved request that Shell has not yet applied.
+        const savedLayoutRow = new Adw.ActionRow({
+            title: 'Saved layout request',
+            subtitle: settings.get_string('top-header-layout'),
+        });
+        topHeader.add(savedLayoutRow);
+        settings.connect('changed::top-header-layout', () => {
+            savedLayoutRow.subtitle =
+                settings.get_string('top-header-layout');
+        });
+
         // Show what the running Shell actually activated, not merely the
         // requested ComboRow selection. A failed native layout must never
         // look like a successful Windows taskbar in Preferences.
