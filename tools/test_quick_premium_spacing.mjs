@@ -24,9 +24,9 @@ function declarations(selector) {
         /^\s*([\w-]+):\s*([^;]+);/gm)].map(match =>
         [match[1], match[2].trim()]));
 }
-const grid = declarations('.vliq-liquid-popup-content.quick-settings .quick-settings-grid {');
-assert.equal(grid['spacing-rows'], '10px');
-assert.equal(grid['spacing-columns'], '10px');
+const themeGrid = quick.match(
+    /\.quick-settings-grid\s*\{\s*spacing-rows:\s*10px;\s*spacing-columns:\s*10px;/);
+assert.ok(themeGrid, 'GNOME 50 theme grid sets both row/column spacing');
 assert.match(quick,
     /\.quick-settings-grid\s*\{\s*padding:\s*4px 2px 6px 2px;/,
     'grid keeps dedicated optical inset while spacing tokens come from the theme');
