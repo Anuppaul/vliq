@@ -357,7 +357,10 @@
     border: 0 !important;
     box-shadow: none !important;
 }
-#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready {
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready,
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached {
+    /* The attached bounded shader is the sole body painter, even before
+     * the first asynchronous composite is reported ready. */
     background-color: transparent !important;
     background-image: none !important;
     border: 0 !important;
