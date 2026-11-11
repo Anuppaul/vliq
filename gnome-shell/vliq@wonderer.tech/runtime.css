@@ -404,6 +404,12 @@
     color: #ffffff;
 }
 
+/* Keep ONLY the native GNOME Date/Clock white in Bottom Taskbar.
+ * The rest of the panel retains its existing adaptive text palette. */
+#panel.vliq-bottom-taskbar #panelRight .clock {
+    color: #ffffff !important;
+}
+
 /* End independent panel islands. Native GNOME menu controls are untouched. */
 
 /* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,

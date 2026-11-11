@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-// Native GNOME 50 date clock must follow the BACKDROP beneath its button,
-// not the average luminance of a full-width Windows-style bottom taskbar.
+// Native GNOME 50 Date/Clock is user-pinned pure white in Bottom Taskbar.
+// It must never switch to dark text, even when the background is bright.
 // Exercise the real adaptive-text class without requiring a compositor.
 const source = (await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/sharedAdaptiveText.js',
@@ -85,36 +85,32 @@ manager._enabled = true;
 manager._scan(true);
 assert.ok(manager._targets.has(panel), 'native panel stays a target');
 assert.ok(manager._targets.has(clock), 'right-hand native clock has local target');
-assert.equal(manager._targets.get(clock).kind, 'surface',
-    'clock reuses existing surface screenshot cadence');
+assert.equal(manager._targets.get(clock).kind, 'fixed-clock',
+    'clock must not be subject to contrast sampling');
 assert.deepEqual(manager._textActors(panel), [otherLabel],
     'whole-panel sampling must not overwrite local clock polarity');
 assert.deepEqual(manager._textActors(clock), [clock],
     'clock is styled directly, not by reparenting or a duplicate label');
 
-const dateEntry = manager._visibleEntries('surface')
-    .find(entry => entry.actor === clock);
-assert.deepEqual(dateEntry.rect, dateButton.rect,
-    'sample the padded button glass, not coloured clock glyphs');
+assert.ok(!manager._visibleEntries('surface')
+    .some(entry => entry.actor === clock),
+    'clock is excluded from adaptive screenshots');
+assert.match(clock.style, /color: #ffffff;/,
+    'clock is pure white immediately when Bottom Taskbar becomes active');
+
 manager._applyRootPolarity(panel, false);
 assert.match(otherLabel.style, /color: #f7f8fc;/);
-assert.equal(clock.style, null,
-    'panel pass must not change the date label');
+assert.match(clock.style, /color: #ffffff;/,
+    'whole-panel styling must not turn the clock dark');
 
-let useDarkText = manager._chooseDarkText(clock, 0.92);
-assert.equal(useDarkText, true, 'white glass requires dark clock text');
-manager._targets.get(clock).useDarkText = useDarkText;
-manager._applyRootPolarity(clock, useDarkText);
-assert.match(clock.style, /color: #17191f;/);
-assert.ok(clock.classes.has('vliq-shared-text-dark'));
-
-useDarkText = manager._chooseDarkText(clock, 0.015);
-assert.equal(useDarkText, false, 'dark wallpaper requires white clock text');
-manager._targets.get(clock).useDarkText = useDarkText;
-manager._applyRootPolarity(clock, useDarkText);
-assert.match(clock.style, /color: #f7f8fc;/);
-assert.ok(clock.classes.has('vliq-shared-text-light'));
-assert.ok(!clock.classes.has('vliq-shared-text-dark'));
+// Simulate a different theme or an external restyle while taskbar is active.
+clock.set_style('color: #000000;');
+manager._scan(true);
+assert.match(clock.style, /color: #ffffff;/,
+    'next scan restores white even when an external theme sets black');
+manager._applyRootPolarity(clock, true);
+assert.match(clock.style, /color: #ffffff;/,
+    'contrast decisions cannot turn the fixed clock black');
 
 // Switching back to 3-Part/Full must release local ownership and restore
 // the original style; the normal panel polarity then owns the date again.
@@ -130,4 +126,10 @@ assert.match(clock.style, /color: #17191f;/,
     'normal header returns to full-panel adaptive text');
 manager.cleanup();
 
-console.log('Bottom Taskbar Date: local white/dark glass contrast, native button sampling, and mode restoration PASS.');
+const css = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
+), 'utf8');
+assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
+    'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
+
+console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');
