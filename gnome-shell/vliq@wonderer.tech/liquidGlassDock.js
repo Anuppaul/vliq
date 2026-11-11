@@ -81,6 +81,14 @@ const DOCK_PANEL_GLASS_STYLE =
     'border-color: transparent; ' +
     'border-radius: 0px; ' +
     'box-shadow: none;';
+// An explicit inline native Dock fallback is needed even when the GNOME
+// theme has a higher-priority rule for the sibling .dash-background.
+const DOCK_PANEL_MILKY_STYLE =
+    'background-color: rgba(245,249,255,0.24); ' +
+    'background-image: none; ' +
+    'border-color: transparent; ' +
+    'border-radius: 0px; ' +
+    'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20);';
 const DOCK_PANEL_BACKDROP_NAME = 'vliq-dock-panel-local-backdrop';
 // Panel-local frosted glass: the blur effect is applied to Ubuntu Dock's
 // native .dash-background only, never to the whole monitor. A thin highlight
@@ -3452,8 +3460,11 @@ export class LiquidGlassIntegration {
         if (!entry?.container)
             return false;
         // Milky paints the native .dash-background, never this GPU actor.
-        if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
-            return false;
+        // Older test fixtures or previous revisions may not expose this key.
+        try {
+            if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
+                return false;
+        } catch {}
 
         // The single bottom taskbar replaces Ubuntu Dock's visual strip.
         // Retain its native state, but never paint a second overlapping
@@ -4584,9 +4595,12 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        const desired = entry.panelLiquidReady
-            ? DOCK_PANEL_GLASS_STYLE
-            : DOCK_PANEL_PREMIUM_STYLE;
+        const desired =
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+                ? DOCK_PANEL_MILKY_STYLE
+                : (entry.panelLiquidReady
+                    ? DOCK_PANEL_GLASS_STYLE
+                    : DOCK_PANEL_PREMIUM_STYLE);
         if (current === desired)
             return;
 
