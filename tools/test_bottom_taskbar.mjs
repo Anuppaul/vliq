@@ -34,6 +34,12 @@ class Actor {
         a.parent = this;
     }
     add_child(a) {this.insert_child_at_index(a, this.children.length);}
+    set_child_at_index(a, i) {
+        const old = this.children.indexOf(a);
+        assert.ok(old >= 0, 'reorder only existing children');
+        this.children.splice(old, 1);
+        this.children.splice(i, 0, a);
+    }
     remove_child(a) {
         this.children = this.children.filter(x => x !== a);
         if (a.parent === this) a.parent = null;
@@ -264,16 +270,24 @@ assert.equal(runningDots[2].opacity, 255,
 const originalBetaWindows = appBeta.get_windows;
 appBeta.get_windows = () => [];
 appSystem.emit('app-state-changed');
-const stoppedBetaDot = taskbar._appStrip.get_children()[1]
-    .get_children()[0].get_children()[1];
+const stoppedBetaButton = taskbar._appStrip.get_children()[1];
+const stoppedBetaDot = stoppedBetaButton.get_children()[0].get_children()[1];
 assert.equal(stoppedBetaDot.opacity, 0,
     'closing a running app hides its dot immediately');
+assert.equal(stoppedBetaButton, taskbar._appItems.get('beta.desktop').button,
+    'stopping app must preserve its button');
+assert.equal(stoppedBetaDot, runningDots[1],
+    'stopping app must preserve its dot');
 appBeta.get_windows = originalBetaWindows;
 appSystem.emit('app-state-changed');
-const restartedBetaDot = taskbar._appStrip.get_children()[1]
-    .get_children()[0].get_children()[1];
+const restartedBetaButton = taskbar._appStrip.get_children()[1];
+const restartedBetaDot = restartedBetaButton.get_children()[0].get_children()[1];
 assert.equal(restartedBetaDot.opacity, 255,
     'reopening the app restores the dot');
+assert.equal(restartedBetaButton, stoppedBetaButton,
+    'start/stop must never destroy or recreate hovered button');
+assert.equal(restartedBetaDot, stoppedBetaDot,
+    'start/stop must only update dot opacity');
 assert.equal(dateMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(quickMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(dock.visible, false, 'legacy Ubuntu Dock is hidden');
@@ -296,8 +310,29 @@ assert.ok(dockPanelSurface.hideCalls >= 1);
 taskbar._start.emit('clicked');
 assert.equal(launches, 1, 'VLIQ Start opens applications');
 // Pinned/stopped app launches; running/minimized app restores and raises.
-taskbar._appStrip.get_children()[0].emit('clicked');
+const clickedPinnedButton = taskbar._appStrip.get_children()[0];
+const clickedPinnedDot = clickedPinnedButton.get_children()[0].get_children()[1];
+const originalAlphaActivate = appAlpha.activate;
+const originalAlphaWindows = appAlpha.get_windows;
+// Native Shell can emit app-state-changed synchronously DURING clicked.
+appAlpha.activate = function () {
+    originalAlphaActivate.call(this);
+    this.get_windows = () => [{id: 'alpha-window'}];
+    appSystem.emit('app-state-changed');
+};
+clickedPinnedButton.emit('clicked');
 assert.equal(appAlpha.launches, 1, 'pinned app launches on click');
+assert.equal(taskbar._appStrip.get_children()[0], clickedPinnedButton,
+    'click-induced state change must not destroy clicked icon');
+assert.equal(clickedPinnedDot.opacity, 255,
+    'click-induced RUNNING only reveals the original dot');
+assert.equal(clickedPinnedButton.get_children()[0].get_children()[1],
+    clickedPinnedDot, 'clicked dot actor identity remains stable');
+appAlpha.activate = originalAlphaActivate;
+appAlpha.get_windows = originalAlphaWindows;
+appSystem.emit('app-state-changed');
+assert.equal(taskbar._appStrip.get_children()[0], clickedPinnedButton);
+assert.equal(clickedPinnedDot.opacity, 0);
 taskbar._appStrip.get_children()[1].emit('clicked');
 assert.equal(activatedWindow, betaWindow,
     'running app selects its actual Meta.Window');
@@ -321,9 +356,21 @@ taskbar._appStrip.get_children()[1].emit('clicked');
 assert.equal(appBeta.launches, 1, 'failed focus retries app.activate');
 Main.activateWindow = activate;
 const previousButton = taskbar._appStrip.get_children()[0];
+const previousBetaButton = taskbar._appStrip.get_children()[1];
+const previousGammaButton = taskbar._appStrip.get_children()[2];
 stage.tick();
+appSystem.emit('app-state-changed');
 assert.equal(taskbar._appStrip.get_children()[0], previousButton,
-    'stable taskbar does not rebuild app icons every compositor frame');
+    'unchanged state signal must not rebuild icons');
+favorites = ['beta.desktop', 'alpha.desktop'];
+shellSettings.emit('changed::favorite-apps');
+assert.deepEqual(taskbar._appStrip.get_children(),
+    [previousBetaButton, previousButton, previousGammaButton],
+    'favorites reorder must preserve all existing icon actors');
+favorites = ['alpha.desktop', 'beta.desktop'];
+shellSettings.emit('changed::favorite-apps');
+assert.deepEqual(taskbar._appStrip.get_children(),
+    [previousButton, previousBetaButton, previousGammaButton]);
 // Running-only apps must not disappear behind a long pinned-app list.
 for (let i = 0; i < 14; i++) {
     const id = 'extra' + i + '.desktop';
@@ -383,6 +430,10 @@ running = [appBeta];
 appSystem.emit('app-state-changed');
 assert.equal(taskbar._appStrip.get_children().length, 2,
     'running-only icon disappears when app exits');
+assert.equal(taskbar._appStrip.get_children()[0], previousButton,
+    'unrelated running icon exit must preserve pinned icon 1');
+assert.equal(taskbar._appStrip.get_children()[1], previousBetaButton,
+    'unrelated running icon exit must preserve pinned icon 2');
 const extraMenu = menu();
 panel.statusArea.newExtension = {menu: extraMenu};
 stage.tick();
@@ -425,6 +476,8 @@ assert.equal(panel._centerBox.translation_x, 0,
 assert.ok(!panel._leftBox.get_children().includes(taskbar._start));
 assert.equal(taskbar._centerGroup, null,
     'no invisible centered group remains after hot-unload');
+assert.equal(taskbar._appItems.size, 0,
+    'hot unload clears cached app actors');
 assert.equal(panel._centerBox.get_children().length, 1,
     'native Date Menu is sole restored center child');
 assert.equal(shellSettings.handlers.size, 0);
