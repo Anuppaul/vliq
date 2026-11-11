@@ -155,6 +155,65 @@ function parseHexRgb(value) {
     return [255, 255, 255];
 }
 
+// Single source for Milky colors across every VLIQ-owned native Shell card.
+// Keep Liquid/Frosted selectors completely untouched by these optional rules.
+function milkyPaintTokens(state = {}) {
+    const opacity = clampNumber(state.milkyOpacity ?? 0.24, 0, 1);
+    const border = clampNumber(state.milkyBorder ?? 0.20, 0, 1);
+    const white = clampNumber(state.milkyWhiteness ?? 0, 0, 1);
+    const rgb = [245, 249, 255].map(channel =>
+        Math.round(channel + (255 - channel) * white));
+    return {
+        fill: 'rgba(' + rgb.join(',') + ',' + opacity.toFixed(3) + ')',
+        rim: border <= 0 ? 'none' :
+            'inset 0 0 0 1px rgba(255,255,255,' +
+                border.toFixed(3) + ')',
+    };
+}
+
+function buildMilkyAppearanceCss(state = {}) {
+    if (!state.milky)
+        return '';
+    const {fill, rim} = milkyPaintTokens(state);
+    const roots = [
+        // GNOME 3-Part: only visible islands, not empty/hidden boxes.
+        ...['panelLeft', 'panelCenter', 'panelRight'].map(id =>
+            '.vliq-global-milky #panel.vliq-three-islands #' + id +
+            '.vliq-panel-island:not(.vliq-panel-island-inactive)'),
+        '#panel.vliq-liquid-top-panel.vliq-full-header',
+        '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
+        '.vliq-global-milky .vliq-liquid-popup-content',
+        '.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content',
+        '.vliq-global-milky .popup-menu-content.datemenu-popover',
+        '.vliq-global-milky .popup-menu-content.quick-settings',
+        '.vliq-global-milky .vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-native-notification-glass',
+        '.vliq-global-milky .vliq-milky-osd',
+        '.vliq-global-milky .vliq-orb-face-v2',
+        '.vliq-global-milky .vliq-spotlight-glass-entry',
+        '.vliq-global-milky .vliq-spotlight-glass-results',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background',
+        '.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass',
+        '.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass',
+    ];
+    const interactionRoots = [
+        '.vliq-global-milky .vliq-app-button',
+    ];
+    const all = [...roots, ...interactionRoots].flatMap(selector =>
+        [selector, selector + ':hover', selector + ':focus',
+            selector + ':active', selector + ':checked']);
+    // The extra :not(.inactive) is important: Milky density changes must
+    // never resurrect a GNOME island hidden by native allocation guards.
+    return all.join(',\n') + ' {\n' +
+        '  background-color: ' + fill + ' !important;\n' +
+        '  background-image: none !important;\n' +
+        '  border: 0 !important;\n' +
+        '  box-shadow: ' + rim + ' !important;\n' +
+        '}\n';
+}
+
 function canonicalExtensionRoot() {
     return GLib.build_filenamev([
         GLib.get_user_data_dir(),
@@ -2079,7 +2138,8 @@ export class LiquidGlassIntegration {
             ') !important;\n' +
             '  background-image: none !important;\n' +
             '  box-shadow: none !important;\n' +
-            '}\n';
+            '}\n' +
+            buildMilkyAppearanceCss(state);
 
         if (
             this._cardCssFile &&
@@ -4658,7 +4718,13 @@ export class LiquidGlassIntegration {
 
         const desired =
             this._vliqSettings?.get_string?.('glass-style') === 'milky'
-                ? DOCK_PANEL_MILKY_STYLE
+                ? (() => {
+                    const tokens = milkyPaintTokens(
+                        this._readSharedCardAppearance());
+                    return 'background-color: ' + tokens.fill + '; ' +
+                        'background-image: none; border-color: transparent; ' +
+                        'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
+                })()
                 : (entry.panelLiquidReady
                     ? DOCK_PANEL_GLASS_STYLE
                     : DOCK_PANEL_PREMIUM_STYLE);
