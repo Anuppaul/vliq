@@ -578,8 +578,8 @@ export class LiquidGlassIntegration {
             return;
 
         try {
-            const enabled =
-                this._vliqSettings.get_string('glass-style') === 'frosted';
+            const mode = this._vliqSettings.get_string('glass-style');
+            const enabled = mode === 'frosted';
             const fraction = key =>
                 clampNumber(this._vliqSettings.get_int(key), 0, 100) / 100;
             const grain = fraction('frost-grain');
@@ -592,6 +592,9 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
+                // Write Milky mode LAST so its fast shader path is enabled
+                // only after Frosted has been disabled and optics settled.
+                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
             ]) {
                 if (Math.abs(this._settings.get_double(key) - value) > 0.0001)
                     this._settings.set_double(key, value);

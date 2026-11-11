@@ -229,13 +229,14 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glassStyle = new Adw.ComboRow({
             title: 'Material style',
             subtitle:
-                'Liquid Glass retains the glossy v10 optics. Frosted Crystal adds soft diffusion, matte grain and subtle crystal edges.',
+                'Liquid is refractive; Frosted is matte crystal; Milky is a simple translucent gray-white card without refraction.',
             model: Gtk.StringList.new([
                 'Liquid Glass',
                 'Frosted Crystal',
+                'Milky Glass',
             ]),
         });
-        const glassStyleValues = ['liquid', 'frosted'];
+        const glassStyleValues = ['liquid', 'frosted', 'milky'];
         let syncingGlassStyle = false;
         const syncGlassStyle = () => {
             syncingGlassStyle = true;
@@ -247,7 +248,8 @@ export default class VLIQPreferences extends ExtensionPreferences {
         };
         syncGlassStyle();
         glassStyle.connect('notify::selected', () => {
-            if (!syncingGlassStyle && glassStyle.selected < 2)
+            if (!syncingGlassStyle &&
+                glassStyle.selected < glassStyleValues.length)
                 settings.set_string(
                     'glass-style',
                     glassStyleValues[glassStyle.selected]
@@ -291,14 +293,14 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glass = new Adw.PreferencesGroup({
             title: 'Liquid Glass Controls',
             description:
-                'Original v10 appearance values are retained when switching to Frosted Crystal.',
+                'Original v10 optical settings remain saved when switching between Liquid, Frosted and Milky.',
         });
         appearancePage.add(glass);
 
         addIntSpin(
             glass, settings, 'glass-blur',
             'Blur',
-            'Base backdrop blur. Both materials apply extra diffusion when above zero; zero disables it.',
+            'Base backdrop blur for Liquid and Frosted; Milky is an unblurred translucent card.',
             0, 80, 1
         );
         addIntSpin(

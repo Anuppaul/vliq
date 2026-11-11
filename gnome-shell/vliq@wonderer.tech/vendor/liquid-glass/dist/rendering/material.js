@@ -82,6 +82,7 @@ export class MaterialSettings {
         this._uniforms.set('vliq_frost_amount', 0.0);
         this._uniforms.set('vliq_frost_grain', 0.55);
         this._uniforms.set('vliq_frost_edge_glow', 0.52);
+        this._uniforms.set('vliq_milky_mode', 0.0);
         this._settingsIds = [];
         if (this._settings) {
             this._bindSettings();
@@ -157,6 +158,7 @@ export class MaterialSettings {
         // including native Dock/Panel/Quick Settings and preview surfaces.
         const applyFrost = (initial = false) => {
             let amount = 0.0, grain = 0.55, edgeGlow = 0.52;
+            let milkyMode = 0.0;
             try {
                 amount = settings.get_double('vliq-frost-amount');
                 grain = settings.get_double('vliq-frost-grain');
@@ -164,19 +166,27 @@ export class MaterialSettings {
             } catch {
                 // Older upstream schema -> original Liquid look, no crash.
             }
+            // A missing optional Milky key in an externally installed
+            // upstream schema must not disable legacy Frosted bindings.
+            try {
+                milkyMode = settings.get_double('vliq-milky-mode');
+            } catch {}
+            milkyMode = milkyMode >= 0.5 ? 1.0 : 0.0;
             amount = Math.max(0, Math.min(1, amount));
             grain = Math.max(0, Math.min(1, grain));
             edgeGlow = Math.max(0, Math.min(1, edgeGlow));
             this._uniforms.set('vliq_frost_amount', amount);
             this._uniforms.set('vliq_frost_grain', grain);
             this._uniforms.set('vliq_frost_edge_glow', edgeGlow);
-            this._onFrostChanged?.(amount, initial);
+            this._uniforms.set('vliq_milky_mode', milkyMode);
+            this._onFrostChanged?.(amount, initial, milkyMode);
         };
         applyFrost(true);
         for (const key of [
             'vliq-frost-amount',
             'vliq-frost-grain',
             'vliq-frost-edge-glow',
+            'vliq-milky-mode',
         ]) {
             try {
                 if (settings.settings_schema?.has_key?.(key) === false)

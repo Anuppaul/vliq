@@ -205,6 +205,7 @@ export const LiquidEffect = GObject.registerClass({
         // The saved Liquid blur radius is immutable across material switches.
         this._requestedBlurRadius = null;
         this._frostAmount = 0.0;
+        this._milkyMode = 0.0;
         this._uniforms = new UniformState();
         this._geometry = new GlassGeometry(this._uniforms.values);
         this._material = new MaterialSettings(
@@ -212,10 +213,13 @@ export const LiquidEffect = GObject.registerClass({
             this._uniforms,
             this._blur,
             enabled => { this._diagEnabled = enabled; },
-            (amount, initial) => {
+            (amount, initial, milkyMode = 0.0) => {
                 const nextAmount = Math.max(0, Math.min(1, amount));
-                const blurChanged = nextAmount !== this._frostAmount;
+                const nextMilky = milkyMode >= 0.5 ? 1.0 : 0.0;
+                const blurChanged = nextAmount !== this._frostAmount ||
+                    nextMilky !== this._milkyMode;
                 this._frostAmount = nextAmount;
+                this._milkyMode = nextMilky;
                 // Grain/edge changes only update one shader uniform; do not
                 // reconfigure the blur kernel for unrelated slider events.
                 if (blurChanged && this._requestedBlurRadius !== null)
@@ -1089,6 +1093,12 @@ export const LiquidEffect = GObject.registerClass({
         const base = this._requestedBlurRadius;
         if (base === null)
             return;
+        // Flat Milky does not sample the blurred scene in its shader path.
+        // Disable the blur radius without overwriting the saved user slider.
+        if (this._milkyMode >= 0.5) {
+            this._blur.setBlurRadius(0);
+            return;
+        }
         // Liquid Glass now gets the same strong *background diffusion*
         // as default-density Frosted Crystal, while keeping its original
         // refractive shader (lens, chromatic fringe, glossy rim, specular).

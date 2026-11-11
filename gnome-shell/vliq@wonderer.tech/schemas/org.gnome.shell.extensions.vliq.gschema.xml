@@ -296,9 +296,10 @@
       <choices>
         <choice value="liquid"/>
         <choice value="frosted"/>
+        <choice value="milky"/>
       </choices>
       <summary>VLIQ glass material style</summary>
-      <description>Liquid Glass preserves the v10 refractive material, while Frosted Crystal uses a matte-diffused surface with grain and soft edge light.</description>
+      <description>Liquid preserves v10 refraction, Frosted uses matte grain and edge light, and Milky renders an inexpensive translucent gray-white card without lens effects.</description>
     </key>
     <key name="frost-density" type="i">
       <default>88</default>

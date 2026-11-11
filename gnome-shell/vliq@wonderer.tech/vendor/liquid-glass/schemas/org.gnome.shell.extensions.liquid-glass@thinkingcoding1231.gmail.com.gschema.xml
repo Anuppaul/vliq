@@ -5,6 +5,13 @@
          preserves the exact existing shader output. They are updated by the
          canonical VLIQ settings bridge, not directly from the preferences
          window; all LiquidEffect instances observe them live. -->
+    <!-- Global independent Milky appearance. Zero preserves existing Liquid
+         and Frosted rendering; one selects the flat milky card shader path. -->
+    <key name="vliq-milky-mode" type="d">
+      <default>0.0</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Milky card mode (one = flat translucent gray-white material)</summary>
+    </key>
     <key name="vliq-frost-amount" type="d">
       <default>0.0</default>
       <range min="0.0" max="1.0"/>
