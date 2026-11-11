@@ -68,10 +68,12 @@ const quickBlockStart = css.indexOf('/* Quick Settings ', dateBlockStart);
 assert.ok(dateBlockStart >= 0 && quickBlockStart > dateBlockStart,
     'flat card CSS is scoped exclusively to the Date Menu');
 const flatCss = css.slice(dateBlockStart, quickBlockStart);
-assert.match(flatCss, /background-color:\s*transparent\s*!important/,
-    'idle Date cards exactly match transparent taskbar app icons');
+assert.match(flatCss, /background-color:\s*rgba\(245, 249, 255, 0\.24\)\s*!important/,
+    'idle Calendar cards permanently display the taskbar hover fill');
+assert.match(flatCss, /box-shadow:\s*inset 0 0 0 1px rgba\(255, 255, 255, 0\.20\)\s*!important/,
+    'idle Calendar cards permanently display the taskbar hover inset rim');
 assert.doesNotMatch(flatCss, /rgba\(255, 255, 255, 0\.06\)/,
-    'Date card no longer adds the old 6% resting veil');
+    'old 6% resting veil never appears');
 assert.match(flatCss, /rgba\(245, 249, 255, 0\.24\)/,
     'Date card hover matches taskbar app-icon hover fill exactly');
 assert.match(flatCss, /inset 0 0 0 1px rgba\(255, 255, 255, 0\.20\)/,
