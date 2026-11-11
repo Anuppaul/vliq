@@ -202,6 +202,8 @@ const taskbar = new BottomTaskbar({
 });
 assert.equal(taskbar.setup(), true);
 assert.equal(taskbar.isActive(), true);
+assert.equal(taskbar.ownsChrome(), true,
+    'single-paint owner remains active independently of geometry');
 assert.equal(taskbar._dockRootCache.get(dock)?.root, nativeDockRoot,
     'native Dock root is cached for stage-frame concealment');
 // The normal paint-frame path must not re-walk every Dock ancestor or
@@ -241,6 +243,8 @@ assert.deepEqual(panelBox.get_position(), [0, 1044],
 panelBox.set_position(0, 0);
 assert.equal(taskbar.isActive(), false,
     'effective activation must detect a panel still at the top');
+assert.equal(taskbar.ownsChrome(), true,
+    'transient top placement must NOT restore a second Dock painter');
 panelBox.emit('notify::allocation');
 assert.deepEqual(panelBox.get_position(), [0, 1044],
     'native allocation reanchoring prevents a top-bar flash');
@@ -484,6 +488,8 @@ stage.tick(400_000);
 assert.equal(extraMenu._boxPointer._userArrowSide, St.Side.BOTTOM,
     'late panel extension popup opens above taskbar');
 taskbar.cleanup();
+assert.equal(taskbar.ownsChrome(), false,
+    'paint ownership releases during cleanup');
 assert.equal(stageSignals.size, 0);
 assert.equal(taskbar._signals.length, 0);
 assert.equal(date.get_parent(), panel._centerBox);
@@ -656,7 +662,10 @@ const nativeBackdropEntry = {
 };
 let isBottom = true;
 const nativeDockContext = {
-    isBottomTaskbarActive: () => isBottom,
+    // Simulate temporary geometry false during app focus: the Bottom
+    // session still owns Dock paint and MUST suppress old Panel glass.
+    isBottomTaskbarActive: () => false,
+    ownsBottomTaskbarChrome: () => isBottom,
     _dockIsPanelMode: () => true,
     _setPanelLiquidReady(_entry, ready) {nativeReady = ready;},
 };
@@ -686,7 +695,8 @@ const syncNativeDock = new Function('return ({' +
     '\n})._syncNativeDashEntryMode;')();
 const retired = [];
 const nativeDockCtx = {
-    isBottomTaskbarActive: () => true,
+    isBottomTaskbarActive: () => false,
+    ownsBottomTaskbarChrome: () => true,
     _dockIsPanelMode: () => true,
     _syncNativeDockBinding() {retired.push('native-binding');},
     _applyDockVerticalOffset() {},
