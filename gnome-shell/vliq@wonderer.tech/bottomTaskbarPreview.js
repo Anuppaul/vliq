@@ -205,7 +205,7 @@ export class BottomTaskbarPreview {
         const windows = this._getWindows(item);
         // A non-running pinned app receives a lightweight name tooltip;
         // actual running windows get live native compositor thumbnails.
-        const monitor = this._layout?.primaryMonitor;
+        const monitor = this._monitorForItem(item);
         if (!monitor)
             return;
         const fit = Math.max(1, Math.floor(
@@ -275,17 +275,30 @@ export class BottomTaskbarPreview {
         this._placePopup(popup, item);
     }
 
+    _monitorForItem(item) {
+        const [x, y] = item?.button?.get_transformed_position?.() ?? [NaN, NaN];
+        const [w, h] = item?.button?.get_transformed_size?.() ??
+            [item?.button?.width ?? 0, item?.button?.height ?? 0];
+        const cx = x + w / 2, cy = y + h / 2;
+        return (this._layout?.monitors ?? []).find(m =>
+            cx >= m.x && cx < m.x + m.width &&
+            cy >= m.y && cy < m.y + m.height
+        ) ?? this._layout?.primaryMonitor ?? null;
+    }
+
     _placePopup(popup, item) {
-        const monitor = this._layout?.primaryMonitor;
+        const monitor = this._monitorForItem(item);
         const panelBox = this._layout?.panelBox;
         const host = this._layout?.uiGroup;
-        if (!monitor || !panelBox || !host)
+        if (!monitor || !host)
             return;
 
-        const [buttonX] = item.button.get_transformed_position?.() ??
-            [monitor.x, 0];
-        const [, panelY] = panelBox.get_transformed_position?.() ??
-            [monitor.x, monitor.y + monitor.height - 44];
+        const [buttonX, buttonY] = item.button.get_transformed_position?.() ??
+            [monitor.x, monitor.y];
+        const [buttonW, buttonH] = item.button.get_transformed_size?.() ??
+            [item.button.width ?? 36, item.button.height ?? 36];
+        const [, panelY] = panelBox?.get_transformed_position?.() ??
+            [0, monitor.y + monitor.height - 44];
         const [hostX, hostY] = host.get_transformed_position?.() ?? [0, 0];
 
         const [, naturalWidth] = popup.get_preferred_width?.(-1) ?? [];
@@ -295,12 +308,42 @@ export class BottomTaskbarPreview {
                 popup.get_children?.().length * (TILE_WIDTH + GAP));
         const height = Number.isFinite(naturalHeight) && naturalHeight > 0
             ? naturalHeight : 174;
-        const center = buttonX + (item.button.width ?? 36) / 2;
-        const x = clamp(Math.round(center - width / 2),
-            monitor.x + GAP,
-            Math.max(monitor.x + GAP,
-                monitor.x + monitor.width - width - GAP));
-        const y = Math.max(monitor.y + GAP, panelY - height - GAP);
+        const centerX = buttonX + buttonW / 2;
+        const centerY = buttonY + buttonH / 2;
+        const right = monitor.x + monitor.width;
+        const bottom = monitor.y + monitor.height;
+        const boundsX = Math.max(monitor.x + GAP, right - width - GAP);
+        const boundsY = Math.max(monitor.y + GAP, bottom - height - GAP);
+        const side = item.side ?? null;
+        const placements = {
+            top: [centerX - width / 2, buttonY - height - GAP],
+            bottom: [centerX - width / 2, buttonY + buttonH + GAP],
+            left: [buttonX - width - GAP, centerY - height / 2],
+            right: [buttonX + buttonW + GAP, centerY - height / 2],
+        };
+        const preferred = side ??
+            ((centerY < monitor.y + monitor.height / 2)
+                ? 'bottom' : 'top');
+        const order = preferred === 'left' || preferred === 'right'
+            ? [preferred, preferred === 'left' ? 'right' : 'left',
+                'top', 'bottom']
+            : [preferred, preferred === 'top' ? 'bottom' : 'top',
+                'right', 'left'];
+        let target = placements[preferred];
+        for (const candidate of order) {
+            const [px, py] = placements[candidate];
+            if (px >= monitor.x + GAP && px <= boundsX &&
+                py >= monitor.y + GAP && py <= boundsY) {
+                target = placements[candidate];
+                break;
+            }
+        }
+        // The original taskbar remains panel-anchored. Orb/Dock are anchored
+        // to their icon's live position and fitted to their monitor.
+        if (!side && buttonY >= panelY - 8)
+            target = [centerX - width / 2, panelY - height - GAP];
+        const x = clamp(Math.round(target[0]), monitor.x + GAP, boundsX);
+        const y = clamp(Math.round(target[1]), monitor.y + GAP, boundsY);
         const localX = x - hostX, localY = y - hostY;
         if (Math.abs((popup.x ?? 0) - localX) > 0.5 ||
             Math.abs((popup.y ?? 0) - localY) > 0.5)
