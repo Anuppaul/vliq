@@ -170,6 +170,15 @@ assert.equal(taskbar.setup(), true, 'setup idempotent');
 assert.equal(stageSignals.size, 1);
 assert.deepEqual(panelBox.get_position(), [0, 1044],
     'GNOME native panel goes to bottom of primary monitor');
+// A native GNOME monitor relayout can place panelBox at the old top edge
+// AFTER our first paint; the allocation signal reanchors it synchronously.
+panelBox.set_position(0, 0);
+assert.equal(taskbar.isActive(), false,
+    'effective activation must detect a panel still at the top');
+panelBox.emit('notify::allocation');
+assert.deepEqual(panelBox.get_position(), [0, 1044],
+    'native allocation reanchoring prevents a top-bar flash');
+assert.equal(taskbar.isActive(), true);
 assert.equal(panel._centerBox.translation_x, -32,
     'cancel GNOME workarea center drift from a left Ubuntu Dock strut');
 reservedLeft = 0; reservedRight = 64;
@@ -360,6 +369,8 @@ assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button'));
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar'));
+assert.match(runtimeCSS, /min-height:\s*44px;/,
+    'bottom bar must occupy a Windows-style full-height panel');
 
 // Regression for the real VLIQ native-Dock glass *producer*. Ubuntu Dock
 // Panel Mode uses a stage-level PanelGlassSurface outside dock.container.
@@ -422,5 +433,38 @@ assert.equal(oldGlassDraws, 1,
     'old Dock glass resumes normally when bottom mode is disabled');
 assert.equal(nativeReady, true,
     'returning to ordinary Ubuntu Dock restores native glass paint');
+
+// Test the native Ubuntu Dock Panel Mode *owner* too: bottom mode must
+// remove its CSS background and shader, not just hide a stale snapshot.
+const modeStart = integrationSource.indexOf(
+    '    _syncNativeDashEntryMode(entry) {');
+const modeEnd = integrationSource.indexOf('\n    _', modeStart + 8);
+assert.ok(modeStart >= 0 && modeEnd > modeStart);
+const syncNativeDock = new Function('return ({' +
+    integrationSource.slice(modeStart, modeEnd) +
+    '\n})._syncNativeDashEntryMode;')();
+const retired = [];
+const nativeDockCtx = {
+    isBottomTaskbarActive: () => true,
+    _dockIsPanelMode: () => true,
+    _syncNativeDockBinding() {retired.push('native-binding');},
+    _applyDockVerticalOffset() {},
+    _watchDockPanelBackground() {},
+    _syncDockGlassBackgroundClass(_entry, enabled) {
+        retired.push('glass:' + enabled);
+    },
+    _setDockPanelModeClass(_entry, enabled) {
+        retired.push('panel-class:' + enabled);
+    },
+    _applyDockPanelPaint(_entry, enabled) {
+        retired.push('panel-paint:' + enabled);
+    },
+    _cleanupNativeDashManager() {retired.push('manager-cleanup');},
+};
+assert.equal(syncNativeDock.call(nativeDockCtx, {container: {}}), true);
+assert.deepEqual(retired, [
+    'native-binding', 'glass:false', 'panel-class:false',
+    'panel-paint:false', 'manager-cleanup',
+], 'Bottom mode retires every old Ubuntu Dock panel background layer');
 
 console.log('Bottom Taskbar: Windows 11 centered Start/apps, running-window focus/restore/minimize, native tray spacing, Dock recovery and hot-swap PASS.');

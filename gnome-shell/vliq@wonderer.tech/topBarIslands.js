@@ -31,7 +31,8 @@ function clamp(value, minimum, maximum) {
 export class TopBarIslands {
     constructor({vendor, settings, readAppearance, layoutSettings = null,
         bottomTaskbarFactory = null, getDockEntries = null,
-        onLauncherClick = null, panel = Main.panel,
+        onLauncherClick = null, onLayoutChanged = null,
+        panel = Main.panel,
         layout = Main.layoutManager, display = global.display}) {
         this._vendor = vendor;
         this._settings = settings;
@@ -43,6 +44,7 @@ export class TopBarIslands {
             (options => new BottomTaskbar(options));
         this._getDockEntries = getDockEntries;
         this._onLauncherClick = onLauncherClick;
+        this._onLayoutChanged = onLayoutChanged;
         this._bottomTaskbar = null;
         this._readAppearance = readAppearance;
         this._panel = panel;
@@ -72,6 +74,34 @@ export class TopBarIslands {
         this._bottomTaskbar?.setLauncherCallback?.(callback);
     }
 
+    _publishLayoutStatus(message) {
+        if (!this._layoutSettings?.set_string)
+            return;
+        try {
+            const previous = this._layoutSettings.get_string(
+                'top-header-runtime-status'
+            );
+            if (previous !== message)
+                this._layoutSettings.set_string(
+                    'top-header-runtime-status', message
+                );
+        } catch (error) {
+            console.warn('[VLIQ][TopBar] status unavailable: ' + error);
+        }
+    }
+
+    _activeStatus() {
+        if (this._layoutMode === 'bottom')
+            return this.isBottomTaskbarActive()
+                ? (this._regions.length
+                    ? 'Bottom Taskbar active (Liquid Glass)'
+                    : 'Bottom Taskbar active (CSS fallback)')
+                : 'Bottom Taskbar unavailable';
+        if (this._layoutMode === 'full')
+            return 'Full Header active';
+        return '3-Part Header active';
+    }
+
     setVisibilityGate(callback) {
         this._visibilityGate = typeof callback === 'function'
             ? callback : null;
@@ -86,22 +116,34 @@ export class TopBarIslands {
         const layout = this._layout;
         const host = layout?.uiGroup;
         const nativePanelBox = layout?.panelBox;
-        if (!panel || !host || !nativePanelBox)
+        if (!panel || !host || !nativePanelBox) {
+            this._publishLayoutStatus(
+                'Error: native GNOME panel/host unavailable'
+            );
             return false;
+        }
 
         // Use GNOME's OWN left/center/right allocations. Any applets,
         // indicators and menus stay in their original shell containers.
         const actors = REGIONS.map(([role, key]) => ({
             role, actor: panel[key],
         }));
-        if (actors.some(({actor}) => !actor))
+        if (actors.some(({actor}) => !actor)) {
+            this._publishLayoutStatus(
+                'Error: native panel indicator boxes unavailable'
+            );
             return false;
+        }
 
         let root = nativePanelBox;
         while (root && root.get_parent?.() !== host)
             root = root.get_parent?.() ?? null;
-        if (!root)
+        if (!root) {
+            this._publishLayoutStatus(
+                'Error: native panel is outside GNOME uiGroup'
+            );
             return false;
+        }
 
         this._host = host;
         this._panelRoot = root;
@@ -144,6 +186,7 @@ export class TopBarIslands {
                 }
             }
             this.sync();
+            this._publishLayoutStatus(this._activeStatus());
             console.log(
                 '[VLIQ][TopBar] ' + this._layoutMode +
                 ' native optical header attached'
@@ -159,6 +202,10 @@ export class TopBarIslands {
                         'top-header-layout', 'split');
                 } catch {}
             }
+            this._publishLayoutStatus(
+                'Error: desktop layout initialization failed: ' +
+                String(error)
+            );
             return false;
         }
     }
@@ -275,9 +322,12 @@ export class TopBarIslands {
         // Dispose the old bounded material before creating the replacement;
         // never keep a hidden full-width shader beneath the three islands.
         this._disposeLayout();
+        let failureMessage = null;
         try {
             this._buildLayout(next);
         } catch (error) {
+            failureMessage = 'Error activating ' + next +
+                ': ' + String(error);
             console.warn(
                 '[VLIQ][TopBar] ' + next + ' mode unavailable: ' +
                 error + '\\n' + (error?.stack ?? '')
@@ -302,6 +352,17 @@ export class TopBarIslands {
             }
         }
         this.sync();
+        this._publishLayoutStatus(
+            typeof failureMessage === 'string'
+                ? failureMessage : this._activeStatus()
+        );
+        // At this point the previous mode has fully torn down and the new
+        // mode owns the native panel. Reconcile Ubuntu Dock's real paint
+        // pipeline, not merely its icon actor opacity.
+        try { this._onLayoutChanged?.(this._layoutMode); }
+        catch (error) {
+            console.warn('[VLIQ][TopBar] Dock mode sync failed: ' + error);
+        }
     }
 
     // All three native boxes share ONE compositor frame callback. Stable
@@ -626,5 +687,6 @@ export class TopBarIslands {
         this._hasReportedReady = false;
         this._lastStageSyncUs = 0;
         this._syncing = false;
+        this._publishLayoutStatus('Inactive — GNOME Shell runtime stopped');
     }
 }

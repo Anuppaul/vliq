@@ -347,6 +347,10 @@
  * GNOME's original panelBox now sits at the primary monitor bottom.
  * Native Date Menu / Quick Settings keep full keyboard/menu semantics. */
 #panel.vliq-liquid-top-panel.vliq-bottom-taskbar {
+    /* Windows-style full-width bar, rather than the narrow 32-36px
+     * GNOME header. This applies ONLY to bottom layout; native GNOME
+     * indicator glyphs and their styles remain unchanged. */
+    min-height: 44px;
     background-color: rgba(232, 242, 255, 0.13) !important;
     background-image: none !important;
     border-radius: 0px !important;

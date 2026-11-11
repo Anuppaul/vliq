@@ -2044,6 +2044,13 @@ export class LiquidGlassIntegration {
                 layoutSettings: this._vliqSettings,
                 getDockEntries: () => this._nativeDashEntries,
                 onLauncherClick: this._bottomLauncherCallback,
+                onLayoutChanged: () => {
+                    // Bottom mode must retire native Ubuntu Dock's own
+                    // Panel Mode CSS + LiquidEffect; returning to a top
+                    // header must restore whichever Dock mode was native.
+                    for (const entry of [...this._nativeDashEntries])
+                        this._syncNativeDashEntryMode(entry);
+                },
                 readAppearance: () => this._readSharedCardAppearance(),
             });
             if (!manager.setup()) {
@@ -4730,6 +4737,18 @@ export class LiquidGlassIntegration {
             entry
         );
         this._watchDockPanelBackground(entry);
+
+        if (this.isBottomTaskbarActive()) {
+            // The Windows-style bar has ONE glass owner: Main.panel.
+            // Even a hidden Dash-to-Dock container can leave its own
+            // Panel Mode .dash-background and stage-level glass visible.
+            // Release both producers rather than only setting opacity 0.
+            this._syncDockGlassBackgroundClass(entry, false);
+            this._setDockPanelModeClass(entry.container, false);
+            this._applyDockPanelPaint(entry, false);
+            this._cleanupNativeDashManager(entry);
+            return true;
+        }
 
         if (panelMode) {
             this._syncDockGlassBackgroundClass(

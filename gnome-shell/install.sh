@@ -84,6 +84,15 @@ refresh_prefs_process() {
        grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml"; then
         fail "Retired desktop widgets were left in installed VLIQ."
     fi
+    # A previous VLIQ Preferences bug rejected index 2 with selected < 2,
+    # so the visible Bottom Taskbar option never reached GSettings. Reject
+    # stale installs rather than reporting a working Windows layout.
+    grep -Fq "headerLayout.selected < headerLayoutValues.length" "${TARGET_DIR}/prefs.js" ||
+        fail "Installed Desktop Layout Preferences still reject Bottom Taskbar."
+    grep -Fq '<choice value="bottom"/>' "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
+        fail "Installed layout schema is missing Bottom Taskbar."
+    grep -Fq 'name="top-header-runtime-status"' "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
+        fail "Installed layout diagnostics schema is incomplete."
 
     if command -v gapplication >/dev/null 2>&1; then
         gapplication quit org.gnome.Extensions >/dev/null 2>&1 || true

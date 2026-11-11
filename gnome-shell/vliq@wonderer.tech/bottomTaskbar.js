@@ -42,13 +42,29 @@ export class BottomTaskbar {
         this._stageId = 0;
         this._originalPanelPosition = null;
         this._originalCenterTranslation = 0;
+        this._placingPanel = false;
         this._dockPaint = new Map();
         this._menuSides = new Map();
         this._appKey = '';
     }
 
     isActive() {
-        return this._enabled;
+        if (!this._enabled)
+            return false;
+        const box = this._layout?.panelBox;
+        const monitor = this._layout?.primaryMonitor;
+        if (!box || !monitor)
+            return false;
+        try {
+            const [, y] = box.get_position?.() ?? [box.x, box.y];
+            const height = box.height > 1
+                ? box.height : (this._panel?.height || 36);
+            const expectedY = monitor.y + monitor.height - height;
+            return Number.isFinite(y) &&
+                Math.abs(y - expectedY) < 3;
+        } catch {
+            return false;
+        }
     }
 
     setLauncherCallback(callback) {
@@ -183,6 +199,11 @@ export class BottomTaskbar {
                     this._syncCenterAlignment();
                     this._refreshApps();
                 }],
+                // LayoutManager._updateBoxes() can return panelBox to its
+                // built-in top position during monitor/session relayout.
+                // Correct after native allocation (not just every 24fps)
+                // and avoid one-frame flashing at the top edge.
+                [box, 'notify::allocation', () => this._placePanel()],
                 [this._display, 'workareas-changed',
                     () => this._syncCenterAlignment()],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
@@ -226,8 +247,17 @@ export class BottomTaskbar {
     }
 
     _placePanel() {
-        if (!this._enabled)
+        if (!this._enabled || this._placingPanel)
             return;
+        this._placingPanel = true;
+        try {
+            this._placePanelNow();
+        } finally {
+            this._placingPanel = false;
+        }
+    }
+
+    _placePanelNow() {
         const box = this._layout?.panelBox;
         const monitor = this._layout?.primaryMonitor;
         if (!box || !monitor)
@@ -242,7 +272,7 @@ export class BottomTaskbar {
             (Number(this._panel?.height) > 1 ? this._panel.height : 36);
         const x = monitor.x;
         const y = monitor.y + monitor.height - h;
-        if (!Number.isFinite(y))
+        if (![x, y, h].every(Number.isFinite))
             return;
         const [currentX, currentY] = box.get_position?.() ?? [box.x, box.y];
         if (Math.abs(currentX - x) > 0.1 ||

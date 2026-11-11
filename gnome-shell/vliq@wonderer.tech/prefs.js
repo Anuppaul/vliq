@@ -651,7 +651,8 @@ export default class VLIQPreferences extends ExtensionPreferences {
         };
         syncHeaderLayout();
         headerLayout.connect('notify::selected', () => {
-            if (!syncingHeaderLayout && headerLayout.selected < 2)
+            if (!syncingHeaderLayout &&
+                headerLayout.selected < headerLayoutValues.length)
                 settings.set_string(
                     'top-header-layout',
                     headerLayoutValues[headerLayout.selected]
@@ -659,6 +660,19 @@ export default class VLIQPreferences extends ExtensionPreferences {
         });
         settings.connect('changed::top-header-layout', syncHeaderLayout);
         topHeader.add(headerLayout);
+
+        // Show what the running Shell actually activated, not merely the
+        // requested ComboRow selection. A failed native layout must never
+        // look like a successful Windows taskbar in Preferences.
+        const layoutStatusRow = new Adw.ActionRow({
+            title: 'Active desktop layout',
+            subtitle: settings.get_string('top-header-runtime-status'),
+        });
+        topHeader.add(layoutStatusRow);
+        settings.connect('changed::top-header-runtime-status', () => {
+            layoutStatusRow.subtitle =
+                settings.get_string('top-header-runtime-status');
+        });
 
         // -----------------------------------------------------------------
         // Dock

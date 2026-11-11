@@ -380,21 +380,30 @@ assert.equal(uiGroup.children.filter(x => x !== panelBox).length, 0,
 // via canonical VLIQ Settings while GNOME's native controls stay in place.
 const layoutSettings = new Actor();
 layoutSettings.mode = 'full';
+layoutSettings.status = 'Not initialized';
 layoutSettings.get_string = key => {
+    if (key === 'top-header-runtime-status')
+        return layoutSettings.status;
     assert.equal(key, 'top-header-layout');
     return layoutSettings.mode;
 };
 layoutSettings.set_string = (key, next) => {
+    if (key === 'top-header-runtime-status') {
+        layoutSettings.status = next;
+        return;
+    }
     assert.equal(key, 'top-header-layout');
     layoutSettings.mode = next;
     layoutSettings.emit('changed::top-header-layout');
 };
 const beforeFull = glassSurfaces.length;
 const bottomSessions = [];
+const dockModeUpdates = [];
 const configurable = new TopBarIslands({
     vendor: {}, settings: {},
     layoutSettings, readAppearance: () => ({opacity: 0.05}),
     panel, layout, display,
+    onLayoutChanged(mode) {dockModeUpdates.push(mode);},
     bottomTaskbarFactory(options) {
         const session = {
             options,
@@ -417,6 +426,7 @@ const configurable = new TopBarIslands({
 });
 assert.equal(configurable.setup(), true);
 assert.equal(configurable._layoutMode, 'full');
+assert.equal(layoutSettings.status, 'Full Header active');
 assert.equal(configurable._regions.length, 1);
 assert.equal(glassSurfaces.length, beforeFull + 1,
     'Full Header creates exactly one bounded glass effect');
@@ -492,6 +502,10 @@ assert.equal(fullAgain.surface.boundsWrites, beforeTickWrites,
 // Switch from Full to Bottom and back without remounting native controls.
 layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(configurable._layoutMode, 'bottom');
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar active (Liquid Glass)');
+assert.ok(dockModeUpdates.includes('bottom'),
+    'native Dock painters are reconciled on bottom mode activation');
 assert.equal(configurable.isBottomTaskbarActive(), true,
     'mode only reports active after native taskbar setup');
 assert.equal(configurable._regions.length, 1);
@@ -513,6 +527,9 @@ assert.equal(configurable._regions[0].surface, oldBottomSurface,
 layoutSettings.set_string('top-header-layout', 'full');
 assert.equal(bottomSessions[0].active, false,
     'exit restores original GNOME panel and Dock state');
+assert.equal(dockModeUpdates.at(-1), 'full',
+    'native Dock appearance is restored upon return to Full Header');
+assert.equal(layoutSettings.status, 'Full Header active');
 assert.equal(configurable.isBottomTaskbarActive(), false);
 assert.equal(panelBox.y, layout.primaryMonitor.y);
 assert.equal(oldBottomSurface.destroyed, true);
@@ -556,6 +573,8 @@ const cssFallback = new TopBarIslands({
 assert.equal(cssFallback.setup(), true,
     'Bottom remains active when native glass attach is unavailable');
 assert.equal(cssFallback._layoutMode, 'bottom');
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar active (CSS fallback)');
 assert.equal(cssFallback.isBottomTaskbarActive(), true,
     'CSS-only fallback is still a functional native taskbar');
 assert.equal(cssFallback._regions.length, 0,
@@ -584,6 +603,8 @@ layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(failedBottom._layoutMode, 'split');
 assert.equal(layoutSettings.mode, 'split',
     'failed bottom activation reverts stored preference to actual layout');
+assert.match(layoutSettings.status, /Error activating bottom/,
+    'visible Settings status explains why bottom mode could not start');
 assert.equal(failedBottom.isBottomTaskbarActive(), false);
 assert.equal(stageSignals.size, 1);
 failedBottom.cleanup();
@@ -654,6 +675,9 @@ assert.match(prefs, /headerPage.add\(topHeader\)/,
 assert.match(prefs, /'Full Header'/);
 assert.match(prefs, /'3-Part Header'/);
 assert.match(prefs, /'Bottom Taskbar'/);
+assert.match(schema, /name="top-header-runtime-status" type="s"/);
+assert.match(prefs, /'Active desktop layout'/,
+    'Preferences displays effective Shell mode, not only user selection');
 assert.match(schema, /<choice value="bottom"\s*\/>/,
     'bottom layout persisted in canonical schema');
 
