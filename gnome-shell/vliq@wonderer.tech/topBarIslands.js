@@ -60,6 +60,12 @@ export class TopBarIslands {
         this._syncing = false;
     }
 
+    isBottomTaskbarActive() {
+        return this._layoutMode === 'bottom' &&
+            Boolean(this._bottomTaskbar?.isActive?.() ??
+                this._bottomTaskbar?.active);
+    }
+
     setLauncherCallback(callback) {
         this._onLauncherClick = typeof callback === 'function'
             ? callback : null;
@@ -144,8 +150,15 @@ export class TopBarIslands {
             );
             return true;
         } catch (error) {
-            console.warn('[VLIQ][TopBar] header fallback: ' + error);
+            console.warn('[VLIQ][TopBar] header fallback: ' + error +
+                '\\n' + (error?.stack ?? ''));
             this.cleanup();
+            if (this._preferredLayout() === 'bottom') {
+                try {
+                    this._layoutSettings?.set_string?.(
+                        'top-header-layout', 'split');
+                } catch {}
+            }
             return false;
         }
     }
@@ -212,7 +225,19 @@ export class TopBarIslands {
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
-                throw new Error('full-header glass attach failed');
+                if (mode !== 'bottom')
+                    throw new Error('full-header glass attach failed');
+
+                // The bottom taskbar's native GNOME controls are usable
+                // without a functioning offscreen glass FBO. Keep the mode
+                // and CSS fallback rather than silently returning to split
+                // after a shader/GPU initialization failure.
+                console.warn(
+                    '[VLIQ][Taskbar] panel material unavailable; ' +
+                    'keeping functional native bottom taskbar with CSS fallback'
+                );
+                panel.add_style_class_name('vliq-full-header');
+                return;
             }
             panel.add_style_class_name('vliq-full-header');
             this._regions.push({
@@ -254,7 +279,8 @@ export class TopBarIslands {
             this._buildLayout(next);
         } catch (error) {
             console.warn(
-                '[VLIQ][TopBar] ' + next + ' mode unavailable: ' + error
+                '[VLIQ][TopBar] ' + next + ' mode unavailable: ' +
+                error + '\\n' + (error?.stack ?? '')
             );
             this._disposeLayout();
             // The accepted three-island layout is the safe rendering fallback.
@@ -263,6 +289,16 @@ export class TopBarIslands {
                     '[VLIQ][TopBar] split fallback failed: ' + fallbackError
                 );
                 this._disposeLayout();
+            }
+            // The GSettings selection must reflect what actually rendered.
+            // Otherwise Orb hides for "bottom" even though only the top
+            // header exists, leaving no visible launcher control.
+            if (next === 'bottom') {
+                try {
+                    this._layoutSettings?.set_string?.(
+                        'top-header-layout', 'split'
+                    );
+                } catch {}
             }
         }
         this.sync();

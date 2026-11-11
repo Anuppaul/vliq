@@ -45,6 +45,10 @@ export class BottomTaskbar {
         this._appKey = '';
     }
 
+    isActive() {
+        return this._enabled;
+    }
+
     setLauncherCallback(callback) {
         this._onLauncherClick = typeof callback === 'function'
             ? callback : null;
@@ -59,62 +63,94 @@ export class BottomTaskbar {
             !panel?._rightBox)
             return false;
         try {
-            if (!this._shellSettings)
-                this._shellSettings = new Gio.Settings({
-                    schema_id: 'org.gnome.shell',
-                });
+            if (!this._shellSettings) {
+                try {
+                    this._shellSettings = new Gio.Settings({
+                        schema_id: 'org.gnome.shell',
+                    });
+                } catch (error) {
+                    // Pinned-app settings are optional. Keep moving the
+                    // native panel even on a stripped-down GNOME build.
+                    console.warn(
+                        '[VLIQ][Taskbar] favorites schema unavailable: ' +
+                        error
+                    );
+                }
+            }
             this._originalPanelPosition = box.get_position?.() ?? [
                 box.x ?? 0, box.y ?? 0,
             ];
             this._enabled = true;
-
-            // Native Activities remains in its original left box, but is
-            // temporarily hidden: the VLIQ launcher replaces it visually.
-            this._activity = panel.statusArea?.activities?.container ?? null;
-            this._activityWasVisible = this._activity?.visible !== false;
-            this._activity?.hide?.();
-
-            const icon = new St.Icon({
-                icon_name: 'start-here-symbolic',
-                icon_size: APP_ICON_SIZE,
-                style_class: 'vliq-taskbar-launcher-icon',
-            });
-            this._start = new St.Button({
-                style_class: 'vliq-taskbar-launcher',
-                accessible_name: 'VLIQ Applications',
-                reactive: true,
-                can_focus: true,
-                track_hover: true,
-                child: icon,
-            });
-            this._start.connect('clicked', () => {
-                if (this._onLauncherClick)
-                    this._onLauncherClick();
-                else
-                    Main.overview?.showApps?.();
-            });
-            panel._leftBox.insert_child_at_index(this._start, 0);
-
-            // Preserve the original menu actor and its identity; only shift
-            // its container to the right, before native Quick Settings.
-            const date = panel.statusArea?.dateMenu?.container ?? null;
-            if (date?.get_parent?.() === panel._centerBox) {
-                this._date = date;
-                this._dateParent = panel._centerBox;
-                this._dateIndex = Math.max(0,
-                    panel._centerBox.get_children().indexOf(date));
-                panel._centerBox.remove_child(date);
-                panel._rightBox.insert_child_at_index(date, 0);
+            // Native panel movement is the essential feature. Optional
+            // launcher/app icon rendering must never abort bottom placement
+            // and silently revert the entire layout to the top header.
+            this._placePanel();
+            try {
+                const icon = new St.Icon({
+                    icon_name: 'start-here-symbolic',
+                    icon_size: APP_ICON_SIZE,
+                    style_class: 'vliq-taskbar-launcher-icon',
+                });
+                this._start = new St.Button({
+                    style_class: 'vliq-taskbar-launcher',
+                    accessible_name: 'VLIQ Applications',
+                    reactive: true,
+                    can_focus: true,
+                    track_hover: true,
+                    child: icon,
+                });
+                this._start.connect('clicked', () => {
+                    if (this._onLauncherClick)
+                        this._onLauncherClick();
+                    else
+                        Main.overview?.showApps?.();
+                });
+                panel._leftBox.insert_child_at_index(this._start, 0);
+                // Hide native Activities only after a working replacement
+                // Start button has been attached to the real panel.
+                this._activity =
+                    panel.statusArea?.activities?.container ?? null;
+                this._activityWasVisible =
+                    this._activity?.visible !== false;
+                this._activity?.hide?.();
+            } catch (error) {
+                console.warn('[VLIQ][Taskbar] launcher unavailable: ' +
+                    error);
+                try { this._start?.destroy?.(); } catch {}
+                this._start = null;
             }
 
-            this._appStrip = new St.BoxLayout({
-                style_class: 'vliq-taskbar-apps',
-                reactive: false,
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            panel._centerBox.insert_child_at_index(this._appStrip, 0);
-            this._refreshApps();
+            // Keep original menu actor identity and popup ownership.
+            try {
+                const date = panel.statusArea?.dateMenu?.container ?? null;
+                if (date?.get_parent?.() === panel._centerBox) {
+                    this._date = date;
+                    this._dateParent = panel._centerBox;
+                    this._dateIndex = Math.max(0,
+                        panel._centerBox.get_children().indexOf(date));
+                    panel._centerBox.remove_child(date);
+                    panel._rightBox.insert_child_at_index(date, 0);
+                }
+            } catch (error) {
+                console.warn('[VLIQ][Taskbar] native Date Menu stays in ' +
+                    'center: ' + error);
+            }
+
+            try {
+                this._appStrip = new St.BoxLayout({
+                    style_class: 'vliq-taskbar-apps',
+                    reactive: false,
+                    x_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+                panel._centerBox.insert_child_at_index(this._appStrip, 0);
+                this._refreshApps();
+            } catch (error) {
+                console.warn('[VLIQ][Taskbar] app strip unavailable: ' +
+                    error);
+                try { this._appStrip?.destroy?.(); } catch {}
+                this._appStrip = null;
+            }
 
             for (const [actor, signal, callback] of [
                 [this._layout, 'monitors-changed', () => {
@@ -137,14 +173,21 @@ export class BottomTaskbar {
 
             // The stage callback is cheap: no GObject writes if native
             // monitor/panel/Dock geometry and opacity have not changed.
-            this._stageId = global.stage.connect('before-update', () => {
-                this._placePanel();
-                this._hideOriginalDock();
-                this._syncMenuArrows();
-            });
+            try {
+                this._stageId = global.stage.connect('before-update', () => {
+                    this._placePanel();
+                    this._hideOriginalDock();
+                    this._syncMenuArrows();
+                });
+            } catch (error) {
+                console.warn('[VLIQ][Taskbar] stage follow unavailable: ' +
+                    error);
+            }
             this._placePanel();
             this._syncMenuArrows();
             this._hideOriginalDock();
+            console.log('[VLIQ][Taskbar] BOTTOM_ACTIVE at ' +
+                (this._layout.primaryMonitor?.height ?? '?') + 'px monitor');
             return true;
         } catch (error) {
             console.warn('[VLIQ][Taskbar] native setup failed: ' + error);
@@ -174,8 +217,19 @@ export class BottomTaskbar {
             return;
         const [currentX, currentY] = box.get_position?.() ?? [box.x, box.y];
         if (Math.abs(currentX - x) > 0.1 ||
-            Math.abs(currentY - y) > 0.1)
-            box.set_position(x, y);
+            Math.abs(currentY - y) > 0.1) {
+            try {
+                box.set_position(x, y);
+            } catch (error) {
+                // A compositor migration may temporarily forbid GObject
+                // geometry writes; log once and retry at the next frame.
+                if (!this._panelMoveWarning) {
+                    this._panelMoveWarning = true;
+                    console.warn('[VLIQ][Taskbar] panel position update: ' +
+                        error);
+                }
+            }
+        }
     }
 
     _syncMenuArrows() {
@@ -192,8 +246,16 @@ export class BottomTaskbar {
             if (!this._menuSides.has(pointer))
                 this._menuSides.set(pointer,
                     pointer._userArrowSide ?? St.Side.TOP);
-            if (pointer._userArrowSide !== St.Side.BOTTOM)
-                pointer.updateArrowSide(St.Side.BOTTOM);
+            if (pointer._userArrowSide !== St.Side.BOTTOM) {
+                try { pointer.updateArrowSide(St.Side.BOTTOM); }
+                catch (error) {
+                    if (!this._arrowWarning) {
+                        this._arrowWarning = true;
+                        console.warn('[VLIQ][Taskbar] popup arrow update: ' +
+                            error);
+                    }
+                }
+            }
         }
     }
 
@@ -309,15 +371,23 @@ export class BottomTaskbar {
             // A transparent native Dock can still contain reactive child
             // icons. Unmap the legacy Dock while the taskbar owns app input.
             // The exact actor visibility is restored on layout exit.
-            if (actor.visible !== false)
-                actor.hide?.();
-            if (actor.opacity !== 0)
-                actor.opacity = 0;
-            if (actor.reactive !== false)
-                actor.reactive = false;
-            const glass = entry?.manager?.bgActor;
-            if (glass && glass.opacity !== 0)
-                glass.opacity = 0;
+            try {
+                if (actor.visible !== false)
+                    actor.hide?.();
+                if (actor.opacity !== 0)
+                    actor.opacity = 0;
+                if (actor.reactive !== false)
+                    actor.reactive = false;
+                const glass = entry?.manager?.bgActor;
+                if (glass && glass.opacity !== 0)
+                    glass.opacity = 0;
+            } catch (error) {
+                if (!this._dockWarning) {
+                    this._dockWarning = true;
+                    console.warn('[VLIQ][Taskbar] Dock concealment: ' +
+                        error);
+                }
+            }
         }
     }
 

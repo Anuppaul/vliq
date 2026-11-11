@@ -486,7 +486,8 @@ export default class VLIQRuntime extends Extension {
         if (!this._orb)
             return;
         const bottom = this._settings?.get_string?.(
-            'top-header-layout') === 'bottom';
+            'top-header-layout') === 'bottom' &&
+            this._liquidGlassIntegration?.isBottomTaskbarActive?.() === true;
         if (bottom) {
             this._cancelOpenTimer();
             this._cancelCloseTimer();

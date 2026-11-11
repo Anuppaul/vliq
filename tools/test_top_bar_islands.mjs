@@ -78,6 +78,7 @@ class Actor {
     }
 }
 const glassSurfaces = [];
+let failNextGlassAttach = false;
 class MockPanelGlassSurface {
     constructor(vendor, settings, appearance, options) {
         this.vendor = vendor;
@@ -92,6 +93,10 @@ class MockPanelGlassSurface {
         glassSurfaces.push(this);
     }
     attach(host, root) {
+        if (failNextGlassAttach) {
+            failNextGlassAttach = false;
+            return false;
+        }
         this.material = new Actor();
         this.host = host;
         host.insert_child_below(this.material, root);
@@ -487,6 +492,8 @@ assert.equal(fullAgain.surface.boundsWrites, beforeTickWrites,
 // Switch from Full to Bottom and back without remounting native controls.
 layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(configurable._layoutMode, 'bottom');
+assert.equal(configurable.isBottomTaskbarActive(), true,
+    'mode only reports active after native taskbar setup');
 assert.equal(configurable._regions.length, 1);
 assert.ok(panel.classes.has('vliq-bottom-taskbar'));
 assert.ok(panel.classes.has('vliq-full-header'));
@@ -506,6 +513,7 @@ assert.equal(configurable._regions[0].surface, oldBottomSurface,
 layoutSettings.set_string('top-header-layout', 'full');
 assert.equal(bottomSessions[0].active, false,
     'exit restores original GNOME panel and Dock state');
+assert.equal(configurable.isBottomTaskbarActive(), false);
 assert.equal(panelBox.y, layout.primaryMonitor.y);
 assert.equal(oldBottomSurface.destroyed, true);
 assert.equal(configurable._regions.length, 1);
@@ -519,6 +527,67 @@ assert.equal(layoutSettings.signals.size, 0,
 assert.equal(uiGroup.children.filter(x => x !== panelBox).length, 0,
     'no full-width glass left behind after cleanup');
 assert.ok(!panel.classes.has('vliq-full-header'));
+
+// Regression for a compositor/GPU allocation failure. A missing glass FBO
+// must not silently revert the entire native bottom taskbar to 3-Part.
+layoutSettings.mode = 'bottom';
+failNextGlassAttach = true;
+const cssFallback = new TopBarIslands({
+    vendor: {}, settings: {},
+    layoutSettings, readAppearance: () => ({opacity: 0.05}),
+    panel, layout, display,
+    bottomTaskbarFactory(options) {
+        const session = {
+            active: false,
+            setup() {
+                this.active = true;
+                panelBox.y = layout.primaryMonitor.height - panelBox.height;
+                return true;
+            },
+            cleanup() {
+                this.active = false;
+                panelBox.y = layout.primaryMonitor.y;
+            },
+        };
+        bottomSessions.push(session);
+        return session;
+    },
+});
+assert.equal(cssFallback.setup(), true,
+    'Bottom remains active when native glass attach is unavailable');
+assert.equal(cssFallback._layoutMode, 'bottom');
+assert.equal(cssFallback.isBottomTaskbarActive(), true,
+    'CSS-only fallback is still a functional native taskbar');
+assert.equal(cssFallback._regions.length, 0,
+    'no invalid GPU surface left alive after failed attach');
+assert.ok(panel.classes.has('vliq-bottom-taskbar'));
+assert.equal(panelBox.y, 1044, 'native panel is still at bottom');
+assert.equal(stageSignals.size, 1);
+cssFallback.cleanup();
+assert.equal(stageSignals.size, 0);
+assert.equal(bottomSessions.at(-1).active, false);
+assert.equal(panelBox.y, 0);
+layoutSettings.mode = 'split';
+
+// Native bottom setup failures now restore the *GSettings selection*
+// to Split, instead of hiding the Orb while leaving a top panel visible.
+const failedBottom = new TopBarIslands({
+    vendor: {}, settings: {},
+    layoutSettings, readAppearance: () => ({}),
+    panel, layout, display,
+    bottomTaskbarFactory() {
+        return {setup: () => false, cleanup() {}};
+    },
+});
+assert.equal(failedBottom.setup(), true);
+layoutSettings.set_string('top-header-layout', 'bottom');
+assert.equal(failedBottom._layoutMode, 'split');
+assert.equal(layoutSettings.mode, 'split',
+    'failed bottom activation reverts stored preference to actual layout');
+assert.equal(failedBottom.isBottomTaskbarActive(), false);
+assert.equal(stageSignals.size, 1);
+failedBottom.cleanup();
+assert.equal(stageSignals.size, 0);
 
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url

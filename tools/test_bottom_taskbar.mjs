@@ -123,13 +123,14 @@ const BottomTaskbar = new Function(
     source + '\nreturn BottomTaskbar;'
 )(St,Clutter,{Settings: class extends Actor {}},
     {AppSystem: {get_default: () => appSystem}},Main,
-    {stage, display: new Actor()}, {warn() {}});
+    {stage, display: new Actor()}, {warn() {}, log() {}});
 const taskbar = new BottomTaskbar({
     panel, layout, appSystem, shellSettings,
     getDockEntries: () => dockEntries,
     onLauncherClick: () => launches++,
 });
 assert.equal(taskbar.setup(), true);
+assert.equal(taskbar.isActive(), true);
 assert.equal(taskbar.setup(), true, 'setup idempotent');
 assert.equal(stageSignals.size, 1);
 assert.deepEqual(panelBox.get_position(), [0, 1044],
@@ -222,4 +223,28 @@ assert.ok(!panel._leftBox.get_children().includes(taskbar._start));
 assert.equal(shellSettings.handlers.size, 0);
 assert.equal(appSystem.handlers.size, 0);
 taskbar.cleanup();
-console.log('Bottom Taskbar: native position, Start, pinned/running apps, menu flipping, Dock recovery and hot-swap PASS.');
+assert.equal(taskbar.isActive(), false);
+// Missing optional shell icon theme must not disable the entire taskbar.
+// This was previously caught by setup() and silently reverted to split.
+const oldIcon = St.Icon;
+St.Icon = class BrokenIcon {
+    constructor() {throw new Error('icon theme unavailable');}
+};
+const degraded = new BottomTaskbar({
+    panel, layout, appSystem, shellSettings,
+    getDockEntries: () => dockEntries,
+});
+assert.equal(degraded.setup(), true,
+    'native bottom placement survives optional Start icon failure');
+assert.equal(degraded.isActive(), true);
+assert.deepEqual(panelBox.get_position(), [1920, 684]);
+assert.equal(degraded._start, null, 'no half-created launcher retained');
+assert.equal(activities.visible, true,
+    'Activities is not hidden if replacement Start failed');
+assert.ok(degraded._appStrip, 'running apps still shown without Start');
+degraded.cleanup();
+St.Icon = oldIcon;
+assert.deepEqual(panelBox.get_position(), [1920, 0]);
+assert.equal(stageSignals.size, 0);
+
+console.log('Bottom Taskbar: native position, Start, pinned/running apps, graceful fallback, Dock recovery and hot-swap PASS.');

@@ -2017,6 +2017,10 @@ export class LiquidGlassIntegration {
         Main.messageTray?._banner?.queue_redraw?.();
     }
 
+    isBottomTaskbarActive() {
+        return this._topPanelIslands?.isBottomTaskbarActive?.() === true;
+    }
+
     setBottomTaskbarLauncher(callback) {
         this._bottomLauncherCallback =
             typeof callback === 'function' ? callback : null;
