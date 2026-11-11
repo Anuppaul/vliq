@@ -16,7 +16,7 @@ const start = popup.indexOf('        let dateInnerRoot = null;');
 const end = popup.indexOf('\n        try {\n            const paintRoot', start);
 assert.ok(start >= 0 && end > start,
     'existing PopupGlassSurface inner-material construction remains present');
-const initializer = new Function('Clutter', 'DATE_INNER_PAD',
+const initializer = new Function('Clutter', 'DATE_INNER_PAD', 'root',
     popup.slice(start, end) + '\nreturn {' +
     'dateInnerRoot,dateInnerLiquidBox,dateInnerClone,dateInnerEffect};');
 
@@ -47,7 +47,7 @@ const fakeThis = menuType => ({
     _isQuickSettings: menuType === 'quick',
     _vendor: vendor, _settings: {},
 });
-const date = initializer.call(fakeThis('date'), Clutter, 20);
+const date = initializer.call(fakeThis('date'), Clutter, 20, {nativeOuter: true});
 assert.equal(date.dateInnerRoot, null,
     'Date Menu must not allocate a second root inside the popover');
 assert.equal(date.dateInnerEffect, null,
@@ -55,7 +55,7 @@ assert.equal(date.dateInnerEffect, null,
 assert.equal(newEffects, 0, 'Date creates zero additional GPU effects');
 assert.equal(newActors, 0, 'Date creates zero redundant inner clone actors');
 
-const quick = initializer.call(fakeThis('quick'), Clutter, 20);
+const quick = initializer.call(fakeThis('quick'), Clutter, 20, {nativeOuter: true});
 assert.ok(quick.dateInnerRoot, 'Quick Settings keeps its previous inner pods');
 assert.ok(quick.dateInnerEffect, 'Quick Settings keeps LiquidEffect pods');
 assert.equal(newEffects, 1, 'Quick Settings still creates one nested effect');
