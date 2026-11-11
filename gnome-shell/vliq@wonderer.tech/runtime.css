@@ -582,24 +582,56 @@
 
 /* End independent panel islands. Native GNOME menu controls are untouched. */
 
-/* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,
- * focus and active paint are softened to sit on the parent glass material. */
-.vliq-liquid-top-panel .panel-button {
-    background-color: transparent;
-    background-image: none;
-    box-shadow: none;
+/* Shared native GNOME indicator buttons in ALL VLIQ header layouts:
+ * 3-Part Header (Date in panelCenter), Full Header and Bottom Taskbar
+ * (Date relocated to panelRight). Match the existing taskbar icon hover
+ * material without changing allocation, click targets, icons or spacing.
+ * These paint-only rules are intentionally independent of glass-style:
+ * both Liquid Glass and Frosted Crystal use the same inner-card system. */
+#panel.vliq-liquid-top-panel .panel-button {
+    border-radius: 9px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
 }
 
-.vliq-liquid-top-panel .panel-button:hover,
-.vliq-liquid-top-panel .panel-button:focus {
-    background-color: rgba(255, 255, 255, 0.08);
-    box-shadow: none;
+#panel.vliq-liquid-top-panel .panel-button:hover,
+#panel.vliq-liquid-top-panel .panel-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
 
-.vliq-liquid-top-panel .panel-button:active,
-.vliq-liquid-top-panel .panel-button:checked {
-    background-color: rgba(255, 255, 255, 0.12);
-    box-shadow: none;
+#panel.vliq-liquid-top-panel .panel-button:active,
+#panel.vliq-liquid-top-panel .panel-button:checked {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* GNOME/Yaru can draw two MORE pills inside the native DateMenuButton:
+ * .clock-display-box and the .clock label. Suppress their paint in all
+ * three layouts, leaving exactly the ONE outer .panel-button hover card.
+ * Foreground color is deliberately NOT overridden here: Bottom Taskbar
+ * keeps its fixed white clock; Full/3-Part keep adaptive text contrast. */
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:hover,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:focus,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:active,
+#panel.vliq-liquid-top-panel .clock-display .clock-display-box:checked,
+#panel.vliq-liquid-top-panel .clock-display:hover .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:focus .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:active .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display:checked .clock-display-box,
+#panel.vliq-liquid-top-panel .clock-display .clock,
+#panel.vliq-liquid-top-panel .clock-display:hover .clock,
+#panel.vliq-liquid-top-panel .clock-display:focus .clock,
+#panel.vliq-liquid-top-panel .clock-display:active .clock,
+#panel.vliq-liquid-top-panel .clock-display:checked .clock {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* The only stage-level blur used for Ubuntu Dock Panel Mode is constrained
