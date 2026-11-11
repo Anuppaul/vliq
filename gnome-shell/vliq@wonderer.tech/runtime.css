@@ -1519,27 +1519,24 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
-/* Date Menu flat card material — always displays the EXACT taskbar-icon
- * hover paint even with no pointer hover. Only active press is stronger.
- * Keep the outer LiquidEffect, native menu layout, and single CSS inset rim. */
+/* Date Menu: restrained cool gray-white cards, visible at rest.
+ * Main popover retains its single LiquidEffect; no nested card shader.
+ * The native calendar GRID itself deliberately has no enclosing card. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
-.vliq-liquid-popup-content.datemenu-popover .calendar,
 .vliq-liquid-popup-content.datemenu-popover .events-button,
 .vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
 .vliq-liquid-popup-content.datemenu-popover .weather-button,
 .vliq-liquid-popup-content.datemenu-popover .message,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
-    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-color: rgba(219, 223, 229, 0.18) !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 9px !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
     transition-duration: 120ms;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .calendar:hover,
-.vliq-liquid-popup-content.datemenu-popover .calendar:focus,
 .vliq-liquid-popup-content.datemenu-popover .events-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .events-button:focus,
 .vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
@@ -1550,10 +1547,10 @@
 .vliq-liquid-popup-content.datemenu-popover .message:focus,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
-    /* Same material as idle: no hover-only appearance change. */
-    background-color: rgba(245, 249, 255, 0.24) !important;
+    /* Hover does not add a second milky-white layer. */
+    background-color: rgba(219, 223, 229, 0.18) !important;
     border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
 }
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:active,
 .vliq-liquid-popup-content.datemenu-popover .events-button:active,
@@ -1561,22 +1558,25 @@
 .vliq-liquid-popup-content.datemenu-popover .weather-button:active,
 .vliq-liquid-popup-content.datemenu-popover .message:active,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:active {
-    /* Exact .vliq-taskbar-app-button:active material. */
-    background-color: rgba(245, 249, 255, 0.34) !important;
+    background-color: rgba(219, 223, 229, 0.27) !important;
     border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
 }
-/* Calendar inner controls may still show focus/selected state but must not
- * draw their own inner + outer border pair. The single accent-coloured
- * current day is intentionally preserved by the earlier semantic rule. */
+/* The calendar grid remains visually integrated into the OUTER glass.
+ * Keep month/day controls, current-day GNOME accent, and keyboard input. */
+.vliq-liquid-popup-content.datemenu-popover .calendar,
+.vliq-liquid-popup-content.datemenu-popover .calendar:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar:focus {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
 .vliq-liquid-popup-content.datemenu-popover .calendar-month-label,
 .vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day-heading,
-.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today {
-    border: 0 !important;
-    box-shadow: none !important;
-}
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day:hover,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day:focus,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day:active,
