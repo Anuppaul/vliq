@@ -440,10 +440,12 @@
     spacing: 1px;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-running-dot {
-    min-width: 10px;
-    min-height: 2px;
-    background-color: rgba(235,244,255,0.88);
-    border-radius: 2px;
+    min-width: 5px;
+    min-height: 5px;
+    background-color: rgba(235, 244, 255, 0.94);
+    border-radius: 999px;
+    border: 0;
+    box-shadow: none;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-launcher-icon {
     color: #ffffff;
