@@ -444,14 +444,14 @@ assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-apps'));
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button'));
-assert.match(runtimeCSS,
-    /#panel\\.vliq-bottom-taskbar #panelCenter\\s*[,\\{]/,
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar #panelCenter,'),
     'GNOME inherited center-pill background must be neutralised');
-assert.match(runtimeCSS,
-    /#panel\\.vliq-bottom-taskbar \\.vliq-taskbar-app-button:hover/,
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover'),
     'hover highlights individual clickable app buttons');
-assert.match(runtimeCSS,
-    /#panel\\.vliq-bottom-taskbar \\.vliq-taskbar-app-button:active/,
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active'),
     'mouse press has immediate native button feedback');
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar'));
