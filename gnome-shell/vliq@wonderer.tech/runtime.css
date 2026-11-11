@@ -2351,3 +2351,56 @@
     background-color: rgba(245, 249, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
+
+/* Dark Charcoal: respect GNOME's existing dark theme for Dock, popups,
+ * notifications, apps and Full Header. Only the VLIQ 3-Part islands and
+ * its Windows-style Bottom Taskbar become deep charcoal. No new actors,
+ * global native theme mutation or wallpaper overlays. */
+.vliq-global-charcoal #panel.vliq-three-islands #panelLeft.vliq-panel-island,
+.vliq-global-charcoal #panel.vliq-three-islands #panelCenter.vliq-panel-island,
+.vliq-global-charcoal #panel.vliq-three-islands #panelRight.vliq-panel-island,
+.vliq-global-charcoal #panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
+.vliq-global-charcoal #panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
+.vliq-global-charcoal #panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
+    background-color: rgba(29, 31, 35, 0.98) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13) !important;
+}
+/* Inactive GNOME panel groups cannot turn into empty black pills. */
+.vliq-global-charcoal #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-charcoal #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-charcoal #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Bottom Taskbar is a single rectangular Windows-style native panel. */
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready,
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached {
+    background-color: rgba(29, 31, 35, 0.98) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.13) !important;
+}
+/* Strong foreground contrast independent of background-based sample colors.
+ * The user's native calendar/quick menus keep their GNOME theme text. */
+.vliq-global-charcoal #panel.vliq-three-islands .vliq-panel-island .panel-button,
+.vliq-global-charcoal #panel.vliq-three-islands .vliq-panel-island .panel-button StLabel,
+.vliq-global-charcoal #panel.vliq-three-islands .vliq-panel-island .panel-button StIcon,
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .panel-button,
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .panel-button StLabel,
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .panel-button StIcon,
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .vliq-taskbar-launcher-icon {
+    color: rgba(248, 249, 253, 0.97) !important;
+}
+/* Neutral hover/selected states work with the accepted global icon style. */
+.vliq-global-charcoal #panel.vliq-three-islands .vliq-panel-island .panel-button:hover,
+.vliq-global-charcoal #panel.vliq-three-islands .vliq-panel-island .panel-button:focus {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    box-shadow: none !important;
+}

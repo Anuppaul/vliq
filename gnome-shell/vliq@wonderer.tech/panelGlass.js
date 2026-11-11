@@ -19,6 +19,9 @@ export class PanelGlassSurface {
         // True 3-Part milky cards: CSS alone paints the native GNOME
         // island boxes. No LiquidEffect/Clutter actor is allocated.
         this._cssOnly = options.cssOnly === true;
+        // Only VLIQ's split islands / Bottom Taskbar own a Charcoal backplate.
+        // Full Header and native Ubuntu Dock follow their existing material.
+        this._charcoalHeader = options.charcoalHeader === true;
         this._milky = false;
         this._requestedOpacity = 255;
         this._vendor = vendor;
@@ -111,12 +114,13 @@ export class PanelGlassSurface {
         if (this._destroyed)
             return;
         const state = this._readAppearance?.() ?? {};
-        const milky = state.milky === true;
-        if (this._milky !== milky) {
-            this._milky = milky;
+        const flat = state.milky === true ||
+            (this._charcoalHeader && state.charcoal === true);
+        if (this._milky !== flat) {
+            this._milky = flat;
             this._boundsDirty = true;
             if (this._material)
-                this._material.opacity = milky ? 0 : this._requestedOpacity;
+                this._material.opacity = flat ? 0 : this._requestedOpacity;
         }
         if (!this._effect)
             return;

@@ -327,7 +327,8 @@ export class TopBarIslands {
             // panelBox and spans only its allocated 36-ish-pixel height.
             const surface = new PanelGlassSurface(
                 this._vendor, this._settings, this._readAppearance,
-                {cornerRadius: 0, borderless: mode === 'bottom'}
+                {cornerRadius: 0, borderless: mode === 'bottom',
+                    charcoalHeader: mode === 'bottom'}
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
@@ -367,7 +368,7 @@ export class TopBarIslands {
                 // A shader failure must never break GNOME's panel controls.
                 let surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS}
+                    {cornerRadius: RADIUS, charcoalHeader: true}
                 );
                 let cssFallback = false;
                 if (!surface.attach(this._host, this._panelRoot)) {
