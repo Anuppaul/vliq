@@ -15,7 +15,7 @@ const popup = await readFile(new URL(
 ), 'utf8');
 
 const appStart = css.indexOf('/* Per-icon visual feedback');
-const dateStart = css.indexOf('/* Date Menu flat card material');
+const dateStart = css.indexOf('/* Date Menu: restrained cool gray-white cards');
 const dateEnd = css.indexOf('/* Quick Settings ', dateStart);
 const quickStart = css.indexOf(
     '/* Bottom Taskbar icon-style interaction shared');
@@ -46,6 +46,8 @@ const appHover = declarations(appCss,
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover');
 const appActive = declarations(appCss,
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active');
+const dateBase = declarations(dateCss,
+    '.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,');
 const dateHover = declarations(dateCss,
     '.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover');
 const dateActive = declarations(dateCss,
@@ -60,7 +62,6 @@ const overlayActive = declarations(quickCss,
     '.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:active');
 
 for (const [name, style] of [
-    ['Date hover', dateHover],
     ['Quick tile hover', quickHover],
     ['Quick expanded-row hover', overlayHover],
 ]) {
@@ -72,7 +73,6 @@ for (const [name, style] of [
         name + ' has no second native painted border');
 }
 for (const [name, style] of [
-    ['Date pressed', dateActive],
     ['Quick tile pressed', quickActive],
     ['Quick expanded-row pressed', overlayActive],
 ]) {
@@ -82,21 +82,26 @@ for (const [name, style] of [
         name + ' uses identical pressed outline');
 }
 
-assert.equal(declarations(dateCss,
-    '.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,')
-    ['border-radius'], '9px !important',
-    'Date card roundness matches taskbar icons');
+assert.equal(dateBase['background-color'],
+    'rgba(219, 223, 229, 0.18) !important',
+    'Calendar inner cards use softened gray-white even without hover');
+assert.equal(dateHover['background-color'], dateBase['background-color'],
+    'Calendar hover does not change the idle card fill');
+assert.equal(dateHover['box-shadow'], dateBase['box-shadow'],
+    'Calendar hover does not produce a second inset highlight');
+assert.equal(dateActive['background-color'],
+    'rgba(219, 223, 229, 0.27) !important',
+    'pressed Calendar cards retain a slightly stronger gray fill');
+assert.equal(dateBase['border-radius'], '9px !important');
+assert.ok(dateCss.includes('.calendar:hover'),
+    'calendar grid has a separately transparent rule');
+
 assert.equal(declarations(quickCss,
     '.vliq-liquid-popup-content.quick-settings .quick-toggle,')
     ['transition-duration'], '120ms',
     'Quick card interaction uses original 120ms timing');
-assert.equal(declarations(dateCss,
-    '.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,')
-    ['transition-duration'], '120ms',
-    'Date card interaction uses original 120ms timing');
-
 for (const selector of [
-    '.calendar:hover', '.events-button:hover',
+    '.events-button:hover',
     '.world-clocks-button:hover', '.weather-button:hover',
     '.message:hover', '.message-list-clear-button:hover',
     '.quick-slider:hover',
@@ -134,4 +139,4 @@ assert.ok(css.includes(
 assert.ok(css.includes('#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover'),
     'the previously accepted taskbar icon paint is still present');
 
-console.log('Popup hover parity: exact taskbar app fills/inset outlines/timing, no Quick shader double highlight, native accent retained PASS.');
+console.log('Popup hover parity: soft gray Calendar cards, exact Quick taskbar hover, no shader double highlight, native accent retained PASS.');
