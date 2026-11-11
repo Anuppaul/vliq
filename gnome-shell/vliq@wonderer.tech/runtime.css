@@ -2223,3 +2223,19 @@
     border-radius: 16px !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
+
+/* Overview: same Milky circles, no duplicate LiquidEffect or opacity-zero
+ * native app icons. WindowPreview still owns every input/hit target. */
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:hover,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:focus,
+.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:active,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:hover,
+.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
