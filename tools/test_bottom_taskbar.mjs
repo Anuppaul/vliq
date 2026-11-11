@@ -124,6 +124,17 @@ panel._rightBox.get_preferred_width = () => [240, 240];
 const panelBox = new Actor({x: 0, y: 0, width: 1920, height: 36});
 const layout = new Actor();
 layout.panelBox = panelBox;
+// Mirror GNOME 50 LayoutManager._updateBoxes(): every monitor update
+// unconditionally puts panelBox back at the top before VLIQ can draw.
+let nativeRelayouts = 0;
+const originalUpdateBoxes = function () {
+    nativeRelayouts++;
+    this.panelBox.set_position(
+        this.primaryMonitor.x, this.primaryMonitor.y);
+};
+layout._updateBoxes = originalUpdateBoxes;
+let regionUpdates = 0;
+layout._queueUpdateRegions = () => {regionUpdates++;};
 layout.primaryMonitor = {index: 0, x: 0, y: 0, width: 1920, height: 1080};
 let reservedLeft = 64, reservedRight = 0;
 layout.getWorkAreaForMonitor = () => ({
@@ -166,6 +177,15 @@ const taskbar = new BottomTaskbar({
 });
 assert.equal(taskbar.setup(), true);
 assert.equal(taskbar.isActive(), true);
+assert.notEqual(layout._updateBoxes, originalUpdateBoxes,
+    'bottom mode must intercept GNOME 50 native top-panel relayout');
+assert.ok(regionUpdates >= 1,
+    'panel move must queue a native chrome/strut work-area update');
+layout._updateBoxes();
+assert.equal(nativeRelayouts, 1,
+    'delegate GNOME native monitor logic exactly once');
+assert.deepEqual(panelBox.get_position(), [0, 1044],
+    'GNOME native _updateBoxes cannot leave the taskbar at the top');
 assert.equal(taskbar.setup(), true, 'setup idempotent');
 assert.equal(stageSignals.size, 1);
 assert.deepEqual(panelBox.get_position(), [0, 1044],
@@ -313,6 +333,13 @@ assert.equal(quickMenu._boxPointer._userArrowSide, St.Side.TOP);
 assert.equal(extraMenu._boxPointer._userArrowSide, St.Side.TOP);
 assert.deepEqual(panelBox.get_position(), [1920, 0],
     'native GNOME top bar restored after bottom mode');
+assert.equal(layout._updateBoxes, originalUpdateBoxes,
+    'the original GNOME layout function is restored on disable');
+const priorRelayouts = nativeRelayouts;
+layout._updateBoxes();
+assert.equal(nativeRelayouts, priorRelayouts + 1);
+assert.deepEqual(panelBox.get_position(), [1920, 0],
+    'native header remains at top after the hook is removed');
 assert.equal(panel._centerBox.translation_x, 0,
     'top header restores native GNOME center alignment on exit');
 assert.ok(!panel._leftBox.get_children().includes(taskbar._start));
@@ -337,6 +364,10 @@ const degraded = new BottomTaskbar({
 });
 assert.equal(degraded.setup(), true,
     'native bottom placement survives optional Start icon failure');
+assert.notEqual(layout._updateBoxes, originalUpdateBoxes);
+layout._updateBoxes();
+assert.deepEqual(panelBox.get_position(), [1920, 684],
+    'even degraded Start icon mode survives native monitor relayout');
 assert.equal(degraded.isActive(), true);
 assert.deepEqual(panelBox.get_position(), [1920, 684]);
 assert.equal(panel._centerBox.translation_x, -19,
@@ -348,6 +379,7 @@ assert.ok(degraded._appStrip, 'running apps still shown without Start');
 assert.equal(degraded._appStrip.get_parent(), degraded._centerGroup,
     'even degraded layout keeps apps centered');
 degraded.cleanup();
+assert.equal(layout._updateBoxes, originalUpdateBoxes);
 St.Icon = oldIcon;
 assert.deepEqual(panelBox.get_position(), [1920, 0]);
 assert.equal(panel._centerBox.translation_x, 13,
