@@ -280,6 +280,7 @@ export class BottomTaskbar {
 
             for (const [actor, signal, callback] of [
                 [this._layout, 'monitors-changed', () => {
+                    this._previewManager?.close();
                     // GNOME may rebuild Dock chrome under a different root.
                     this._dockRootCache = new WeakMap();
                     this._placePanel();
@@ -292,10 +293,13 @@ export class BottomTaskbar {
                 // and avoid one-frame flashing at the top edge.
                 [box, 'notify::allocation', () => this._placePanel()],
                 [this._display, 'workareas-changed', () => {
+                    this._previewManager?.close();
                     this._placePanel();
                     this._syncCenterAlignment();
                     this._refreshApps();
                 }],
+                [this._display, 'in-fullscreen-changed', () =>
+                    this._previewManager?.close()],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
