@@ -46,6 +46,9 @@ export class BottomTaskbar {
         this._dockPaint = new Map();
         this._menuSides = new Map();
         this._appKey = '';
+        // Preserve native St.Button actors across app-state updates. Rebuilding
+        // every icon on click resets hover/focus and flashes the full row.
+        this._appItems = new Map();
         this._nativeUpdateBoxes = null;
         this._patchedUpdateBoxes = null;
         this._updateBoxesWasOwn = false;
@@ -474,54 +477,74 @@ export class BottomTaskbar {
         for (const app of running)
             add(app);
 
-        const key = ordered.map(app => {
-            let active = false;
-            try { active = (app.get_windows?.()?.length ?? 0) > 0; } catch {}
-            return app.get_id() + ':' + (active ? '1' : '0');
-        }).join('|');
-        if (key === this._appKey)
-            return;
-        this._appKey = key;
-        for (const child of this._appStrip.get_children?.() ?? [])
-            child.destroy?.();
+        // Reconcile by stable desktop-file ID rather than rebuilding the
+        // complete strip whenever a Shell.App switches RUNNING/STOPPED.
+        // GNOME emits app-state-changed during click/activate/minimize; a
+        // destroy-and-create pass drops hover, pointer grab, focus and paint
+        // state, causing the app icon and its dot to visibly flicker.
+        const nextKey = ordered.map(app => app.get_id()).join('|');
+        const desiredIds = new Set(ordered.map(app => app.get_id()));
 
-        for (const app of ordered) {
-            let runningApp = false;
-            try { runningApp = (app.get_windows?.()?.length ?? 0) > 0; } catch {}
-            const content = new St.BoxLayout({
-                style_class: 'vliq-taskbar-app-content',
-                vertical: true,
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            const icon = app.create_icon_texture?.(APP_ICON_SIZE) ??
-                new St.Icon({icon_name: 'application-x-executable-symbolic',
-                    icon_size: APP_ICON_SIZE});
-            content.add_child(icon);
-            // A compact round running-app indicator centered under the
-            // native app icon, not a horizontal underline/dash.
-            const dot = new St.Widget({
-                style_class: 'vliq-taskbar-running-dot',
-                reactive: false,
-                width: 5,
-                height: 5,
-                x_align: Clutter.ActorAlign.CENTER,
-            });
-            if (!runningApp)
-                dot.opacity = 0;
-            content.add_child(dot);
-            const button = new St.Button({
-                style_class: 'vliq-taskbar-app-button',
-                accessible_name: app.get_name?.() ?? app.get_id(),
-                child: content,
-                can_focus: true,
-                reactive: true,
-                track_hover: true,
-            });
-            // Focus/restore the actual Meta.Window for running apps; launch
-            // a pinned app when it has no window.
-            button.connect('clicked', () => this._activateApp(app));
-            this._appStrip.add_child(button);
+        for (const [id, item] of this._appItems) {
+            if (desiredIds.has(id))
+                continue;
+            item.button.destroy();
+            this._appItems.delete(id);
         }
+
+        for (let index = 0; index < ordered.length; index++) {
+            const app = ordered[index];
+            const id = app.get_id();
+            let item = this._appItems.get(id);
+            if (!item) {
+                const content = new St.BoxLayout({
+                    style_class: 'vliq-taskbar-app-content',
+                    vertical: true,
+                    x_align: Clutter.ActorAlign.CENTER,
+                });
+                const icon = app.create_icon_texture?.(APP_ICON_SIZE) ??
+                    new St.Icon({icon_name: 'application-x-executable-symbolic',
+                        icon_size: APP_ICON_SIZE});
+                content.add_child(icon);
+                const dot = new St.Widget({
+                    style_class: 'vliq-taskbar-running-dot',
+                    reactive: false,
+                    width: 5,
+                    height: 5,
+                    x_align: Clutter.ActorAlign.CENTER,
+                });
+                content.add_child(dot);
+                const button = new St.Button({
+                    style_class: 'vliq-taskbar-app-button',
+                    accessible_name: app.get_name?.() ?? id,
+                    child: content,
+                    can_focus: true,
+                    reactive: true,
+                    track_hover: true,
+                });
+                item = {app, button, dot};
+                // Resolve the current Shell.App when clicked. The shell can
+                // refresh AppSystem references while an actor remains stable.
+                button.connect('clicked', () => this._activateApp(item.app));
+                this._appItems.set(id, item);
+                this._appStrip.insert_child_at_index(button, index);
+            } else {
+                item.app = app;
+                // Reorder existing actors in-place, without reparenting or
+                // destroying them; GNOME 50 exposes set_child_at_index().
+                if (this._appStrip.get_children?.()[index] !== item.button)
+                    this._appStrip.set_child_at_index(item.button, index);
+            }
+
+            let runningApp = false;
+            try {
+                runningApp = (app.get_windows?.()?.length ?? 0) > 0;
+            } catch {}
+            const opacity = runningApp ? 255 : 0;
+            if (item.dot.opacity !== opacity)
+                item.dot.opacity = opacity;
+        }
+        this._appKey = nextKey;
     }
 
     _activateApp(app) {
@@ -681,6 +704,7 @@ export class BottomTaskbar {
 
         try { this._start?.destroy?.(); } catch {}
         try { this._appStrip?.destroy?.(); } catch {}
+        this._appItems.clear();
         try { this._centerGroup?.destroy?.(); } catch {}
         this._start = null;
         this._appStrip = null;
