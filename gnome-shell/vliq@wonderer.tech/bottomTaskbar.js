@@ -8,6 +8,7 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {BottomTaskbarPreview} from './bottomTaskbarPreview.js';
 
 const MAX_TASKBAR_APPS = 11;
 const APP_ICON_SIZE = 24;
@@ -55,6 +56,7 @@ export class BottomTaskbar {
         // Preserve native St.Button actors across app-state updates. Rebuilding
         // every icon on click resets hover/focus and flashes the full row.
         this._appItems = new Map();
+        this._previewManager = null;
         this._nativeUpdateBoxes = null;
         this._patchedUpdateBoxes = null;
         this._updateBoxesWasOwn = false;
@@ -251,6 +253,12 @@ export class BottomTaskbar {
             }
 
             try {
+                // Live GNOME WindowActor previews are created only on hover.
+                // They are independent of the pinned/running app strip and
+                // do not add a second compositor-time paint loop.
+                this._previewManager = new BottomTaskbarPreview({
+                    layout: this._layout,
+                });
                 this._appStrip = new St.BoxLayout({
                     style_class: 'vliq-taskbar-apps',
                     reactive: false,
@@ -522,6 +530,7 @@ export class BottomTaskbar {
         for (const [id, item] of this._appItems) {
             if (desiredIds.has(id))
                 continue;
+            this._previewManager?.closeForItem(item);
             item.button.destroy();
             this._appItems.delete(id);
         }
@@ -559,7 +568,13 @@ export class BottomTaskbar {
                 item = {app, button, dot};
                 // Resolve the current Shell.App when clicked. The shell can
                 // refresh AppSystem references while an actor remains stable.
-                button.connect('clicked', () => this._activateApp(item.app));
+                button.connect('clicked', () => {
+                    this._previewManager?.close();
+                    this._activateApp(item.app);
+                });
+                button.connect('notify::hover', () =>
+                    this._previewManager?.onButtonHover(item,
+                        button.get_hover?.() ?? button.hover ?? false));
                 this._appItems.set(id, item);
                 this._appStrip.insert_child_at_index(button, index);
             } else {
@@ -753,6 +768,8 @@ export class BottomTaskbar {
         }
         this._menuSides.clear();
 
+        try { this._previewManager?.destroy?.(); } catch {}
+        this._previewManager = null;
         try { this._start?.destroy?.(); } catch {}
         try { this._appStrip?.destroy?.(); } catch {}
         this._appItems.clear();
