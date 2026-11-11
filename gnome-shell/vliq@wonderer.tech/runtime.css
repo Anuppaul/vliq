@@ -2146,3 +2146,70 @@
 .vliq-spotlight-result-labels {
     spacing: 1px;
 }
+
+/* Global Milky appearance. The 3-Part Header's native gray-white card is
+ * the canonical paint material. These rules target only VLIQ-managed Shell
+ * surfaces, NEVER window content or the desktop wallpaper. VLIQ's JS
+ * disables its shader actors while this class is active. */
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready,
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-liquid-popup-content,
+.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content,
+.vliq-global-milky .popup-menu-content.datemenu-popover,
+.vliq-global-milky .popup-menu-content.quick-settings {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-liquid-shell-card,
+.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card,
+.vliq-global-milky .vliq-native-notification-glass,
+.vliq-global-milky .vliq-native-notification-glass:hover,
+.vliq-global-milky .vliq-native-notification-glass:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-orb-face-v2,
+.vliq-global-milky .vliq-orb-face-v2:hover,
+.vliq-global-milky .vliq-orb-face-v2:focus,
+.vliq-global-milky .vliq-app-button,
+.vliq-global-milky .vliq-app-button:hover,
+.vliq-global-milky .vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-spotlight-glass-entry,
+.vliq-global-milky .vliq-spotlight-glass-results {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+/* Floating and panel Ubuntu Dock share one native .dash-background, which
+ * is a SIBLING of the icon container. Leave every app icon untouched. */
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background,
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background,
+.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background.vliq-native-panel-liquid-ready,
+.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-glass-background,
+.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-panel-background {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
