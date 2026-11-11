@@ -1185,6 +1185,17 @@ class PopupGlassSurface {
         if (this._isDateMenu && klass === 'calendar')
             return 0;
 
+        // Quick Settings has the exact same CSS hover/pressed card as the
+        // Bottom Taskbar app icons. The nested LiquidEffect keeps its
+        // stationary neutral glass base, but must NOT add a second
+        // shader-side hover response over the CSS inset highlight.
+        // Checked/active native accent and text polarity are handled
+        // independently in _syncDateInnerRegions().
+        if (this._isQuickSettings) {
+            this._dateCardResponses.set(actor, 0);
+            return 0;
+        }
+
         let pressed;
         let selected;
         let engaged;
