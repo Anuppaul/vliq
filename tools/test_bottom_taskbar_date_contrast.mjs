@@ -132,30 +132,32 @@ const css = await readFile(new URL(
 assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
     'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
 
-// Date has ONE outer milky hover card, but no second nested rounded box.
-const outerHover = css.match(
-    /#panel\\.vliq-bottom-taskbar #panelRight \\.panel-button:hover,[^{]*\\{([^}]+)\\}/
-)?.[1] ?? '';
-assert.match(outerHover,
-    /background-color:\\s*rgba\\(245, 249, 255, 0\\.24\\)\\s*!important/,
-    'Date retains the existing milky outer panel-button hover card');
-assert.match(outerHover,
-    /inset 0 0 0 1px rgba\\(255, 255, 255, 0\\.20\\)/,
-    'the original outer card retains its single subtle rim');
+// Date gets the same outer milky card as the other right-side panel
+// indicators; only its nested .clock-display-box paint is suppressed.
+const outerStart = css.indexOf(
+    '#panel.vliq-bottom-taskbar #panelRight .panel-button:hover,');
+const outerEnd = css.indexOf('}', outerStart);
+assert.ok(outerStart >= 0 && outerEnd > outerStart);
+const outerHover = css.slice(outerStart, outerEnd);
+assert.ok(outerHover.includes('rgba(245, 249, 255, 0.24)'),
+    'Date retains original milky outer hover fill');
+assert.ok(outerHover.includes('inset 0 0 0 1px rgba(255, 255, 255, 0.20)'),
+    'Date retains original outer inset rim');
 for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
     const selector = '#panel.vliq-bottom-taskbar #panelRight ' +
         '.clock-display .clock-display-box' + state;
     assert.ok(css.includes(selector),
-        'nested Date actor paint is suppressed in ' + (state || 'idle'));
+        'only nested Date paint is cleared at ' + (state || 'idle'));
 }
-const innerClear = css.match(
-    /\\/\\* Date\\/Clock: retain the accepted outer milky[\\s\\S]*?\\{([^}]+)\\}/
-)?.[1] ?? '';
-assert.match(innerClear, /background-color:\\s*transparent\\s*!important/,
-    'nested clock box cannot paint a second card');
-assert.match(innerClear, /box-shadow:\\s*none\\s*!important/,
-    'nested clock box cannot paint a second rounded inset rim');
+const innerStart = css.indexOf('/* Date/Clock: retain the accepted outer');
+const innerEnd = css.indexOf('}', innerStart);
+assert.ok(innerStart >= 0 && innerEnd > innerStart);
+const innerClear = css.slice(innerStart, innerEnd);
+assert.ok(innerClear.includes('background-color: transparent !important'),
+    'nested clock background cannot paint a second card');
+assert.ok(innerClear.includes('box-shadow: none !important'),
+    'nested clock inset shadow is removed');
 assert.ok(!css.includes('.panel-button.clock-display:hover'),
-    'outer Date hover must not be forcibly disabled');
+    'outer Date milky card must not be suppressed');
 
 console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');
