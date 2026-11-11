@@ -142,51 +142,61 @@ export class BottomTaskbarPreview {
         });
         content.add_child(this._thumbnail(window));
 
-        const footer = new St.BoxLayout({
-            style_class: 'vliq-taskbar-preview-footer',
-        });
         const title = new St.Label({
             text: window.get_title?.() || item.app?.get_name?.() || 'Window',
             style_class: 'vliq-taskbar-preview-title',
             x_expand: true,
-            width: TILE_WIDTH - 54,
+            width: TILE_WIDTH - 32,
         });
         if (title.clutter_text)
             title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-        footer.add_child(title);
+        content.add_child(title);
 
-        if (typeof window.delete === 'function') {
-            const close = new St.Button({
-                style_class: 'vliq-taskbar-preview-close',
-                child: new St.Icon({
-                    icon_name: 'window-close-symbolic', icon_size: 14,
-                }),
-                reactive: true, can_focus: true, track_hover: true,
-                accessible_name: 'Close window',
-            });
-            close.connect('clicked', () => {
-                this.close();
-                window.delete(global.get_current_time?.() ?? 0);
-            });
-            footer.add_child(close);
-        }
-        content.add_child(footer);
-
-        const button = new St.Button({
-            style_class: 'vliq-taskbar-preview-tile',
+        // Focus and close must be sibling hit targets. Nesting the close
+        // St.Button inside the activate St.Button lets parent click
+        // handlers race with close on some GNOME Shell input paths.
+        const activate = new St.Button({
+            style_class: 'vliq-taskbar-preview-activate',
             child: content,
-            width: TILE_WIDTH,
+            width: TILE_WIDTH - 14,
             reactive: true, can_focus: true, track_hover: true,
             accessible_name: window.get_title?.() || 'Activate window',
         });
-        button.connect('clicked', () => {
+        activate.connect('clicked', () => {
             this.close();
             try { this._activateWindow(window); }
             catch (error) {
                 console.warn('[VLIQ][TaskbarPreview] focus: ' + error);
             }
         });
-        return button;
+        const tile = new St.Widget({
+            style_class: 'vliq-taskbar-preview-tile',
+            layout_manager: new Clutter.BinLayout(),
+            width: TILE_WIDTH,
+            reactive: true, track_hover: true,
+        });
+        tile.add_child(activate);
+        if (typeof window.delete === 'function') {
+            const close = new St.Button({
+                style_class: 'vliq-taskbar-preview-close',
+                child: new St.Icon({
+                    icon_name: 'window-close-symbolic', icon_size: 14,
+                }),
+                x_align: Clutter.ActorAlign.END,
+                y_align: Clutter.ActorAlign.START,
+                reactive: true, can_focus: true, track_hover: true,
+                accessible_name: 'Close window',
+            });
+            close.connect('clicked', () => {
+                this.close();
+                try { window.delete(global.get_current_time?.() ?? 0); }
+                catch (error) {
+                    console.warn('[VLIQ][TaskbarPreview] close: ' + error);
+                }
+            });
+            tile.add_child(close);
+        }
+        return tile;
     }
 
     _open(item) {
