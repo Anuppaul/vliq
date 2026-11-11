@@ -260,6 +260,20 @@ assert.equal(runningDots[1].opacity, 255,
     'running pinned app shows its dot');
 assert.equal(runningDots[2].opacity, 255,
     'running unpinned app shows its dot');
+// An app becoming stopped must hide the dot; reopening must restore it.
+const originalBetaWindows = appBeta.get_windows;
+appBeta.get_windows = () => [];
+appSystem.emit('app-state-changed');
+const stoppedBetaDot = taskbar._appStrip.get_children()[1]
+    .get_children()[0].get_children()[1];
+assert.equal(stoppedBetaDot.opacity, 0,
+    'closing a running app hides its dot immediately');
+appBeta.get_windows = originalBetaWindows;
+appSystem.emit('app-state-changed');
+const restartedBetaDot = taskbar._appStrip.get_children()[1]
+    .get_children()[0].get_children()[1];
+assert.equal(restartedBetaDot.opacity, 255,
+    'reopening the app restores the dot');
 assert.equal(dateMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(quickMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(dock.visible, false, 'legacy Ubuntu Dock is hidden');
@@ -469,6 +483,15 @@ assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-apps'));
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button'));
+const runningDotStyle = runtimeCSS.match(
+    /#panel\.vliq-bottom-taskbar \.vliq-taskbar-running-dot\s*\{([^}]*)\}/
+)?.[1] ?? '';
+assert.match(runningDotStyle, /min-width:\s*5px\s*;/,
+    'running dot is 5px wide, not a dash');
+assert.match(runningDotStyle, /min-height:\s*5px\s*;/,
+    'running dot has equal 5px height');
+assert.match(runningDotStyle, /border-radius:\s*999px\s*;/,
+    'running indicator is circular');
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar #panelCenter,'),
     'GNOME inherited center-pill background must be neutralised');
