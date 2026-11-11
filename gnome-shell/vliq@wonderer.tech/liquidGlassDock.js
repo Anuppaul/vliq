@@ -651,6 +651,11 @@ export class LiquidGlassIntegration {
             this._loadStylesheet();
 
         this._enabled = true;
+        // Paint Milky natively from the FIRST frame, before popup/dock
+        // managers start attaching; prevent a one-frame Liquid flash.
+        this._syncMilkyAppearanceClass(
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+        );
 
         // Hook GNOME's existing wallpaper actors before creating Orb/Popup
         // glass and the shared BackgroundMirror. Original (default) does
