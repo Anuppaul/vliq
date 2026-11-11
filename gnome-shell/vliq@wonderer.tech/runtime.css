@@ -2366,3 +2366,26 @@
     border-radius: 0 !important;
     box-shadow: inset 0 1px rgba(255,255,255,0.13) !important;
 }
+
+/* GNOME task-completion/unread notification count on Bottom Taskbar icons.
+ * Overlay is inside the native 24px icon allocation: no extra app slot,
+ * no second indicator, and the accepted 5px running dot remains below. */
+#panel.vliq-bottom-taskbar .vliq-taskbar-icon-holder {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-notification-badge {
+    min-width: 14px;
+    min-height: 14px;
+    padding: 0px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffffff !important;
+    background-color: rgba(214, 49, 69, 0.98) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.32) !important;
+    border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}

@@ -58,6 +58,12 @@ export class BottomTaskbar {
         // Preserve native St.Button actors across app-state updates. Rebuilding
         // every icon on click resets hover/focus and flashes the full row.
         this._appItems = new Map();
+        // Task-completion/unread notification badges are NOT window counts.
+        // Use GNOME's existing MessageTray sources without creating a
+        // second Dock, monitoring every frame or changing notification state.
+        this._notificationTray = null;
+        this._notificationTraySignals = [];
+        this._notificationSources = new Map();
         this._previewManager = null;
         this._nativeUpdateBoxes = null;
         this._patchedUpdateBoxes = null;
@@ -271,6 +277,7 @@ export class BottomTaskbar {
                     .insert_child_at_index(
                         this._appStrip, this._start ? 1 : 0);
                 this._refreshApps();
+                this._setupNotificationBadges();
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] app strip unavailable: ' +
                     error);
@@ -469,6 +476,153 @@ export class BottomTaskbar {
         }
     }
 
+    _notificationAppId(value) {
+        // GNOME's Gtk/FD notification sources expose either a Shell.App or
+        // an appId string depending on the notification provider/revision.
+        const raw = typeof value === 'string'
+            ? value
+            : value?.get_id?.() ?? value?.id ?? null;
+        if (typeof raw !== 'string' || !raw.trim())
+            return null;
+        return raw.replace(/^application:\/\//, '')
+            .replace(/\.desktop$/, '');
+    }
+
+    _sourceNotificationAppId(source) {
+        const app = source?.app ?? source?._app ?? source?.get_app?.() ??
+            source?.appId ?? source?.app_id ?? source?._appId ??
+            source?.notifications?.[0]?.source?.app ?? null;
+        return this._notificationAppId(app);
+    }
+
+    _watchNotificationSource(source) {
+        if (!source || this._notificationSources.has(source))
+            return;
+        const entry = {signals: [], notifications: new Map()};
+        this._notificationSources.set(source, entry);
+        const connect = (target, name, callback, list = entry.signals) => {
+            try {
+                const id = target?.connect?.(name, callback);
+                if (id)
+                    list.push({target, id});
+            } catch {}
+        };
+        const watchNotification = notification => {
+            if (!notification || entry.notifications.has(notification))
+                return;
+            const list = [];
+            entry.notifications.set(notification, list);
+            // A count-updated signal commonly follows notification removal;
+            // keep the destroy hook for GNOME providers without that signal.
+            connect(notification, 'destroy',
+                () => this._refreshNotificationBadges(), list);
+        };
+        connect(source, 'notification-added', (_source, notification) => {
+            watchNotification(notification);
+            this._refreshNotificationBadges();
+        });
+        connect(source, 'notify::count',
+            () => this._refreshNotificationBadges());
+        connect(source, 'count-updated',
+            () => this._refreshNotificationBadges());
+        connect(source, 'notification-removed',
+            () => this._refreshNotificationBadges());
+        for (const notification of source.notifications ?? [])
+            watchNotification(notification);
+    }
+
+    _unwatchNotificationSource(source) {
+        const entry = this._notificationSources.get(source);
+        if (!entry)
+            return;
+        this._notificationSources.delete(source);
+        for (const {target, id} of entry.signals)
+            safeDisconnect(target, id);
+        for (const list of entry.notifications.values())
+            for (const {target, id} of list)
+                safeDisconnect(target, id);
+        entry.notifications.clear();
+    }
+
+    _setupNotificationBadges() {
+        const tray = Main.messageTray;
+        if (!tray || this._notificationTray === tray)
+            return;
+        this._notificationTray = tray;
+        for (const [signal, handler] of [
+            ['source-added', (_tray, source) => {
+                this._watchNotificationSource(source);
+                this._refreshNotificationBadges();
+            }],
+            ['source-removed', (_tray, source) => {
+                this._unwatchNotificationSource(source);
+                this._refreshNotificationBadges();
+            }],
+        ]) {
+            try {
+                const id = tray.connect(signal, handler);
+                if (id)
+                    this._notificationTraySignals.push({actor: tray, id});
+            } catch {}
+        }
+        try {
+            for (const source of tray.getSources?.() ?? [])
+                this._watchNotificationSource(source);
+        } catch {}
+        this._refreshNotificationBadges();
+    }
+
+    _notificationCountForApp(app) {
+        const id = this._notificationAppId(app);
+        if (!id)
+            return 0;
+        let count = 0;
+        for (const source of this._notificationSources.keys()) {
+            if (this._sourceNotificationAppId(source) !== id)
+                continue;
+            // Ubuntu Dock's familiar numbers count uncleared notifications,
+            // not running windows; resident/media entries are excluded.
+            const notifications = source.notifications ?? [];
+            for (const notification of notifications)
+                if (notification && notification.resident !== true)
+                    count++;
+        }
+        return count;
+    }
+
+    _refreshNotificationBadges() {
+        if (!this._enabled)
+            return;
+        for (const item of this._appItems.values()) {
+            const badge = item.badge;
+            if (!badge)
+                continue;
+            const count = this._notificationCountForApp(item.app);
+            if (!count) {
+                if (badge.visible)
+                    badge.hide?.();
+                continue;
+            }
+            const label = count > 99 ? '99+' : String(count);
+            if (badge.text !== label)
+                badge.set_text?.(label);
+            // The simple field assignment is also supported by St.Label.
+            if (badge.text !== label)
+                badge.text = label;
+            if (!badge.visible)
+                badge.show?.();
+        }
+    }
+
+    _cleanupNotificationBadges() {
+        for (const {actor, id} of this._notificationTraySignals)
+            safeDisconnect(actor, id);
+        this._notificationTraySignals = [];
+        for (const source of [...this._notificationSources.keys()])
+            this._unwatchNotificationSource(source);
+        this._notificationTray = null;
+    }
+
     _refreshApps() {
         if (!this._enabled || !this._appStrip)
             return;
@@ -556,7 +710,27 @@ export class BottomTaskbar {
                 const icon = app.create_icon_texture?.(APP_ICON_SIZE) ??
                     new St.Icon({icon_name: 'application-x-executable-symbolic',
                         icon_size: APP_ICON_SIZE});
-                content.add_child(icon);
+                // Overlay the native unread/task-completion count ON the
+                // icon. It does not occupy a taskbar slot or shift the 5px
+                // white running dot beneath the icon.
+                const iconHolder = new St.Widget({
+                    style_class: 'vliq-taskbar-icon-holder',
+                    layout_manager: new Clutter.BinLayout(),
+                    reactive: false,
+                    width: APP_ICON_SIZE,
+                    height: APP_ICON_SIZE,
+                });
+                iconHolder.add_child(icon);
+                const badge = new St.Label({
+                    style_class: 'vliq-taskbar-notification-badge',
+                    text: '',
+                    x_align: Clutter.ActorAlign.END,
+                    y_align: Clutter.ActorAlign.START,
+                    reactive: false,
+                });
+                badge.hide();
+                iconHolder.add_child(badge);
+                content.add_child(iconHolder);
                 const dot = new St.Widget({
                     style_class: 'vliq-taskbar-running-dot',
                     reactive: false,
@@ -573,7 +747,7 @@ export class BottomTaskbar {
                     reactive: true,
                     track_hover: true,
                 });
-                item = {app, button, dot};
+                item = {app, button, dot, badge};
                 // Resolve the current Shell.App when clicked. The shell can
                 // refresh AppSystem references while an actor remains stable.
                 button.connect('clicked', () => {
@@ -603,6 +777,8 @@ export class BottomTaskbar {
                 item.dot.opacity = opacity;
         }
         this._appKey = nextKey;
+        // Notification changes never rebuild any icon or touch running dots.
+        this._refreshNotificationBadges();
     }
 
     _activateApp(app) {
@@ -788,6 +964,7 @@ export class BottomTaskbar {
 
     cleanup() {
         this._enabled = false;
+        this._cleanupNotificationBadges();
         this._unhookNativePanelRelayout();
         if (this._stageId) {
             try { global.stage.disconnect(this._stageId); } catch {}
