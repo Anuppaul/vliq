@@ -222,9 +222,12 @@ assert.equal(panel._centerBox.translation_x, 32,
 reservedLeft = 64; reservedRight = 0;
 display.emit('workareas-changed');
 assert.equal(panel._centerBox.translation_x, -32);
-assert.equal(activities.visible, false);
+assert.equal(activities.visible, true,
+    'native GNOME workspace/screen toggle must show on the left');
+assert.equal(activities.get_parent(), panel._leftBox,
+    'workspace toggle must keep its native GNOME click/scroll ownership');
 assert.equal(panel._leftBox.get_children()[0], activities,
-    'no Windows 10-style Start anchored at the left');
+    'center Start must not displace native left workspace toggle');
 assert.equal(panel._centerBox.get_children()[0], taskbar._centerGroup,
     'one native center allocation for Start and application icons');
 assert.equal(taskbar._centerGroup.get_children()[0], taskbar._start,
@@ -403,6 +406,7 @@ St.Icon = class BrokenIcon {
     constructor() {throw new Error('icon theme unavailable');}
 };
 panel._centerBox.translation_x = 13;
+activities.hide();
 const degraded = new BottomTaskbar({
     panel, layout, appSystem, shellSettings,
     getDockEntries: () => dockEntries,
@@ -424,6 +428,9 @@ assert.ok(degraded._appStrip, 'running apps still shown without Start');
 assert.equal(degraded._appStrip.get_parent(), degraded._centerGroup,
     'even degraded layout keeps apps centered');
 degraded.cleanup();
+assert.equal(activities.visible, false,
+    'native initially-hidden Activities state must restore on teardown');
+activities.show();
 assert.equal(layout._updateBoxes, originalUpdateBoxes);
 St.Icon = oldIcon;
 assert.deepEqual(panelBox.get_position(), [1920, 0]);
@@ -457,6 +464,12 @@ assert.ok(runtimeCSS.includes(
     '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar'));
 assert.match(runtimeCSS, /min-height:\s*44px;/,
     'bottom bar must occupy a Windows-style full-height panel');
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar #panelLeft #panelActivities'),
+    'Bottom left native workspace toggle has scoped styling');
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar .panel-corner'),
+    'Bottom mode suppresses native panel corner borders');
 
 // Regression for the real VLIQ native-Dock glass *producer*. Ubuntu Dock
 // Panel Mode uses a stage-level PanelGlassSurface outside dock.container.
