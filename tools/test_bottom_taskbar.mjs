@@ -242,6 +242,24 @@ assert.equal(panel._rightBox.get_children().at(-1), date,
     'Date/Clock stays rightmost after Quick Settings');
 assert.equal(taskbar._appStrip.get_children().length, 3,
     'favorite and running apps deduplicated in one taskbar');
+// The marker under each app is a centered circular DOT, never a dash.
+// Pinned/stopped apps reserve the same geometry with invisible dots.
+const runningDots = taskbar._appStrip.get_children().map(button =>
+    button.get_children()[0].get_children()[1]);
+assert.equal(runningDots.length, 3);
+for (const dot of runningDots) {
+    assert.equal(dot.width, 5, 'running indicator has circular 5px width');
+    assert.equal(dot.height, 5, 'running indicator has circular 5px height');
+    assert.equal(dot.x_align, Clutter.ActorAlign.CENTER,
+        'running indicator centers beneath its app icon');
+    assert.equal(dot.reactive, false, 'dot must not steal app clicks');
+}
+assert.equal(runningDots[0].opacity, 0,
+    'pinned-but-stopped app dot remains invisible');
+assert.equal(runningDots[1].opacity, 255,
+    'running pinned app shows its dot');
+assert.equal(runningDots[2].opacity, 255,
+    'running unpinned app shows its dot');
 assert.equal(dateMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(quickMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(dock.visible, false, 'legacy Ubuntu Dock is hidden');
