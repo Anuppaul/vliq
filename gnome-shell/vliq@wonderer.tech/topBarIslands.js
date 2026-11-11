@@ -78,6 +78,15 @@ export class TopBarIslands {
                 this._bottomTaskbar?.active);
     }
 
+    // Separate paint ownership from instantaneous transformed coordinates.
+    // During app activation GNOME can temporarily relocate/reallocate the
+    // native panel; the Bottom session still owns the ONLY Dock backplate.
+    ownsBottomTaskbarChrome() {
+        return this._layoutMode === 'bottom' &&
+            Boolean(this._bottomTaskbar?.ownsChrome?.() ??
+                this._bottomTaskbar?.active);
+    }
+
     setLauncherCallback(callback) {
         this._onLauncherClick = typeof callback === 'function'
             ? callback : null;
@@ -289,6 +298,7 @@ export class TopBarIslands {
         this._bottomTaskbar?.cleanup?.();
         this._bottomTaskbar = null;
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar');
+        this._panel?.remove_style_class_name?.('vliq-bottom-taskbar-glass-attached');
         this._panel?.remove_style_class_name?.('vliq-three-islands');
         this._panel?.remove_style_class_name?.('vliq-full-header');
         this._panel?.remove_style_class_name?.('vliq-top-header-ready');
@@ -335,9 +345,16 @@ export class TopBarIslands {
                 return;
             }
             panel.add_style_class_name('vliq-full-header');
+            if (mode === 'bottom') {
+                // One paint owner from the moment the GPU material is
+                // attached. Native CSS must not draw a second 13% veil
+                // underneath the same liquid shader during first paint.
+                panel.add_style_class_name(
+                    'vliq-bottom-taskbar-glass-attached');
+            }
             this._regions.push({
                 role: 'full', actor: panel, surface, ready: false,
-                inactive: false, lastBounds: null,
+                inactive: false, lastBounds: null, notReadyFrames: 0,
             });
         } else {
             panel.add_style_class_name('vliq-three-islands');
@@ -740,7 +757,26 @@ export class TopBarIslands {
         } else {
             glass.syncFrame?.();
         }
-        const ready = Boolean(glass.ready);
+        const materialReady = Boolean(glass.ready);
+        let ready = materialReady;
+        if (this._layoutMode === 'bottom') {
+            // GNOME may transiently unmap/reallocate the panel during a
+            // window activation. Do not flash the native CSS backdrop or
+            // reshow Ubuntu Dock after a one-frame false readiness sample.
+            region.notReadyFrames = materialReady ? 0 :
+                (region.notReadyFrames ?? 0) + 1;
+            const failureStable = region.notReadyFrames >= 12;
+            ready = materialReady || (region.ready && !failureStable);
+            if (materialReady) {
+                panel.add_style_class_name(
+                    'vliq-bottom-taskbar-glass-attached');
+            } else if (failureStable) {
+                // A real prolonged shader failure still receives the
+                // single native CSS fallback (never both paint layers).
+                panel.remove_style_class_name(
+                    'vliq-bottom-taskbar-glass-attached');
+            }
+        }
         if (ready !== region.ready) {
             region.ready = ready;
             if (ready)
