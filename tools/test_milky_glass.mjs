@@ -120,8 +120,11 @@ for (const scenario of blurCases) {
         _frostAmount: scenario.frost,
         _blur: {setBlurRadius: n => radii.push(n)},
     };
+    const methodOnly = blurPart.slice(0,
+        blurPart.indexOf('    setBlurRadius(radius)'));
+    assert.ok(methodOnly.includes('_applyVLIQBlurRadius()'));
     const apply = new Function(
-        'return ({' + blurPart + '})._applyVLIQBlurRadius;'
+        'return ({' + methodOnly + '})._applyVLIQBlurRadius;'
     )();
     apply.call(ctx);
     assert.ok(Math.abs(radii.at(-1) - scenario.expected) < 0.00001);
