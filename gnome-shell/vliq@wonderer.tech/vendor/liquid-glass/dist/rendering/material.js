@@ -83,6 +83,9 @@ export class MaterialSettings {
         this._uniforms.set('vliq_frost_grain', 0.55);
         this._uniforms.set('vliq_frost_edge_glow', 0.52);
         this._uniforms.set('vliq_milky_mode', 0.0);
+        this._uniforms.set('vliq_milky_opacity', 0.24);
+        this._uniforms.set('vliq_milky_border', 0.20);
+        this._uniforms.set('vliq_milky_whiteness', 0.0);
         this._settingsIds = [];
         if (this._settings) {
             this._bindSettings();
@@ -179,6 +182,16 @@ export class MaterialSettings {
             this._uniforms.set('vliq_frost_grain', grain);
             this._uniforms.set('vliq_frost_edge_glow', edgeGlow);
             this._uniforms.set('vliq_milky_mode', milkyMode);
+            for (const [key, uniform, fallback] of [
+                ['vliq-milky-opacity', 'vliq_milky_opacity', 0.24],
+                ['vliq-milky-border', 'vliq_milky_border', 0.20],
+                ['vliq-milky-whiteness', 'vliq_milky_whiteness', 0.0],
+            ]) {
+                let value = fallback;
+                try { value = settings.get_double(key); } catch {}
+                this._uniforms.set(uniform,
+                    Math.max(0, Math.min(1, value)));
+            }
             this._onFrostChanged?.(amount, initial, milkyMode);
         };
         applyFrost(true);
@@ -187,6 +200,9 @@ export class MaterialSettings {
             'vliq-frost-grain',
             'vliq-frost-edge-glow',
             'vliq-milky-mode',
+            'vliq-milky-opacity',
+            'vliq-milky-border',
+            'vliq-milky-whiteness',
         ]) {
             try {
                 if (settings.settings_schema?.has_key?.(key) === false)

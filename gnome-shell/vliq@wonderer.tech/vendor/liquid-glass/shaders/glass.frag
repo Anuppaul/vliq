@@ -22,6 +22,9 @@ uniform float vliq_frost_grain;
 uniform float vliq_frost_edge_glow;
 // Flat translucent gray-white card, independently selectable in VLIQ.
 uniform float vliq_milky_mode;
+uniform float vliq_milky_opacity;
+uniform float vliq_milky_border;
+uniform float vliq_milky_whiteness;
 uniform float blur_strength;
 uniform float tint_strength;
 uniform float tint_r;
@@ -886,12 +889,14 @@ void main() {
     // Output stays premultiplied, so pixels outside the geometry are exactly
     // transparent and cannot darken the desktop.
     if (vliq_milky_mode > 0.5) {
-        float a = insideMask * 0.24;
+        float a = insideMask * clamp(vliq_milky_opacity, 0.0, 1.0);
         float innerEdge = smoothstep(-1.6, -0.2, d) *
             (1.0 - smoothstep(0.1, 1.2, d));
-        vec3 fill = vec3(245.0, 249.0, 255.0) / 255.0;
-        vec3 edge = vec3(220.0, 225.0, 232.0) / 255.0;
-        vec3 body = mix(fill, edge, innerEdge * 0.15);
+        vec3 fill = mix(vec3(245.0, 249.0, 255.0) / 255.0,
+                        vec3(1.0), clamp(vliq_milky_whiteness, 0.0, 1.0));
+        // The rim is a tiny white-lit inset, never another opaque border.
+        vec3 body = mix(fill, vec3(1.0),
+            innerEdge * clamp(vliq_milky_border, 0.0, 1.0));
         cogl_color_out = vec4(body * a, a) * cogl_color_in;
         return;
     }

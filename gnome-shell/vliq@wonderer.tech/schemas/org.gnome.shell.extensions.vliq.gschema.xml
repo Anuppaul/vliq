@@ -301,6 +301,21 @@
       <summary>VLIQ glass material style</summary>
       <description>Liquid preserves v10 refraction, Frosted uses matte grain and edge light, and Milky renders an inexpensive translucent gray-white card without lens effects.</description>
     </key>
+    <key name="milky-opacity" type="i">
+      <default>24</default>
+      <range min="0" max="100"/>
+      <summary>Milky Glass body opacity percentage</summary>
+    </key>
+    <key name="milky-border" type="i">
+      <default>20</default>
+      <range min="0" max="100"/>
+      <summary>Milky Glass inner rim strength percentage</summary>
+    </key>
+    <key name="milky-whiteness" type="i">
+      <default>0</default>
+      <range min="0" max="100"/>
+      <summary>Milky Glass bright-white shade blend percentage</summary>
+    </key>
     <key name="frost-density" type="i">
       <default>88</default>
       <range min="0" max="100"/>

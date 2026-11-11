@@ -290,6 +290,28 @@ export default class VLIQPreferences extends ExtensionPreferences {
         syncFrostControls();
         settings.connect('changed::glass-style', syncFrostControls);
 
+        const milky = new Adw.PreferencesGroup({
+            title: 'Milky Glass',
+            description: 'Independent gray-white card controls. Changes apply live only while Milky Glass is selected.',
+        });
+        appearancePage.add(milky);
+        addIntSpin(milky, settings, 'milky-opacity',
+            'Milky density',
+            'How visible the milky-white surface is (0 = invisible, 100 = solid).',
+            0, 100, 1);
+        addIntSpin(milky, settings, 'milky-border',
+            'Edge highlight',
+            'Strength of the thin white inner rim (0 = none).',
+            0, 100, 1);
+        addIntSpin(milky, settings, 'milky-whiteness',
+            'White shade',
+            'Brighten the cool gray-white body toward pure white.',
+            0, 100, 1);
+        const syncMilkyControls = () =>
+            milky.set_sensitive(settings.get_string('glass-style') === 'milky');
+        syncMilkyControls();
+        settings.connect('changed::glass-style', syncMilkyControls);
+
         const glass = new Adw.PreferencesGroup({
             title: 'Liquid Glass Controls',
             description:

@@ -601,6 +601,9 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
                 ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
+                ['vliq-milky-opacity', fraction('milky-opacity')],
+                ['vliq-milky-border', fraction('milky-border')],
+                ['vliq-milky-whiteness', fraction('milky-whiteness')],
             ]) {
                 // Old cached schemas lack this optional key. Keep the native
                 // Milky renderer functional and retain all Liquid settings.
@@ -1525,6 +1528,9 @@ export class LiquidGlassIntegration {
         if (!this._vliqSettings) {
             return {
                 milky: false,
+                milkyOpacity: 0.24,
+                milkyBorder: 0.20,
+                milkyWhiteness: 0,
                 opacity: 0,
                 tint: '#ffffff',
                 r: 255,
@@ -1600,6 +1606,9 @@ export class LiquidGlassIntegration {
 
         return {
             milky: this._vliqSettings.get_string('glass-style') === 'milky',
+            milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
+            milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
+            milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), 0, 100) / 100,
             opacity,
             tint,
             r,
@@ -1870,12 +1879,18 @@ export class LiquidGlassIntegration {
                             'date-menu-glass-filter-opacity',
                             'glass-live-scene-fps',
                             'glass-style',
+                            'milky-opacity',
+                            'milky-border',
+                            'milky-whiteness',
                             'frost-density',
                             'frost-grain',
                             'frost-edge-glow',
                         ].includes(key)) {
                             if ([
                                 'glass-style',
+                                'milky-opacity',
+                                'milky-border',
+                                'milky-whiteness',
                                 'frost-density',
                                 'frost-grain',
                                 'frost-edge-glow',
