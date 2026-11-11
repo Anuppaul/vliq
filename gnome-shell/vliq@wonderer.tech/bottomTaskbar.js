@@ -60,6 +60,13 @@ export class BottomTaskbar {
         this._updateBoxesWasOwn = false;
     }
 
+    // Ownership survives transient panel allocations and focus changes.
+    // isActive() below is ONLY a position/health probe; never use that
+    // instantaneous geometry result to re-enable a competing Dock painter.
+    ownsChrome() {
+        return this._enabled;
+    }
+
     isActive() {
         if (!this._enabled)
             return false;
