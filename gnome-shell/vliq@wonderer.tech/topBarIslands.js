@@ -23,6 +23,11 @@ const ISLAND_PAD_X = 9;
 const ISLAND_GAP = 8;
 const MIN_WIDTH = 22;
 const MIN_HEIGHT = 14;
+// Native GNOME panelBox can report its old 36px allocation for one frame
+// while the Bottom CSS requests 44px. Paint the bottom glass as a bounded
+// screen-edge strip and overscan the invisible screen boundary by 2px.
+const BOTTOM_BAR_MIN_HEIGHT = 44;
+const BOTTOM_EDGE_OVERSCAN = 2;
 const REGIONS = Object.freeze([
     ['left', '_leftBox'],
     ['center', '_centerBox'],
@@ -750,10 +755,34 @@ export class TopBarIslands {
             hide();
             return;
         }
-        const left = Math.max(x, monitor.x);
-        const top = Math.max(y, monitor.y);
-        const right = Math.min(x + width, monitor.x + monitor.width);
-        const bottom = Math.min(y + height, monitor.y + monitor.height);
+        // The native panelBox owns click/menus, but its transformed Y and
+        // preferred height can briefly lag the 44px Bottom layout after a
+        // monitor/work-area/hover relayout. Clipping GPU glass strictly to
+        // that stale rect exposed a horizontal gap at the screen edge.
+        // Bottom only: anchor the decorative UNPICKABLE glass material to
+        // the monitor's physical bottom, while leaving native button
+        // allocations and struts untouched. Overscan beyond the monitor
+        // masks the shader's final anti-aliased edge; there is no CSS veil.
+        const bottomLayout = this._layoutMode === 'bottom';
+        if (width <= 1 || height <= 1) {
+            hide();
+            return;
+        }
+        const visualHeight = bottomLayout
+            ? Math.max(BOTTOM_BAR_MIN_HEIGHT, Math.ceil(height))
+            : height;
+        const left = bottomLayout
+            ? monitor.x - BOTTOM_EDGE_OVERSCAN
+            : Math.max(x, monitor.x);
+        const top = bottomLayout
+            ? monitor.y + monitor.height - visualHeight
+            : Math.max(y, monitor.y);
+        const right = bottomLayout
+            ? monitor.x + monitor.width + BOTTOM_EDGE_OVERSCAN
+            : Math.min(x + width, monitor.x + monitor.width);
+        const bottom = bottomLayout
+            ? monitor.y + monitor.height + BOTTOM_EDGE_OVERSCAN
+            : Math.min(y + height, monitor.y + monitor.height);
         const w = right - left;
         const h = bottom - top;
         if (w <= 1 || h < MIN_HEIGHT || h > 240) {
