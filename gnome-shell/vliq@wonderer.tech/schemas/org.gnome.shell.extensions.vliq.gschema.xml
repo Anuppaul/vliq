@@ -297,9 +297,10 @@
         <choice value="liquid"/>
         <choice value="frosted"/>
         <choice value="milky"/>
+        <choice value="charcoal"/>
       </choices>
       <summary>VLIQ glass material style</summary>
-      <description>Liquid preserves v10 refraction, Frosted uses matte grain and edge light, and Milky renders an inexpensive translucent gray-white card without lens effects.</description>
+      <description>Liquid preserves v10 refraction, Frosted uses matte grain and edge light, Milky uses flat gray-white cards, and Dark Charcoal uses matte dark cards with bright foreground contrast.</description>
     </key>
     <key name="milky-opacity" type="i">
       <default>24</default>

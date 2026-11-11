@@ -669,7 +669,7 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
-                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
+                ['vliq-milky-mode', ['milky', 'charcoal'].includes(mode) ? 1.0 : 0.0],
                 ['vliq-milky-opacity', fraction('milky-opacity')],
                 ['vliq-milky-border', fraction('milky-border')],
                 ['vliq-milky-whiteness', fraction('milky-whiteness')],
@@ -725,8 +725,10 @@ export class LiquidGlassIntegration {
         this._enabled = true;
         // Paint Milky natively from the FIRST frame, before popup/dock
         // managers start attaching; prevent a one-frame Liquid flash.
+        const initialMaterial = this._vliqSettings?.get_string?.('glass-style');
         this._syncMilkyAppearanceClass(
-            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+            ['milky', 'charcoal'].includes(initialMaterial),
+            initialMaterial === 'charcoal'
         );
 
         // Hook GNOME's existing wallpaper actors before creating Orb/Popup
@@ -1597,6 +1599,7 @@ export class LiquidGlassIntegration {
         if (!this._vliqSettings) {
             return {
                 milky: false,
+                charcoal: false,
                 milkyOpacity: 0.24,
                 milkyBorder: 0.20,
                 milkyWhiteness: 0,
@@ -1674,7 +1677,10 @@ export class LiquidGlassIntegration {
         };
 
         return {
-            milky: this._vliqSettings.get_string('glass-style') === 'milky',
+            // Legacy Milky flag means flat-material rendering (GPU off).
+            milky: ['milky', 'charcoal'].includes(
+                this._vliqSettings.get_string('glass-style')),
+            charcoal: this._vliqSettings.get_string('glass-style') === 'charcoal',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
             milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), 0, 100) / 100,
@@ -1803,14 +1809,20 @@ export class LiquidGlassIntegration {
         osd._vliqMilkySyncWrapped = true;
     }
 
-    _syncMilkyAppearanceClass(enabled) {
+    _syncMilkyAppearanceClass(enabled, charcoal = false) {
+        // Flat mode retains legacy shader-suppression semantics while
+        // applying exactly one native appearance class at a time.
         this._milkyModeActive = enabled;
         const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
         if (uiGroup) {
-            if (enabled)
+            if (enabled && !charcoal)
                 uiGroup.add_style_class_name?.('vliq-global-milky');
             else
                 uiGroup.remove_style_class_name?.('vliq-global-milky');
+            if (enabled && charcoal)
+                uiGroup.add_style_class_name?.('vliq-global-charcoal');
+            else
+                uiGroup.remove_style_class_name?.('vliq-global-charcoal');
         }
         this._syncMilkyOsdMaterial(enabled);
     }
@@ -1819,7 +1831,8 @@ export class LiquidGlassIntegration {
         const state = this._readSharedCardAppearance();
 
         // CSS-only Milky must work even with a cached legacy vendor module.
-        this._syncMilkyAppearanceClass(state.milky === true);
+        this._syncMilkyAppearanceClass(
+            state.milky === true, state.charcoal === true);
         this._popupGlassManager?.updateAppearance(state);
         this._shellCardGlassManager?.updateAppearance(state);
         this._previewGlassManager?.updateAppearance(state);
@@ -3603,7 +3616,8 @@ export class LiquidGlassIntegration {
         // Milky paints the native .dash-background, never this GPU actor.
         // Older test fixtures or previous revisions may not expose this key.
         try {
-            if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
+            if (['milky', 'charcoal'].includes(
+                this._vliqSettings?.get_string?.('glass-style')))
                 return false;
         } catch {}
 
@@ -4736,8 +4750,13 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        const desired =
-            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+        const material = this._vliqSettings?.get_string?.('glass-style');
+        const desired = material === 'charcoal'
+            ? 'background-color: rgba(29,31,35,0.98); ' +
+                'background-image: none; border-color: transparent; ' +
+                'border-radius: 0px; box-shadow: inset 0 0 0 1px ' +
+                'rgba(255,255,255,0.13);'
+            : (material === 'milky'
                 ? (() => {
                     const tokens = milkyPaintTokens(
                         this._readSharedCardAppearance());
@@ -4747,7 +4766,7 @@ export class LiquidGlassIntegration {
                 })()
                 : (entry.panelLiquidReady
                     ? DOCK_PANEL_GLASS_STYLE
-                    : DOCK_PANEL_PREMIUM_STYLE);
+                    : DOCK_PANEL_PREMIUM_STYLE));
         if (current === desired)
             return;
 
