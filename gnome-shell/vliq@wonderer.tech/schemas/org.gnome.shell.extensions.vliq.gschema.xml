@@ -207,6 +207,22 @@
       <summary>Diagnostic status of the Quick Settings brightness control</summary>
     </key>
 
+    <key name="top-header-layout" type="s">
+      <default>'split'</default>
+      <choices>
+        <choice value="split"/>
+        <choice value="full"/>
+        <choice value="bottom"/>
+      </choices>
+      <summary>GNOME desktop panel layout</summary>
+      <description>Split and Full use the top header. Bottom moves GNOME's original panel to the primary monitor bottom, preserving menu actors and providing taskbar app launchers.</description>
+    </key>
+
+    <key name="top-header-runtime-status" type="s">
+      <default>'Not initialized'</default>
+      <summary>Actual VLIQ desktop layout status</summary>
+      <description>Diagnostic state published by GNOME Shell. Distinguishes a requested Bottom Taskbar from the layout actually running or a fallback error.</description>
+    </key>
     <key name="panel-menu-hover-switch" type="b">
       <default>false</default>
       <summary>Switch between open panel menus on hover</summary>

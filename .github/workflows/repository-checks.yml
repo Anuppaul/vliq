@@ -32,6 +32,7 @@ jobs:
           node tools/test_frame_budget.mjs
           node tools/test_orb_transitions.mjs
           node tools/test_native_dock_autohide.mjs
+          node tools/test_glass_flicker.mjs
           node tools/test_native_dock_settings.mjs
           node tools/test_popup_overview_capture.mjs
           node tools/test_calendar_overview_backdrop.mjs
@@ -44,6 +45,12 @@ jobs:
           node tools/test_wallpaper_atmosphere_visual_strength.mjs
           node tools/test_store_bootstrap_async.mjs
           node tools/test_preview_glass.mjs
+          node tools/test_top_bar_islands.mjs
+          node tools/test_bottom_taskbar.mjs
+          node tools/test_bottom_taskbar_borderless.mjs
+          node tools/test_bottom_taskbar_date_contrast.mjs
+          node tools/test_desktop_layout_preferences.mjs
+          node tools/test_widgets_removed.mjs
           node tools/test_preview_layout.mjs
           node tools/test_liquid_optics.mjs
           node tools/test_frosted_crystal.mjs

@@ -185,6 +185,21 @@ export class SharedAdaptiveTextManager {
         );
     }
 
+    _bottomTaskbarClock() {
+        const panel = Main.panel;
+        if (!panel || !classesOf(panel).includes('vliq-bottom-taskbar'))
+            return null;
+
+        // GNOME Shell 50's DateMenuButton owns a native St.Label named
+        // _clockDisplay (also exposed as label_actor). Keep that actor:
+        // no duplicate text, no altered menu input or container ownership.
+        const dateMenu = panel.statusArea?.dateMenu;
+        const label = dateMenu?._clockDisplay ??
+            dateMenu?.label_actor ?? null;
+        return label instanceof St.Label && label.get_parent?.()
+            ? label : null;
+    }
+
     _isTarget(actor) {
         if (!actor)
             return false;
@@ -219,6 +234,13 @@ export class SharedAdaptiveTextManager {
 
         if (Main.panel)
             found.add(Main.panel);
+
+        // Bottom Taskbar's native clock is user-pinned WHITE, regardless
+        // of backdrop. Give it its own styling owner so the panel's
+        // background-adaptive sampling cannot turn it dark.
+        const dateClock = this._bottomTaskbarClock();
+        if (dateClock)
+            found.add(dateClock);
 
         const walk = actor => {
             if (!actor)
@@ -263,10 +285,9 @@ export class SharedAdaptiveTextManager {
             if (this._targets.has(actor))
                 continue;
 
-            const kind =
-                actor === Main.panel
-                    ? 'panel'
-                    : 'surface';
+            const kind = actor === Main.panel
+                ? 'panel'
+                : (actor === dateClock ? 'fixed-clock' : 'surface');
 
             this._targets.set(actor, {
                 useDarkText: null,
@@ -275,9 +296,15 @@ export class SharedAdaptiveTextManager {
 
             if (kind === 'panel')
                 addedPanel = true;
-            else
+            else if (kind === 'surface')
                 addedSurface = true;
         }
+
+        // Set white immediately on mode entry; also repair any GNOME
+        // theme restyle on the next cheap scan. _styleTextActor avoids
+        // writing the same style twice.
+        if (dateClock)
+            this._applyRootPolarity(dateClock, false);
 
         // A newly discovered surface should not wait for the slower steady
         // state cadence. Force the next tick to sample it immediately.
@@ -335,9 +362,13 @@ export class SharedAdaptiveTextManager {
 
     _textActors(root) {
         const found = [];
+        // Only in Bottom mode: the user-pinned white clock must not be
+        // overwritten by the whole-panel contrast sampler.
+        const separatelySampledClock =
+            root === Main.panel ? this._bottomTaskbarClock() : null;
 
         const walk = actor => {
-            if (!actor)
+            if (!actor || actor === separatelySampledClock)
                 return;
 
             if (
@@ -359,7 +390,8 @@ export class SharedAdaptiveTextManager {
                 walk(child);
         };
 
-        if (root instanceof St.Entry)
+        if (root instanceof St.Entry ||
+            (root instanceof St.Label && root.visible))
             found.push(root);
         else
             walk(root);
@@ -393,10 +425,11 @@ export class SharedAdaptiveTextManager {
             state.root = root;
         }
 
-        const color =
-            useDarkText
-                ? DARK_TEXT
-                : LIGHT_TEXT;
+        // Explicit Bottom Taskbar preference wins over adaptive text:
+        // ONLY the native Date/Clock is pure white, even on light glass.
+        const color = actor === this._bottomTaskbarClock()
+            ? '#ffffff'
+            : (useDarkText ? DARK_TEXT : LIGHT_TEXT);
 
         if (state.useDarkText !== useDarkText) {
             try {
@@ -713,8 +746,10 @@ export class SharedAdaptiveTextManager {
                 continue;
             }
 
-            const rect =
-                this._vendor.getTransformedRect(actor);
+            // Fixed-clock is deliberately not sampled: white is a user
+            // preference, not a contrast decision. Every other target
+            // retains the existing adaptive sampling behavior.
+            const rect = this._vendor.getTransformedRect(actor);
 
             if (!finiteRect(rect))
                 continue;

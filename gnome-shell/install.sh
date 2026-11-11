@@ -52,6 +52,8 @@ RUNTIME_FILES=(
     "sharedAdaptiveText.js"
     "orbGlass.js"
     "panelGlass.js"
+    "topBarIslands.js"
+    "bottomTaskbar.js"
     "frameBudget.js"
 )
 
@@ -64,18 +66,44 @@ fail() {
     exit 1
 }
 
+# Remove obsolete standalone widgets from legacy installations.
+# The built-in GNOME top-bar clock and Date Menu are not affected.
+remove_retired_widgets_in_dir() {
+    local root="$1"
+    rm -f "${root}/desktopClockWidget.js" "${root}/desktopCalendarWidget.js"
+}
+
 refresh_prefs_process() {
-    # GNOME Extensions can keep prefs.js imported from the same URI after
-    # the file changes. Quit the app after prefs/schema sync so the next
-    # preferences window imports the current module.
+    # Ensure the new preferences module is on disk before closing the old
+    # GNOME Extensions process (which may cache the previous JS module).
+    [[ -f "${TARGET_DIR}/prefs.js" ]] ||
+        fail "VLIQ preferences file was not installed."
+    cmp -s "${SOURCE_DIR}/prefs.js" "${TARGET_DIR}/prefs.js" ||
+        fail "Installed preferences differ from the requested checkout."
+    if grep -Fq "'Widgets'," "${TARGET_DIR}/prefs.js" ||
+       grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml"; then
+        fail "Retired desktop widgets were left in installed VLIQ."
+    fi
+    # A previous VLIQ Preferences bug rejected index 2 with selected < 2,
+    # so the visible Bottom Taskbar option never reached GSettings. Reject
+    # stale installs rather than reporting a working Windows layout.
+    grep -Fq "headerLayout.selected < headerLayoutValues.length" "${TARGET_DIR}/prefs.js" ||
+        fail "Installed Desktop Layout Preferences still reject Bottom Taskbar."
+    grep -Fq '<choice value="bottom"/>' "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
+        fail "Installed layout schema is missing Bottom Taskbar."
+    grep -Fq 'name="top-header-runtime-status"' "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
+        fail "Installed layout diagnostics schema is incomplete."
+
     if command -v gapplication >/dev/null 2>&1; then
         gapplication quit org.gnome.Extensions >/dev/null 2>&1 || true
     fi
+    echo "Verified: desktop widget controls and schema keys are retired."
+    echo "Open settings with: gnome-extensions prefs ${UUID}"
 }
 
 for command_name in \
     gnome-shell gnome-extensions glib-compile-schemas gsettings python3 \
-    mktemp sed grep sha256sum mkdir cp rm sleep cat head tr env dirname find sort; do
+    mktemp sed grep sha256sum mkdir cp cmp rm sleep cat head tr env dirname find sort; do
     command -v "${command_name}" >/dev/null 2>&1 ||
         fail "${command_name} was not found."
 done
@@ -236,6 +264,7 @@ sync_hot_aux() {
         mkdir -p "$(dirname "${TARGET_DIR}/${file}")"
         cp -f "${SOURCE_DIR}/${file}" "${TARGET_DIR}/${file}"
     done
+    remove_retired_widgets_in_dir "${TARGET_DIR}"
 
     # Liquid Glass registers GObject classes whose type names live for the
     # lifetime of the GNOME Shell process. Keep one canonical vendor tree
@@ -269,6 +298,7 @@ sync_hot_aux() {
             mkdir -p "$(dirname "${live_dir}/${file}")"
             cp -f "${SOURCE_DIR}/${file}" "${live_dir}/${file}"
         done
+        remove_retired_widgets_in_dir "${live_dir}"
 
         # prefs.js imports the upstream preference implementation relative to
         # the extension root. A developer live-registration uses live_dir as
@@ -627,6 +657,7 @@ for source_name in "${RUNTIME_FILES[@]}"; do
     PACK_ARGS+=(--extra-source="${source_name}")
 done
 
+
 PACK_ARGS+=("${SOURCE_DIR}")
 
 echo "Building GNOME extension bundle..."
@@ -661,6 +692,8 @@ if command -v unzip >/dev/null 2>&1; then
     REQUIRED_PACKED_FILES=(
         "metadata.json"
         "extension.js"
+        "topBarIslands.js"
+        "bottomTaskbar.js"
         "prefs.js"
         "stylesheet.css"
         "runtime.js"
@@ -711,6 +744,7 @@ for file in "${BOOTSTRAP_FILES[@]}" "${HOT_AUX_FILES[@]}" "${RUNTIME_FILES[@]}";
     mkdir -p "${parent}"
     cp -f "${SOURCE_DIR}/${file}" "${TARGET_DIR}/${file}"
 done
+remove_retired_widgets_in_dir "${TARGET_DIR}"
 
 for runtime_source in "${RUNTIME_DIRS[@]}"; do
     destination="${TARGET_DIR}/${runtime_source}"
@@ -734,7 +768,7 @@ record_bootstrap_identity
 refresh_prefs_process
 
 for installed_file in \
-    metadata.json extension.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
+    metadata.json extension.js topBarIslands.js bottomTaskbar.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
     runtime.js orbThemeRuntime.js terminalBackdropBlur.js runtime.css apps.js geometry.js \
     liquidGlassDock.js notificationGlass.js popupGlass.js shellCards.js; do
     [[ -f "${TARGET_DIR}/${installed_file}" ]] ||

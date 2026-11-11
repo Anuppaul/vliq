@@ -93,10 +93,22 @@ class Actor {
     }
 }
 class MockEffect {
-    constructor({owner}) {this.owner = owner; this.glassGeometry = null;}
+    constructor({owner}) {
+        this.owner = owner;
+        this.glassGeometry = null;
+        this._shadersLoaded = false;
+        this._pipelines = {composite: null};
+        this.uniformValues = new Map();
+        this._uniforms = {
+            set: (name, value) => this.uniformValues.set(name, value),
+        };
+    }
     setPadding(value) {this.padding = value;}
     setShadowMaxRadius(value) {this.shadowMargin = value;}
     setIsDock(value) {this.isDock = value;}
+    setSurfaceLightEnabled(enabled) {
+        this.uniformValues.set('surface_light_enabled', enabled ? 1 : 0);
+    }
     setLiveGeometryHook(callback) {this.geometryHook = callback;}
     setResolution(w, h) {this.resolution = [w, h];}
     setGlassGeometry(x, y, w, h) {this.glassGeometry = [x, y, w, h];}
@@ -241,6 +253,7 @@ const second = makePreview();
 second.mapped = true;
 assert.equal(manager.attachPreview(second), true);
 assert.equal(manager._surfaces.size, 1);
+
 manager.cleanup();
 assert.equal(manager._surfaces.size, 0);
 assert.equal(stage._signals.size, 0);

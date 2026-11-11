@@ -85,6 +85,8 @@ export class OrbGlassManager {
         this._lastRegionPassUs = 0;
         this._expandedRegionsActive = false;
         this._regionMotionActive = false;
+        this._dragActive = false;
+        this._glyphSampleGeneration = 0;
 
         this._screenshot = null;
         this._samplePending = false;
@@ -436,6 +438,47 @@ export class OrbGlassManager {
         }
     }
 
+    setDragActive(active) {
+        const dragging = Boolean(active);
+        if (this._dragActive === dragging)
+            return;
+        this._dragActive = dragging;
+        this._glyphSampleGeneration++;
+
+        // The native Orb moves in stage space; its glass renders separately.
+        // Invalidate only capture culling on drag state changes. Every drag
+        // frame is then tracked by the existing stage before-update hook.
+        this._lastRegionPassUs = 0;
+        for (const batch of this._batches)
+            batch.lastCullRect = null;
+
+        // Screenshotting during the pan can finish at an old location and
+        // flip the glyph colour independently of the background material.
+        if (!dragging) {
+            this._glyphSampleDirty = true;
+            this._glyphGeometryChangedUs = GLib.get_monotonic_time();
+        }
+        this._root?.queue_redraw?.();
+    }
+
+    _captureCullRect(minX, minY, maxX, maxY, width, height, index) {
+        if (!this._dragActive || index !== 0)
+            return [minX, minY, maxX - minX, maxY - minY];
+
+        // Keep the wallpaper/window capture clip stable for small motions:
+        // moving it by one pixel per pan event made its offscreen texture
+        // lag the native icon and appear to jump vertically.
+        const block = 256;
+        const margin = 160;
+        const x0 = Math.max(0, Math.floor((minX - margin) / block) * block);
+        const y0 = Math.max(0, Math.floor((minY - margin) / block) * block);
+        const x1 = Math.min(width, Math.ceil((maxX + margin) / block) * block);
+        const y1 = Math.min(height, Math.ceil((maxY + margin) / block) * block);
+        return [
+            x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0),
+        ];
+    }
+
     _tick() {
         if (!this._enabled)
             return;
@@ -731,12 +774,10 @@ export class OrbGlassManager {
 
             if (sceneDue) {
                 try {
-                    const cullRect = [
-                        minX,
-                        minY,
-                        maxX - minX,
-                        maxY - minY,
-                    ];
+                    const cullRect = this._captureCullRect(
+                        minX, minY, maxX, maxY,
+                        width, height, index
+                    );
                     // Keep live window clones syncing, but avoid re-setting
                     // stationary capture bounds on every scene frame.
                     const previous =
@@ -787,6 +828,7 @@ export class OrbGlassManager {
 
         if (
             !adapter.adaptiveText ||
+            this._dragActive ||
             !this._orbFace ||
             !this._orbGlyph ||
             this._samplePending
@@ -821,6 +863,7 @@ export class OrbGlassManager {
         this._lastSampleUs = nowUs;
         this._samplePending = true;
         this._glyphSampleDirty = false;
+        const generation = this._glyphSampleGeneration;
 
         const [x, y, w, h] = rect;
         const left = Math.max(0, Math.floor(x + w * 0.15));
@@ -894,6 +937,10 @@ export class OrbGlassManager {
                         if (!count)
                             return;
 
+                        if (this._dragActive ||
+                            generation !== this._glyphSampleGeneration ||
+                            !this._enabled)
+                            return;
                         const useDark = sum / count > 0.48;
                         if (useDark === this._glyphDark)
                             return;

@@ -280,6 +280,185 @@
     box-shadow: none;
 }
 
+/* GNOME 50 top bar: THREE detached dock-style glass islands.
+ * Main.panel remains the native GNOME input host (Activities, Date Menu,
+ * Quick Settings). Only its long background is cleared. Each native box
+ * keeps a rounded low-opacity fallback until its own bounded LiquidEffect
+ * has actually composited, at which point the true refractive material
+ * underneath becomes visible. Do not alter native box width/padding/menus. */
+#panel.vliq-liquid-top-panel.vliq-three-islands {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-three-islands #panelLeft.vliq-panel-island,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island,
+#panel.vliq-three-islands #panelRight.vliq-panel-island {
+    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-image: none !important;
+    border-radius: 16px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Invisible/empty native groups must not leave orphaned CSS fallback pills.
+ * Optical material opacity is already zero in this state. */
+#panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+#panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
+#panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+#panel.vliq-three-islands .panel-corner {
+    -panel-corner-radius: 0px;
+    -panel-corner-background-color: transparent;
+    -panel-corner-border-color: transparent;
+}
+
+/* User-selectable FULL Top Header. One bounded native-panel LiquidEffect
+ * stays below all GNOME controls. Stronger selector specificity wins over
+ * dynamically loaded #panel.vliq-liquid-top-panel transparency rules. */
+#panel.vliq-liquid-top-panel.vliq-full-header {
+    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Bottom Taskbar: same bounded glass pipeline as Full Header, but
+ * GNOME's original panelBox now sits at the primary monitor bottom.
+ * Native Date Menu / Quick Settings keep full keyboard/menu semantics. */
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar {
+    /* Windows-style full-width bar, rather than the narrow 32-36px
+     * GNOME header. This applies ONLY to bottom layout; native GNOME
+     * indicator glyphs and their styles remain unchanged. */
+    min-height: 44px;
+    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+}
+/* Bottom-only flat edge: native CSS borders/corners and the separate
+ * glass effect's optical rim are disabled, preserving translucent fill. */
+#panel.vliq-bottom-taskbar,
+#panel.vliq-bottom-taskbar #panelLeft,
+#panel.vliq-bottom-taskbar #panelCenter,
+#panel.vliq-bottom-taskbar #panelRight {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar .panel-corner {
+    -panel-corner-radius: 0px;
+    -panel-corner-background-color: transparent;
+    -panel-corner-border-color: transparent;
+}
+/* GNOME's original workspace/screen toggle remains at far left.
+ * The centered VLIQ Start and app icons are intentionally unchanged. */
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities {
+    margin-left: 8px;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:hover,
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:focus,
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:checked {
+    background-color: rgba(245, 249, 255, 0.16) !important;
+}
+/* Windows 11-like CENTERED Start + apps. The entire group uses one
+ * native panelCenter allocation; no fixed left-anchored launcher or
+ * invisible box taking up half the monitor's useful width. */
+/* Any inherited Yaru/GNOME center-pill background must be neutralised:
+ * only VLIQ's single full-width glass material owns panel background. */
+#panel.vliq-bottom-taskbar #panelCenter,
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-center-group,
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-apps {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-center-group {
+    spacing: 7px;
+    padding: 0px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button {
+    min-width: 36px;
+    min-height: 32px;
+    padding: 3px 5px;
+    margin: 0px;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px;
+    box-shadow: none !important;
+}
+/* Per-icon visual feedback, never one solid pill across all icons. */
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:hover,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover,
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:focus,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    transition-duration: 120ms;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:active,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-apps {
+    spacing: 4px;
+    padding: 0px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-content {
+    spacing: 1px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-running-dot {
+    min-width: 5px;
+    min-height: 5px;
+    background-color: rgba(235, 244, 255, 0.94);
+    border-radius: 999px;
+    border: 0;
+    box-shadow: none;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher-icon {
+    color: #ffffff;
+}
+
+/* Keep ONLY the native GNOME Date/Clock white in Bottom Taskbar.
+ * The rest of the panel retains its existing adaptive text palette. */
+#panel.vliq-bottom-taskbar #panelRight .clock {
+    color: #ffffff !important;
+}
+
+/* End independent panel islands. Native GNOME menu controls are untouched. */
+
 /* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,
  * focus and active paint are softened to sit on the parent glass material. */
 .vliq-liquid-top-panel .panel-button {

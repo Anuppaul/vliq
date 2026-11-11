@@ -219,6 +219,35 @@ function fixture() {
     f.guard.cleanup();
 }
 
+// Split Top Bar has three PanelGlassSurface instances rather than one
+// DashManager.bgActor. Guard signals must hide/reveal them synchronously,
+// before the next stage frame (no fullscreen-video flash).
+{
+    const f = fixture();
+    const splitManager = {
+        syncCalls: 0,
+        setVisibilityGate(fn) {this.gate = fn;},
+        sync() {this.syncCalls++; this.visible = this.gate?.() ?? true;},
+    };
+    f.guard = new FullscreenPanelChromeGuard({
+        layout: f.layout, display: f.display, panel: f.panel,
+        panelManager: splitManager,
+    });
+    f.guard.setup();
+    assert.equal(splitManager.visible, true);
+    const initialCalls = splitManager.syncCalls;
+    f.display.setFullscreen(0, true);
+    assert.equal(f.panelBox.visible, false);
+    assert.equal(splitManager.visible, false,
+        'islands must hide immediately on fullscreen signal');
+    assert.ok(splitManager.syncCalls > initialCalls);
+    f.display.setFullscreen(0, false);
+    assert.equal(splitManager.visible, true,
+        'islands must restore immediately on fullscreen exit');
+    f.guard.cleanup();
+    assert.equal(splitManager.gate, null);
+}
+
 assert.equal(primaryPanelIsFullscreen(null, new Display()), false);
 assert.equal(primaryPanelIsFullscreen({}, null), false);
 assert.match(integrator, /new FullscreenPanelChromeGuard\(/);

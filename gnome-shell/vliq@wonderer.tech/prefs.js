@@ -615,6 +615,79 @@ export default class VLIQPreferences extends ExtensionPreferences {
         );
 
         // -----------------------------------------------------------------
+        // Desktop Layout: the native GNOME header or one bottom taskbar.
+        // -----------------------------------------------------------------
+        const headerPage = addPage(
+            window,
+            'Desktop Layout',
+            'video-display-symbolic'
+        );
+        const topHeader = new Adw.PreferencesGroup({
+            title: 'Desktop Panel Position',
+            description:
+                '3-Part and Full use the top header. Bottom Taskbar moves native GNOME controls and shows pinned/running apps at the bottom. Change modes live.',
+        });
+        headerPage.add(topHeader);
+        const headerLayout = new Adw.ComboRow({
+            title: 'Desktop layout',
+            subtitle:
+                'Choose the original header or a single Windows-style bottom taskbar.',
+            model: Gtk.StringList.new([
+                '3-Part Header',
+                'Full Header',
+                'Bottom Taskbar',
+            ]),
+        });
+        const headerLayoutValues = ['split', 'full', 'bottom'];
+        let syncingHeaderLayout = false;
+        const syncHeaderLayout = () => {
+            syncingHeaderLayout = true;
+            headerLayout.selected = Math.max(
+                0, headerLayoutValues.indexOf(
+                    settings.get_string('top-header-layout')
+                )
+            );
+            syncingHeaderLayout = false;
+        };
+        syncHeaderLayout();
+        headerLayout.connect('notify::selected', () => {
+            if (!syncingHeaderLayout &&
+                headerLayout.selected < headerLayoutValues.length)
+                settings.set_string(
+                    'top-header-layout',
+                    headerLayoutValues[headerLayout.selected]
+                );
+        });
+        settings.connect('changed::top-header-layout', syncHeaderLayout);
+        topHeader.add(headerLayout);
+
+        // This is the persisted value from GSettings, independent of
+        // compositor activation. It distinguishes a stale/cached prefs UI
+        // from a correctly saved request that Shell has not yet applied.
+        const savedLayoutRow = new Adw.ActionRow({
+            title: 'Saved layout request',
+            subtitle: settings.get_string('top-header-layout'),
+        });
+        topHeader.add(savedLayoutRow);
+        settings.connect('changed::top-header-layout', () => {
+            savedLayoutRow.subtitle =
+                settings.get_string('top-header-layout');
+        });
+
+        // Show what the running Shell actually activated, not merely the
+        // requested ComboRow selection. A failed native layout must never
+        // look like a successful Windows taskbar in Preferences.
+        const layoutStatusRow = new Adw.ActionRow({
+            title: 'Active desktop layout',
+            subtitle: settings.get_string('top-header-runtime-status'),
+        });
+        topHeader.add(layoutStatusRow);
+        settings.connect('changed::top-header-runtime-status', () => {
+            layoutStatusRow.subtitle =
+                settings.get_string('top-header-runtime-status');
+        });
+
+        // -----------------------------------------------------------------
         // Dock
         // -----------------------------------------------------------------
         const dockPage = addPage(

@@ -13,7 +13,9 @@ const SCENE_FPS = 24;
 const MARGIN_LIMIT = 0; // full-width native panel, square corners, no shadow
 
 export class PanelGlassSurface {
-    constructor(vendor, settings, readAppearance) {
+    constructor(vendor, settings, readAppearance, options = {}) {
+        this._cornerRadius = Math.max(0, options.cornerRadius ?? 0);
+        this._borderless = options.borderless === true;
         this._vendor = vendor;
         this._settings = settings;
         this._readAppearance = readAppearance;
@@ -69,7 +71,7 @@ export class PanelGlassSurface {
             effect.setShadowMaxRadius?.(0);
             effect.setIsDock?.(false);
             effect.setMultiRegionMode?.(false);
-            effect.setCornerRadius?.(0);
+            effect.setCornerRadius?.(this._cornerRadius);
             material.add_effect(effect);
 
             // The material is at most as large as the native panel, and
@@ -119,7 +121,7 @@ export class PanelGlassSurface {
                 ],
                 tintStrength: state.opacity ?? 0.02,
                 baseBlur: state.blur ?? 7,
-                cornerRadius: 0,
+                cornerRadius: this._cornerRadius,
                 brightness,
                 contrast,
                 saturation,
@@ -129,7 +131,14 @@ export class PanelGlassSurface {
         this._effect.setIsDock?.(false);
         this._effect.setPadding?.(0);
         this._effect.setShadowMaxRadius?.(0);
-        this._effect.setCornerRadius?.(0);
+        this._effect.setCornerRadius?.(this._cornerRadius);
+        if (this._borderless) {
+            // Bottom mode only: disable shader rim, contour, specular light,
+            // inner AO and shadow; leave tint, blur and refraction intact.
+            this._effect.setSurfaceLightEnabled?.(false);
+            this._effect._uniforms?.set?.('ao_intensity', 0.0);
+            this._effect._uniforms?.set?.('shadow_intensity', 0.0);
+        }
         this._material?.queue_redraw?.();
     }
 

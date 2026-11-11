@@ -335,15 +335,29 @@ class ShellCardSurface {
             this._target.opacity ??
             255;
 
-        if (
-            !this._target.mapped ||
-            !this._target.visible ||
-            w <= 1 ||
-            h <= 1 ||
-            opacity <= 0
-        ) {
+        // Zero paint opacity during GNOME's native close/open animation is
+        // NOT equivalent to an unmapped or destroyed card. Releasing its
+        // wallpaper/window clone tree here caused a cold empty capture each
+        // time a hover preview changed alpha through zero.
+        const unmapped = !this._target.mapped ||
+            !this._target.visible;
+        if (unmapped) {
             this._material.hide?.();
             this._releaseSceneManager();
+            return;
+        }
+
+        const transientAllocation =
+            !Number.isFinite(w) || !Number.isFinite(h) ||
+            w <= 1 || h <= 1;
+        if (transientAllocation || opacity <= 0) {
+            // Mutter may temporarily publish an empty allocation between
+            // native layouts. Like a zero-alpha transition, this must NOT
+            // destroy the mapped card's live clone scene, or the next frame
+            // will show an empty offscreen capture before it is populated.
+            // Keep the existing actor mapped and make only its paint invisible.
+            if (this._material.opacity !== 0)
+                this._material.opacity = 0;
             return;
         }
 
@@ -428,6 +442,8 @@ class ShellCardSurface {
             !this._target?.mapped ||
             !this._target?.visible
         ) {
+            // Only a true unmap can tear down the expensive clone scene.
+            this._material?.hide?.();
             this._releaseSceneManager();
             return;
         }

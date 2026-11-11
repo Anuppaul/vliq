@@ -132,8 +132,14 @@ export class FullscreenPanelChromeGuard {
             }
 
             const background = this._manager?.bgActor;
-            if (!background)
+            if (!background) {
+                // New GNOME 50 top-bar islands have three bounded materials,
+                // not DashManager's single bgActor. Reconcile their visibility
+                // immediately on fullscreen/overview signals, instead of
+                // leaving one frame of glass over a fullscreen video.
+                this._manager?.sync?.();
                 return;
+            }
 
             if (!this._shouldShowGlass()) {
                 if (background.opacity !== 0)

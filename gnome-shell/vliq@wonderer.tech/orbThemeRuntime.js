@@ -255,6 +255,9 @@ export default class VLIQRuntime extends Extension {
         this._writingOrbPosition = false;
         this._dragCurrentX = 0;
         this._dragCurrentY = 0;
+        this._dragStartX = 0;
+        this._dragStartY = 0;
+        this._dragPointerOrigin = null;
         this._dragGrab = null;
         this._liquidGlassIntegration = null;
         this._searchSurfaceManager = null;
@@ -353,6 +356,12 @@ export default class VLIQRuntime extends Extension {
         this._setOrbEnabled(
             this._settings.get_boolean('orb-enabled')
         );
+        // The bottom taskbar's VLIQ Start control opens the exact same
+        // native GNOME Apps view as the standalone Orb.
+        this._liquidGlassIntegration?.setBottomTaskbarLauncher?.(
+            () => this._showAllApps()
+        );
+        this._syncOrbTaskbarMode();
         this._connectSignals();
         this._setupDockHoverPreviews();
 
@@ -405,6 +414,8 @@ export default class VLIQRuntime extends Extension {
             const dragGrab = this._dragGrab;
             this._dragGrab = null;
             this._dragging = false;
+            this._dragPointerOrigin = null;
+            this._liquidGlassIntegration?.setOrbDragging?.(false);
             dragGrab.dismiss();
         }
 
@@ -471,6 +482,30 @@ export default class VLIQRuntime extends Extension {
         this._syncLayerSize();
     }
 
+    _syncOrbTaskbarMode() {
+        if (!this._orb)
+            return;
+        const bottom = this._settings?.get_string?.(
+            'top-header-layout') === 'bottom' &&
+            this._liquidGlassIntegration?.isBottomTaskbarActive?.() === true;
+        if (bottom) {
+            this._cancelOpenTimer();
+            this._cancelCloseTimer();
+            this._cancelOrbAutoHideTimer();
+            this._cancelOrbAutoFadeTimer();
+            this._closeMenu(true);
+            this._hideAppPreview?.(true);
+            this._orb.remove_all_transitions?.();
+            this._orb.hide?.();
+        } else {
+            this._orb.show?.();
+            if (this._orbHidden)
+                this._revealOrb();
+            this._scheduleOrbAutoHide();
+            this._scheduleOrbAutoFade();
+        }
+    }
+
     _setOrbEnabled(enabled) {
         if (enabled) {
             if (this._orb)
@@ -480,6 +515,7 @@ export default class VLIQRuntime extends Extension {
             this._syncOrbFromSettings();
             this._scheduleOrbAutoHide();
             this._scheduleOrbAutoFade();
+            this._syncOrbTaskbarMode();
             return;
         }
 
@@ -503,6 +539,8 @@ export default class VLIQRuntime extends Extension {
         }
 
         this._dragging = false;
+        this._dragPointerOrigin = null;
+        this._liquidGlassIntegration?.setOrbDragging?.(false);
         this._orb.destroy();
         this._orb = null;
         this._orbContent = null;
@@ -625,18 +663,40 @@ export default class VLIQRuntime extends Extension {
         this._panGesture.set_begin_threshold(2);
         this._orb.add_action(this._panGesture);
 
-        this._panGesture.connect('recognize', () => {
-            const [x, y] = this._orb.get_position();
-            this._dragCurrentX = x;
-            this._dragCurrentY = y;
+        this._panGesture.connect('recognize', gesture => {
             this._dragging = true;
             this._cancelOpenTimer();
             this._cancelCloseTimer();
             this._cancelOrbAutoHideTimer();
             this._cancelOrbAutoFadeTimer();
+            // A pending auto-hide ease(x/y) competes with every pointer move
+            // and makes the face and separate glass region visibly oscillate.
+            this._orb.remove_all_transitions?.();
             this._restoreOrbOpacity(false);
-            this._revealOrb();
+
+            if (this._orbHidden) {
+                // Revealing from saved GSettings teleports the grabbed actor
+                // while the gesture is already active. Instead expand the
+                // currently grabbed edge tab in place, then start dragging.
+                this._orbHidden = false;
+                this._clampOrbToStage();
+            }
+
             this._closeMenu(true);
+            const [x, y] = this._orb.get_position();
+            this._dragStartX = this._dragCurrentX = x;
+            this._dragStartY = this._dragCurrentY = y;
+            // Stage-space pointer anchor is independent of the moving actor,
+            // unlike a local-coordinate delta coupled to its allocation.
+            const centroid = gesture.get_centroid_abs?.();
+            this._dragPointerOrigin =
+                centroid &&
+                Number.isFinite(centroid.get_x?.()) &&
+                Number.isFinite(centroid.get_y?.())
+                    ? [centroid.get_x(), centroid.get_y()]
+                    : null;
+
+            this._liquidGlassIntegration?.setOrbDragging?.(true);
             this._orb.fake_release();
             this._dragGrab = global.stage.grab(this._orb);
             this._setOrbVisualPseudoClass('dragging', true);
@@ -647,18 +707,41 @@ export default class VLIQRuntime extends Extension {
             if (!this._dragging)
                 return;
 
-            const delta = gesture.get_delta_abs();
+            let x;
+            let y;
+            const centroid = gesture.get_centroid_abs?.();
+            if (
+                this._dragPointerOrigin &&
+                centroid &&
+                Number.isFinite(centroid.get_x?.()) &&
+                Number.isFinite(centroid.get_y?.())
+            ) {
+                // Compute from ONE fixed stage-space origin, not from the
+                // previous clamped position. Crossing an edge then reversing
+                // must not accumulate a displaced or oscillating offset.
+                x = this._dragStartX +
+                    centroid.get_x() - this._dragPointerOrigin[0];
+                y = this._dragStartY +
+                    centroid.get_y() - this._dragPointerOrigin[1];
+            } else {
+                // GNOME-compatible fallback for builds without the centroid
+                // accessor: get_delta_abs is incremental per pan update.
+                const delta = gesture.get_delta_abs();
+                x = this._dragCurrentX + delta.get_x();
+                y = this._dragCurrentY + delta.get_y();
+            }
+            if (!Number.isFinite(x) || !Number.isFinite(y))
+                return;
             const size = this._settings.get_int('orb-size');
-
             const [nextX, nextY] = this._clampPositionToVisibleMonitor(
-                this._dragCurrentX + delta.get_x(),
-                this._dragCurrentY + delta.get_y(),
-                size
+                x, y, size
             );
 
-            this._dragCurrentX = nextX;
-            this._dragCurrentY = nextY;
-            this._orb.set_position(nextX, nextY);
+            this._dragCurrentX = Math.round(nextX);
+            this._dragCurrentY = Math.round(nextY);
+            this._orb.set_position(
+                this._dragCurrentX, this._dragCurrentY
+            );
         });
 
         const finishDrag = () => {
@@ -666,6 +749,7 @@ export default class VLIQRuntime extends Extension {
                 return;
 
             this._dragging = false;
+            this._dragPointerOrigin = null;
 
             if (this._dragGrab) {
                 this._dragGrab.dismiss();
@@ -674,6 +758,7 @@ export default class VLIQRuntime extends Extension {
 
             this._setOrbVisualPseudoClass('dragging', false);
             this._clampOrbToStage();
+            this._liquidGlassIntegration?.setOrbDragging?.(false);
             this._storeOrbPosition();
             this._suppressClickUntil = GLib.get_monotonic_time() + 250000;
             this._scheduleOrbAutoHide();
@@ -696,6 +781,15 @@ export default class VLIQRuntime extends Extension {
 
     _connectSignals() {
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
+            if (key === 'top-header-layout' ||
+                key === 'top-header-runtime-status') {
+                // The active native layout may change one second after a
+                // saved preference (when Shell recovers a missed signal).
+                // Reconcile the standalone Orb as soon as the compositor
+                // publishes what actually became active.
+                this._syncOrbTaskbarMode();
+                return;
+            }
             if (key === 'orb-x' || key === 'orb-y') {
                 if (!this._writingOrbPosition) {
                     this._syncOrbFromSettings();
@@ -1474,8 +1568,11 @@ export default class VLIQRuntime extends Extension {
                     break;
 
                 if (
+                    // 63 apps maximum per visible shader page. Avoid
+                    // chasing thousands of installed apps on one page,
+                    // which can compress geometry needlessly.
                     candidateCapacity >=
-                    requestedApps.length
+                    Math.min(requestedApps.length, MAX_VISIBLE_ORB_APPS)
                 ) {
                     break;
                 }
@@ -1500,6 +1597,9 @@ export default class VLIQRuntime extends Extension {
                 if (stagnantDepths >= 2)
                     break;
             }
+            // On small monitors/at corners, fitGeometryGroups can drop
+            // complete outer levels. Use the actual fitted slot depth.
+            rings = slotRings.length;
             this._orbPageSession = {
                 apps: requestedApps,
                 rings,
@@ -1558,13 +1658,17 @@ export default class VLIQRuntime extends Extension {
             placements = [];
             for (
                 let ring = 0;
-                ring < rings;
+                ring < slotRings.length;
                 ring++
             ) {
+                const slots = slotRings[ring] ?? [];
+                const count = counts[ring] ?? 0;
+                if (!slots.length || count <= 0)
+                    continue;
                 const selectedSlots =
                     selectGeometrySlots(
-                        slotRings[ring],
-                        counts[ring],
+                        slots,
+                        count,
                         geometry,
                         layoutArc
                     );
