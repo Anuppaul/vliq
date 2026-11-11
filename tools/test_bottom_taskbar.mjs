@@ -462,10 +462,19 @@ favorites = ['alpha.desktop','beta.desktop'];
 shellSettings.emit('changed::favorite-apps');
 dock.opacity = 255; dock.show();dock.reactive = true;
 nativeDockRoot.show();
+assert.equal(nativeDockRoot.visible, false,
+    'native Dock must be hidden synchronously on show(), before any frame');
 nativeDockRoot.opacity = 255;
+nativeDockRoot.emit('notify::opacity');
+assert.equal(nativeDockRoot.opacity, 0,
+    'native Dock opacity resets synchronously when the theme changes it');
 nativeDockRoot.reactive = true;
 nativeBlackPill.show();
+assert.equal(nativeBlackPill.visible, false,
+    'sibling Dock background cannot paint even one frame after show()');
 nativeBlackPill.opacity = 255;
+nativeBlackPill.emit('notify::opacity');
+assert.equal(nativeBlackPill.opacity, 0);
 nativeBlackPill.reactive = true;
 stage.tick();
 assert.equal(nativeDockRoot.visible, false,
