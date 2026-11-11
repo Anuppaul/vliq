@@ -1519,9 +1519,9 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
-/* Date Menu flat card material: transparent at rest beneath the real outer
- * Liquid Glass, with EXACT taskbar-icon interaction paint on hover/press.
- * No second LiquidEffect or native border; use one inset highlight only. */
+/* Date Menu cards always display the EXACT taskbar-icon hover material.
+ * Hover/focus do not change the card; only an active press is stronger.
+ * Keep the outer LiquidEffect, native menu layout, and single CSS inset rim. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
 .vliq-liquid-popup-content.datemenu-popover .calendar,
 .vliq-liquid-popup-content.datemenu-popover .events-button,
@@ -1529,12 +1529,12 @@
 .vliq-liquid-popup-content.datemenu-popover .weather-button,
 .vliq-liquid-popup-content.datemenu-popover .message,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
-    background-color: transparent !important;
+    background-color: rgba(245, 249, 255, 0.24) !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 9px !important;
     transition-duration: 120ms;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
@@ -1550,7 +1550,7 @@
 .vliq-liquid-popup-content.datemenu-popover .message:focus,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
-    /* Exact .vliq-taskbar-app-button:hover material. */
+    /* Same material as idle: no hover-only appearance change. */
     background-color: rgba(245, 249, 255, 0.24) !important;
     border: 0 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
