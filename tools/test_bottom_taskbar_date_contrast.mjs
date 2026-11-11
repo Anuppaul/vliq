@@ -129,11 +129,26 @@ manager.cleanup();
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');
-assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
-    'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
+const clockPaintStart = css.indexOf(
+    '/* GNOME/Yaru paints a separate rounded pill on the inner .clock label');
+assert.ok(clockPaintStart >= 0, 'nested GNOME clock pill override is present');
+const clockPaintEnd = css.indexOf('}', clockPaintStart);
+const clockPaint = css.slice(clockPaintStart, clockPaintEnd);
+for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
+    const nativeSelector = '#panel.vliq-bottom-taskbar #panelRight ' +
+        '.clock-display' + state + ' .clock';
+    assert.ok(clockPaint.includes(nativeSelector),
+        'native clock label paint suppressed during ' + (state || 'idle'));
+}
+assert.ok(clockPaint.includes('color: #ffffff !important'),
+    'clock text stays pure white');
+assert.ok(clockPaint.includes('background-color: transparent !important'),
+    'GNOME clock label cannot paint a second pill background');
+assert.ok(clockPaint.includes('box-shadow: none !important'),
+    'GNOME clock label cannot paint a second inset highlight');
 
 // Date gets the same outer milky card as the other right-side panel
-// indicators; only its nested .clock-display-box paint is suppressed.
+// indicators; both its nested .clock-display-box and .clock label paint are suppressed.
 const outerStart = css.indexOf(
     '#panel.vliq-bottom-taskbar #panelRight .panel-button:hover,');
 const outerEnd = css.indexOf('}', outerStart);
