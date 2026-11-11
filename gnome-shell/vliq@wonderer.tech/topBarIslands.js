@@ -286,6 +286,7 @@ export class TopBarIslands {
                 continue;
             for (const name of [
                 'vliq-panel-island-ready',
+                'vliq-panel-island-css-fallback',
                 'vliq-panel-island-inactive',
                 'vliq-panel-island-' + region.role,
                 'vliq-panel-island',
@@ -360,18 +361,29 @@ export class TopBarIslands {
             panel.add_style_class_name('vliq-three-islands');
             for (const [role, key] of REGIONS) {
                 const actor = panel[key];
-                // The 3-Part Header uses permanent CSS milky cards only.
-                // Keep the lightweight surface contract for native geometry
-                // and visibility, but NEVER allocate a LiquidEffect, window
-                // clones, GL framebuffer or glass actor for these islands.
-                const surface = new PanelGlassSurface(
+                // Three bounded island materials follow the selected global
+                // Appearance mode. Liquid and Frosted use the same shader;
+                // Milky hides the GPU material and paints the native card.
+                // A shader failure must never break GNOME's panel controls.
+                let surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS, cssOnly: true}
+                    {cornerRadius: RADIUS}
                 );
+                let cssFallback = false;
                 if (!surface.attach(this._host, this._panelRoot)) {
                     surface.destroy();
-                    throw new Error('island glass attach failed: ' + role);
+                    console.warn('[VLIQ][TopBar] ' + role +
+                        ' glass unavailable; retaining native card fallback');
+                    surface = new PanelGlassSurface(
+                        this._vendor, this._settings, this._readAppearance,
+                        {cornerRadius: RADIUS, cssOnly: true}
+                    );
+                    if (!surface.attach(this._host, this._panelRoot))
+                        throw new Error('island fallback failed: ' + role);
+                    cssFallback = true;
                 }
+                if (cssFallback)
+                    actor.add_style_class_name('vliq-panel-island-css-fallback');
                 actor.add_style_class_name('vliq-panel-island');
                 actor.add_style_class_name('vliq-panel-island-' + role);
                 this._regions.push({

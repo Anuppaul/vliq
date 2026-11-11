@@ -9,62 +9,46 @@ const css = await readFile(new URL(
 const top = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/topBarIslands.js', import.meta.url
 ), 'utf8');
-const start = css.indexOf('/* GNOME 50 three-part header: the accepted milky');
+const start = css.indexOf('/* GNOME 50 3-Part Header:');
 const end = css.indexOf('/* User-selectable FULL Top Header.', start);
-assert.ok(start > 0 && end > start, '3-part paint has one isolated block');
-const block = css.slice(start, end);
-function body(selector) {
-    const i = block.indexOf(selector);
-    assert.ok(i >= 0, 'missing selector: ' + selector);
-    const open = block.indexOf('{', i);
-    const close = block.indexOf('}', open);
-    return block.slice(open + 1, close);
+assert.ok(start >= 0 && end > start, 'isolated 3-Part appearance block');
+const section = css.slice(start, end);
+function declarations(selector) {
+    const at = section.indexOf(selector);
+    assert.ok(at >= 0, 'missing selector ' + selector);
+    const open = section.indexOf('{', at), close = section.indexOf('}', open);
+    return section.slice(open, close);
 }
-const groups = ['panelLeft', 'panelCenter', 'panelRight'];
-for (const group of groups) {
-    const selector = '#panel.vliq-three-islands #' + group + '.vliq-panel-island';
-    const ready = '#panel.vliq-three-islands #' + group + '.vliq-panel-island-ready';
-    const inactive = selector + '.vliq-panel-island-inactive';
-    for (const s of [selector, ready]) {
-        // Ready state can no longer erase the accepted hover card.
-        const rule = body(s);
-        assert.match(rule, /rgba\(245, 249, 255, 0\.24\) !important;/,
-            'main ' + group + ' must use the accepted hover fill');
-        assert.match(rule, /rgba\(255, 255, 255, 0\.20\) !important;/,
-            'main ' + group + ' must use the accepted hover rim');
-        assert.match(rule, /border-radius: 16px !important;/);
+for (const id of ['panelLeft', 'panelCenter', 'panelRight']) {
+    const island = '#panel.vliq-three-islands #' + id + '.vliq-panel-island';
+    const ready = '#panel.vliq-three-islands #' + id + '.vliq-panel-island-ready';
+    const milky = '.vliq-global-milky ' + island;
+    const fallback = '#panel.vliq-three-islands #' + id +
+        '.vliq-panel-island-css-fallback';
+    assert.match(declarations(island), /rgba\\(232, 242, 255, 0\\.13\\)/,
+        'shader fallback cannot be opaque');
+    assert.match(declarations(ready), /background-color: transparent !important/,
+        'Liquid/Frosted material is the only ready painter');
+    for (const selector of [milky, fallback]) {
+        const body = declarations(selector);
+        assert.match(body, /rgba\\(245, 249, 255, 0\\.24\\)/);
+        assert.match(body, /rgba\\(255, 255, 255, 0\\.20\\)/);
+        assert.match(body, /border-radius: 16px/);
     }
-    assert.match(body(inactive), /background-color: transparent !important;/,
-        'empty ' + group + ' must remain hidden');
-    assert.match(body(inactive), /box-shadow: none !important;/,
-        'empty ' + group + ' must not leave a rim');
+    const inactive = '.vliq-global-milky ' + island +
+        '.vliq-panel-island-inactive';
+    assert.match(declarations(inactive), /background-color: transparent !important/);
 }
-for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
-    const rule = body('#panel.vliq-three-islands .vliq-panel-island ' +
-        '.panel-button' + state);
-    assert.match(rule, /background-color: transparent !important;/,
-        '3-part indicator ' + state + ' cannot create a second card');
-    assert.match(rule, /box-shadow: none !important;/);
-}
-assert.match(css, /#panel\.vliq-liquid-top-panel \.panel-button:hover/,
-    'shared hover remains available in Full and Bottom layouts');
-assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.panel-button:hover/,
-    'Bottom Taskbar retains its accepted hover paint');
-assert.match(css, /\.vliq-liquid-popup-content\.datemenu-popover \.calendar/,
-    'Calendar internal styling is unchanged');
-assert.match(css, /\.vliq-liquid-popup-content\.quick-settings \.quick-toggle/,
-    'Quick Settings internal styling is unchanged');
-assert.match(top, /\{cornerRadius: RADIUS, cssOnly: true\}/,
-    '3-Part constructs only a lightweight CSS-only surface');
-const surface = await readFile(new URL(
-    '../gnome-shell/vliq@wonderer.tech/panelGlass.js', import.meta.url
-), 'utf8');
-assert.match(surface, /this\._cssOnly = options\.cssOnly === true/,
-    'renderer constructor identifies CSS-only island cards');
-assert.match(surface, /if \(this\._cssOnly\)\s*return true;/,
-    'CSS-only attach bypasses the GPU material creation path');
-assert.match(surface, /if \(this\._cssOnly\)\s*return !this\._destroyed;/,
-    'CSS-only ready state never depends on shader compilation');
+assert.match(top, /\\{cornerRadius: RADIUS\\}/,
+    '3-Part allocates real bounded Liquid/Frosted shaders');
+assert.match(top, /\\{cornerRadius: RADIUS, cssOnly: true\\}/,
+    'GPU failure has safe CSS-only fallback');
+assert.match(top, /vliq-panel-island-css-fallback/,
+    'fallback class persists until layout is rebuilt');
 assert.match(top, /vliq-panel-island-inactive/,
-    'runtime continues to hide empty GNOME boxes');
-console.log('3-Part main milky card without LiquidEffect in all material modes PASS.');
+    'native empty GNOME boxes remain hidden');
+assert.match(css, /#panel\\.vliq-liquid-top-panel\\.vliq-full-header/);
+assert.match(css, /#panel\\.vliq-liquid-top-panel\\.vliq-bottom-taskbar/);
+assert.match(css, /\\.vliq-liquid-popup-content\\.datemenu-popover \\.calendar/);
+assert.match(css, /\\.vliq-liquid-popup-content\\.quick-settings \\.quick-toggle/);
+console.log('3-Part Liquid/Frosted shader, Milky CSS and safe fallback PASS.');

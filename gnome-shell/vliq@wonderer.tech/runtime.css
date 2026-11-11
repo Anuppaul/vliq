@@ -280,10 +280,11 @@
     box-shadow: none;
 }
 
-/* GNOME 50 three-part header: the accepted milky HOVER card is now the
- * permanent MAIN card for each native panel island. Keep the existing
- * rounded region geometry WITHOUT any GPU Liquid/Frosted shader underneath.
- * Native indicator allocations, popup anchors and input handling stay put. */
+/* GNOME 50 3-Part Header: appearance-controlled materials.
+ * Liquid/Frosted: each native panel box has one bounded VLIQ shader under
+ * its controls. Milky: that shader is hidden and the accepted gray-white
+ * CSS card paints the original native box. No actor reparenting or new
+ * hover wrappers. Keep visual fallbacks for GPU initialization failures. */
 #panel.vliq-liquid-top-panel.vliq-three-islands {
     background-color: transparent !important;
     background-image: none !important;
@@ -293,31 +294,48 @@
 #panel.vliq-three-islands #panelLeft.vliq-panel-island,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island,
 #panel.vliq-three-islands #panelRight.vliq-panel-island {
-    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-color: rgba(232, 242, 255, 0.13) !important;
     background-image: none !important;
     border-radius: 16px !important;
     border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    box-shadow: none !important;
 }
-/* Keep this permanent paint when runtime marks an island ready.
- * The 3-Part surface is CSS-only: no shader is created for either mode. */
+/* Once a Liquid/Frosted GPU material is ready, it alone paints the
+ * main glass card; never stack a second CSS milky veil above it. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Milky mode is ALWAYS the original pure native card, even if the shader
+ * was previously ready before switching Appearance. The CSS fallback is
+ * identical when the shader fails to initialize. */
+.vliq-global-milky #panel.vliq-three-islands #panelLeft.vliq-panel-island,
+.vliq-global-milky #panel.vliq-three-islands #panelCenter.vliq-panel-island,
+.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island,
+#panel.vliq-three-islands #panelLeft.vliq-panel-island-css-fallback,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island-css-fallback,
+#panel.vliq-three-islands #panelRight.vliq-panel-island-css-fallback {
     background-color: rgba(245, 249, 255, 0.24) !important;
     background-image: none !important;
     border-radius: 16px !important;
     border: 0 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
-/* Truly empty/hidden islands must remain invisible; never leave
- * a floating blank pill on the desktop. */
+/* Empty/inactive islands cannot paint orphan pills, in any material mode.
+ * Match the specificity of the Milky rules so hiding always wins. */
+.vliq-global-milky #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-milky #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive,
 #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
 #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
     background-color: transparent !important;
     background-image: none !important;
-    border-color: transparent !important;
+    border: 0 !important;
     box-shadow: none !important;
 }
 #panel.vliq-three-islands .panel-corner {
@@ -325,9 +343,8 @@
     -panel-corner-background-color: transparent;
     -panel-corner-border-color: transparent;
 }
-/* 3-Part main island is the ONLY milky card: nested native indicators
- * remain interactive but cannot paint another hover/focus/checked pill.
- * Full Header and Bottom Taskbar retain their individual hover cards. */
+/* The island itself owns the surface. Avoid a second nested hover pill,
+ * in Liquid, Frosted and Milky. No change to click/focus handling. */
 #panel.vliq-three-islands .vliq-panel-island .panel-button,
 #panel.vliq-three-islands .vliq-panel-island .panel-button:hover,
 #panel.vliq-three-islands .vliq-panel-island .panel-button:focus,
