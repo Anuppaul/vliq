@@ -120,8 +120,10 @@ for (const selector of [
     assert.ok(dateCss.includes(selector) || quickCss.includes(selector),
         'missing target card hover: ' + selector);
 }
-assert.ok(!quickCss.includes('.quick-toggle-has-menu:hover'),
-    'the same GNOME QuickToggle cannot draw two nested hover outlines');
+assert.ok(quickCss.includes('.quick-toggle-has-menu:hover'),
+    'the outer QuickMenuToggle owns the single visible hover card');
+assert.ok(quickCss.includes('.quick-toggle-has-menu .quick-toggle:hover'),
+    'the nested QuickToggle has explicitly transparent hover paint');
 assert.ok(quickCss.includes('.quick-toggle:checked'),
     'checked Quick toggle retains the same neutral tile paint');
 assert.ok(popup.includes('_syncQuickSelectedClasses()'),
