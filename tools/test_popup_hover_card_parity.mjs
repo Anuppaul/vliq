@@ -18,7 +18,7 @@ const appStart = css.indexOf('/* Per-icon visual feedback');
 const dateStart = css.indexOf('/* Date Menu: restrained cool gray-white cards');
 const dateEnd = css.indexOf('/* Quick Settings ', dateStart);
 const quickStart = css.indexOf(
-    '/* Bottom Taskbar icon-style interaction shared');
+    '/* Quick Settings inner cards: same always-visible cool gray-white paint');
 const quickEnd = css.indexOf('/* VLIQ Spotlight', quickStart);
 assert.ok(appStart >= 0 && dateStart > appStart &&
     dateEnd > dateStart && quickStart > dateEnd &&
