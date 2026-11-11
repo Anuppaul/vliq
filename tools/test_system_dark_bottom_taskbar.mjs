@@ -123,9 +123,54 @@ assert.match(rule, /#panel\.vliq-liquid-top-panel\.vliq-bottom-taskbar\.vliq-sys
 assert.match(rule, /rgba\(29,31,35,0\.98\)/);
 assert.ok(rule.includes('.vliq-global-milky #panel'),
     'dark GNOME style must beat Milky CSS on Bottom Taskbar');
+// Match actual selector targets, not explanatory CSS comment words.
 for (const forbidden of [
-    'vliq-three-islands', 'vliq-full-header', 'quick-settings',
-    'datemenu-popover', 'notification', 'dashtodockDashContainer',
+    '#panel.vliq-three-islands',
+    '#panel.vliq-full-header',
+    '.vliq-liquid-popup-content',
+    '.vliq-native-notification-glass',
+    '#dashtodockDashContainer',
 ]) assert.ok(!rule.includes(forbidden),
     'native Dark Style must not repaint non-bottom surfaces: ' + forbidden);
+
+// Validate the REAL GSettings lifecycle: native Dark Style emits a signal,
+// VLIQ queues a live appearance refresh, and both listeners are disconnected
+// on extension disable. Do not set or rewrite GNOME's color-scheme.
+const connected = new Map(), disconnected = [];
+let nextId = 0, refreshes = 0;
+const desktop = {
+    connect(name, callback) {
+        const id = ++nextId;
+        connected.set(name, {id, callback});
+        return id;
+    },
+    disconnect(id) {disconnected.push(id);},
+};
+const setup = method(dock, '_setupSharedCardAppearanceSync() {',
+    '_cleanupSharedCardAppearanceSync() {', '_setupSharedCardAppearanceSync', {
+        Gio: {Settings: class {constructor() {return desktop;}}},
+        DESKTOP_INTERFACE_SCHEMA: 'org.gnome.desktop.interface',
+    });
+const cleanup = method(dock, '_cleanupSharedCardAppearanceSync() {',
+    '_getShellTheme() {', '_cleanupSharedCardAppearanceSync');
+const owner = {
+    _desktopInterfaceSettings: null,
+    _desktopAccentChangedId: 0, _desktopColorSchemeChangedId: 0,
+    _vliqSettings: null, _cardAppearanceSettingId: 0,
+    _cardAppearanceApplyId: 0,
+    _applySharedCardAppearance() {},
+    _queueSharedCardAppearanceApply() {refreshes++;},
+    _syncMilkyAppearanceClass() {},
+    _unloadCardAppearanceStylesheet() {},
+};
+setup.call(owner);
+assert.ok(connected.has('changed::color-scheme'));
+assert.ok(connected.has('changed::accent-color'));
+connected.get('changed::color-scheme').callback();
+assert.equal(refreshes, 1);
+cleanup.call(owner);
+assert.ok(disconnected.includes(connected.get('changed::color-scheme').id),
+    'Dark Style listener must be disconnected on disable');
+assert.ok(disconnected.includes(connected.get('changed::accent-color').id));
+
 console.log('GNOME Dark Style -> Bottom Taskbar only; appearance, layout and renderer restoration PASS.');
