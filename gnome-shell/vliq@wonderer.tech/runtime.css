@@ -280,12 +280,10 @@
     box-shadow: none;
 }
 
-/* GNOME 50 top bar: THREE detached dock-style glass islands.
- * Main.panel remains the native GNOME input host (Activities, Date Menu,
- * Quick Settings). Only its long background is cleared. Each native box
- * keeps a rounded low-opacity fallback until its own bounded LiquidEffect
- * has actually composited, at which point the true refractive material
- * underneath becomes visible. Do not alter native box width/padding/menus. */
+/* GNOME 50 three-part header: the accepted milky HOVER card is now the
+ * permanent MAIN card for each native panel island. Keep the existing
+ * rounded region geometry and the bounded Liquid/Frosted shader beneath it.
+ * Native indicator allocations, popup anchors and input handling stay put. */
 #panel.vliq-liquid-top-panel.vliq-three-islands {
     background-color: transparent !important;
     background-image: none !important;
@@ -295,25 +293,28 @@
 #panel.vliq-three-islands #panelLeft.vliq-panel-island,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island,
 #panel.vliq-three-islands #panelRight.vliq-panel-island {
-    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-color: rgba(245, 249, 255, 0.24) !important;
     background-image: none !important;
     border-radius: 16px !important;
     border: 0 !important;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
-/* Invisible/empty native groups must not leave orphaned CSS fallback pills.
- * Optical material opacity is already zero in this state. */
-#panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
-#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
-#panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
+/* Optical readiness must never erase the main card: the shader is behind
+ * the permanent milky face in both Liquid Glass and Frosted Crystal. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border-radius: 16px !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+/* Truly empty/hidden islands must remain invisible, regardless of shader
+ * readiness; never leave a floating blank pill on the desktop. */
+#panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+#panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
@@ -323,6 +324,19 @@
     -panel-corner-radius: 0px;
     -panel-corner-background-color: transparent;
     -panel-corner-border-color: transparent;
+}
+/* 3-Part main island is the ONLY milky card: nested native indicators
+ * remain interactive but cannot paint another hover/focus/checked pill.
+ * Full Header and Bottom Taskbar retain their individual hover cards. */
+#panel.vliq-three-islands .vliq-panel-island .panel-button,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:hover,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:focus,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:active,
+#panel.vliq-three-islands .vliq-panel-island .panel-button:checked {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* User-selectable FULL Top Header. One bounded native-panel LiquidEffect
