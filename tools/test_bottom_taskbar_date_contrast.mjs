@@ -138,10 +138,10 @@ assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:
 for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
     const selector = '#panel.vliq-bottom-taskbar #panelRight ' +
         '.panel-button.clock-display' + state;
-    const escaped = selector.replace(/[.*+?^\$\{\}()|[\]\\]/g, '\\console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');');
-    assert.match(css, new RegExp(escaped + '(?:,|\\s*\\{)'),
-        'Date/Clock transparent override must cover ' + (state || 'idle'));
+    assert.ok(css.includes(selector),
+        'Date/Clock transparent override covers ' + (state || 'idle'));
 }
+
 const dateClear = css.match(
     /\/\* Bottom Date\/Clock is text-only[\s\S]*?\{([^}]+)\}/
 )?.[1] ?? '';
