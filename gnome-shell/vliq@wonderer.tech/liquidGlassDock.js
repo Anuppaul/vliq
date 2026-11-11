@@ -872,7 +872,9 @@ export class LiquidGlassIntegration {
                 this._logger,
                 VLIQ_GLASS_ROLES.osdCard
             );
+            this._installMilkyOsdAdapter();
             this._osdManager.setup();
+            this._syncMilkyOsdMaterial();
         });
 
         // PopupMenu.prototype is the single outer-card path for Date Menu,
@@ -1688,14 +1690,51 @@ export class LiquidGlassIntegration {
         this._orbGlassManager?.setDragActive?.(active);
     }
 
-    _syncMilkyAppearanceClass(enabled) {
-        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
-        if (!uiGroup)
+    _syncMilkyOsdMaterial(enabled = this._milkyModeActive) {
+        for (const state of this._osdManager?._osdStates ?? []) {
+            try {
+                if (enabled) {
+                    state.bgActor?.hide?.();
+                    if (state.bgActor)
+                        state.bgActor.opacity = 0;
+                    state.targetBox?.add_style_class_name?.('vliq-milky-osd');
+                } else {
+                    state.targetBox?.remove_style_class_name?.('vliq-milky-osd');
+                }
+            } catch {}
+        }
+    }
+
+    _installMilkyOsdAdapter() {
+        const osd = this._osdManager;
+        if (!osd || osd._vliqMilkySyncWrapped ||
+            typeof osd._syncGeometry !== 'function')
             return;
-        if (enabled)
-            uiGroup.add_style_class_name?.('vliq-global-milky');
-        else
-            uiGroup.remove_style_class_name?.('vliq-global-milky');
+        // Wrap the *instance* so this works with a hot-cached vendor module.
+        // Never re-register an existing GObject or mutate the vendor source.
+        const original = osd._syncGeometry.bind(osd);
+        osd._syncGeometry = state => {
+            if (this._milkyModeActive) {
+                state?.bgActor?.hide?.();
+                state?.targetBox?.add_style_class_name?.('vliq-milky-osd');
+                return; // Native OSD keeps its input/volume progress UI.
+            }
+            state?.targetBox?.remove_style_class_name?.('vliq-milky-osd');
+            return original(state);
+        };
+        osd._vliqMilkySyncWrapped = true;
+    }
+
+    _syncMilkyAppearanceClass(enabled) {
+        this._milkyModeActive = enabled;
+        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
+        if (uiGroup) {
+            if (enabled)
+                uiGroup.add_style_class_name?.('vliq-global-milky');
+            else
+                uiGroup.remove_style_class_name?.('vliq-global-milky');
+        }
+        this._syncMilkyOsdMaterial(enabled);
     }
 
     _applySharedCardAppearance() {
