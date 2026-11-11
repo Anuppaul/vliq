@@ -333,12 +333,12 @@ export class SpotlightGlassManager {
     }
 
     _syncLoopState() {
-        if (!this._isActive()) {
+        if (!this._isActive() || this._appearance?.milky) {
             this._stopStageLoop();
             this._root?.hide?.();
             this._lastSceneSyncUs = 0;
             this._lastCullKey = '';
-            return;
+            return; // Native Spotlight input/results paint Milky directly.
         }
 
         this._placeBelowHost();
@@ -738,6 +738,7 @@ export class SpotlightGlassManager {
             this._readAppearance?.()
     ) {
         this._applyAppearance(state);
+        this._syncLoopState();
     }
 
     refresh() {

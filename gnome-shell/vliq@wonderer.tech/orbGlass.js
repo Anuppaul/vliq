@@ -266,10 +266,17 @@ export class OrbGlassManager {
         state = this._appearance ?? this._readAppearance(),
         targets = this._batches
     ) {
-        if (!this._batches.length || !state)
+        if (!state)
             return;
-
         this._appearance = state;
+        if (state.milky) {
+            this._root?.hide?.();
+            for (const batch of this._batches)
+                this._clearBatch(batch);
+            return; // Orb faces/buttons have native CSS Milky paint.
+        }
+        if (!this._batches.length)
+            return;
         const role =
             VLIQ_GLASS_ROLES.orbCard;
         const adapter =
@@ -488,6 +495,10 @@ export class OrbGlassManager {
     }
 
     _syncRegions() {
+        if (this._appearance?.milky) {
+            this._root?.hide?.();
+            return; // No GPU capture while the Orb uses native Milky.
+        }
         if (
             !this._root ||
             !this._batches.length

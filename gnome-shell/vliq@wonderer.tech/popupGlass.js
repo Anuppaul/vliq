@@ -1910,6 +1910,18 @@ class PopupGlassSurface {
         if (!this._effect || !state)
             return;
 
+        // Paint native GNOME menu.box directly in Milky mode. Hide BOTH
+        // stage-level shader roots; leaving the nested date/quick material
+        // visible would put Liquid Glass underneath the new native card.
+        const wasMilky = this._milky === true;
+        this._milky = state.milky === true;
+        if (this._milky) {
+            this._root?.hide?.();
+            this._dateInnerRoot?.hide?.();
+            return;
+        }
+        if (wasMilky)
+            this._invalidateGeometry();
         this._fullSyncDirty = true;
         this._radius = readRadius(this._box);
 
@@ -2330,6 +2342,13 @@ class PopupGlassSurface {
     }
 
     _sync(shaderOnly) {
+        if (this._milky) {
+            if (!shaderOnly) {
+                this._root?.hide?.();
+                this._dateInnerRoot?.hide?.();
+            }
+            return; // Native Milky menu: no offscreen scene sync.
+        }
         // Actor visibility must be changed only during full layout/stage
         // sync, never from LiquidEffect's paint-time uniforms hook.
         if (!shaderOnly)

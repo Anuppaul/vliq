@@ -168,7 +168,10 @@ export class NotificationGlassManager {
     updateAppearance(state = this._readAppearance()) {
         this._appearance = state;
         for (const material of this._materials.values()) {
-            this._applyAppearance(material, state);
+            if (state?.milky)
+                material.root?.hide?.();
+            else
+                this._applyAppearance(material, state);
             this._queueSync(material);
         }
     }
@@ -921,6 +924,14 @@ export class NotificationGlassManager {
             !actor ||
             this._materials.get(actor) !== material
         ) {
+            return;
+        }
+        if (this._appearance?.milky) {
+            // The original NotificationMessage paints the single native
+            // Milky card; never leave a second shader/filter behind it.
+            material.root?.hide?.();
+            if (!shaderOnly)
+                this._releaseSceneManager(material);
             return;
         }
 
