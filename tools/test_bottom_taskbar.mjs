@@ -50,6 +50,13 @@ class Actor {
         if (a.parent === this) a.parent = null;
     }
     get_children() {return this.children;}
+    set_child_below_sibling(actor, sibling) {
+        const from = this.children.indexOf(actor);
+        const to = this.children.indexOf(sibling);
+        assert.ok(from >= 0 && to >= 0);
+        this.children.splice(from, 1);
+        this.children.splice(this.children.indexOf(sibling), 0, actor);
+    }
     get_parent() {return this.parent;}
     get_position() {return [this.x ?? 0, this.y ?? 0];}
     set_position(x, y) {this.x = x; this.y = y;}
@@ -179,6 +186,12 @@ const nativeBlackPill = new Actor({style_class: 'dash-background'});
 nativeDockRoot.add_child(nativeBlackPill);
 const unrelatedChrome = new Actor();
 uiGroup.add_child(unrelatedChrome);
+let nativeDockRootHideCalls = 0;
+const originalRootHide = nativeDockRoot.hide.bind(nativeDockRoot);
+nativeDockRoot.hide = () => {
+    nativeDockRootHideCalls++;
+    originalRootHide();
+};
 // Ubuntu Dock Panel Mode owns a SECOND stage-level glass actor; hiding only
 // dock.container and manager.bgActor leaves a visible 6-10px fringe.
 const dockPanelSurface = {
@@ -354,15 +367,22 @@ assert.equal(restartedBetaDot, stoppedBetaDot,
     'start/stop must only update dot opacity');
 assert.equal(dateMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
 assert.equal(quickMenu._boxPointer._userArrowSide, St.Side.BOTTOM);
-assert.equal(dock.visible, false, 'legacy Ubuntu Dock is hidden');
+assert.equal(dock.visible, true,
+    'native Dock actor stays mapped rather than cycling its mapping');
 assert.equal(dock.opacity, 0);
 assert.equal(dock.reactive, false);
-assert.equal(nativeDockRoot.visible, false,
-    'entire native Dock root, not only icon container, must unmap');
+assert.equal(nativeDockRoot.visible, true,
+    'native root remains mapped but has zero opacity');
+assert.equal(nativeDockRoot.opacity, 0);
 assert.equal(nativeDockRoot.reactive, false,
     'root cannot steal hover/click input from VLIQ taskbar');
-assert.equal(nativeBlackPill.visible, false,
-    'black dash-background sibling must be hidden');
+assert.equal(nativeDockRootHideCalls, 0,
+    'VLIQ must never hide/unmap native Dock root');
+assert.ok(uiGroup.get_children().indexOf(nativeDockRoot) <
+    uiGroup.get_children().indexOf(panelBox),
+    'native Dock root is below actual GNOME panel');
+assert.equal(nativeBlackPill.visible, true,
+    'native sibling background remains mapped but cannot paint');
 assert.equal(nativeBlackPill.opacity, 0,
     'black pill may not paint above live app buttons');
 assert.equal(dockGlass.opacity, 0);
@@ -462,28 +482,31 @@ favorites = ['alpha.desktop','beta.desktop'];
 shellSettings.emit('changed::favorite-apps');
 dock.opacity = 255; dock.show();dock.reactive = true;
 nativeDockRoot.show();
-assert.equal(nativeDockRoot.visible, false,
-    'native Dock must be hidden synchronously on show(), before any frame');
+assert.equal(nativeDockRoot.visible, true,
+    'native GNOME Dock remains mapped throughout app click transitions');
+assert.equal(nativeDockRootHideCalls, 0);
 nativeDockRoot.opacity = 255;
 nativeDockRoot.emit('notify::opacity');
 assert.equal(nativeDockRoot.opacity, 0,
     'native Dock opacity resets synchronously when the theme changes it');
 nativeDockRoot.reactive = true;
 nativeBlackPill.show();
-assert.equal(nativeBlackPill.visible, false,
-    'sibling Dock background cannot paint even one frame after show()');
+assert.equal(nativeBlackPill.visible, true,
+    'sibling Dock remains mapped with opacity zero');
 nativeBlackPill.opacity = 255;
 nativeBlackPill.emit('notify::opacity');
 assert.equal(nativeBlackPill.opacity, 0);
 nativeBlackPill.reactive = true;
 stage.tick();
-assert.equal(nativeDockRoot.visible, false,
-    'native Dock cannot repaint its root during compositor frame');
-assert.equal(nativeBlackPill.visible, false,
-    'late native background show must be suppressed');
+assert.equal(nativeDockRoot.visible, true,
+    'native Dock remains mapped but transparent through compositor frames');
+assert.equal(nativeDockRootHideCalls, 0,
+    'prevent hide/show mapped-state feedback');
+assert.equal(nativeBlackPill.visible, true,
+    'sibling Dock background remains mapped but transparent');
 assert.equal(nativeDockRoot.reactive, false);
 assert.equal(dock.opacity, 0);
-assert.equal(dock.visible, false);
+assert.equal(dock.visible, true);
 assert.equal(dock.reactive, false, 'native Dock must not steal clicks');
 assert.ok(dockPanelSurface.hideCalls >= 2,
     'native Dock glass remains hidden across repeated compositor frames');
@@ -537,6 +560,8 @@ assert.equal(previewBeforeCleanup.destroyed, true,
 assert.equal(taskbar._previewManager, null);
 assert.equal(taskbar._dockVisibilityWatchers.size, 0,
     'native Dock visual-guard signals are disconnected on teardown');
+assert.equal(taskbar._dockStackOrder.size, 0,
+    'restored Dock stacking data is released on cleanup');
 assert.equal(taskbar.ownsChrome(), false,
     'paint ownership releases during cleanup');
 assert.equal(stageSignals.size, 0);
@@ -554,6 +579,9 @@ assert.equal(nativeDockRoot.visible, true,
 assert.equal(nativeDockRoot.opacity, 255);
 assert.equal(nativeDockRoot.reactive, true,
     'native dock receives hover events again after Bottom mode');
+assert.ok(uiGroup.get_children().indexOf(nativeDockRoot) >
+    uiGroup.get_children().indexOf(panelBox),
+    'original native Dock stacking order restored');
 assert.equal(nativeBlackPill.visible, true,
     'native dock background restored on layout exit');
 assert.equal(nativeBlackPill.opacity, 255);
@@ -654,6 +682,12 @@ assert.ok(runtimeCSS.includes(
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover'),
     'hover highlights individual clickable app buttons');
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar #panelRight .panel-button:hover'),
+    'Calendar and Quick Settings reuse the app-icon hover card');
+assert.ok(runtimeCSS.includes(
+    '#panel.vliq-bottom-taskbar #panelRight .panel-button:checked'),
+    'menu open state keeps the matching rounded active card');
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:active'),
     'mouse press has immediate native button feedback');
