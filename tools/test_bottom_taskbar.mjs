@@ -73,14 +73,18 @@ class Actor {
     }
     connect(name, callback) {const id = ++nextId; this.handlers.set(id, {name, callback});return id;}
     disconnect(id) {this.handlers.delete(id);}
-    emit(name) {for (const h of this.handlers.values()) if (h.name === name) h.callback();}
+    emit(name, ...args) {
+        for (const h of this.handlers.values())
+            if (h.name === name) h.callback(this, ...args);
+    }
 }
 class Button extends Actor {
     constructor(properties) {super(properties);if (properties.child) this.add_child(properties.child);}
 }
-const St = {Icon: Actor, Widget: Actor, BoxLayout: Actor, Button,
+const St = {Icon: Actor, Widget: Actor, BoxLayout: Actor, Button, Label: Actor,
     Side: {TOP: 0, BOTTOM: 1}};
-const Clutter = {ActorAlign: {CENTER: 1}};
+const Clutter = {ActorAlign: {CENTER: 1, END: 2, START: 3},
+    BinLayout: class {}};
 const appAlpha = {
     get_id: () => 'alpha.desktop', get_name: () => 'Alpha',
     get_windows: () => [], create_icon_texture: () => new Actor(),
@@ -193,7 +197,10 @@ const dockEntries = [{
 }];
 let launches = 0;
 let activatedWindow = null;
-const Main = {panel, layoutManager: layout,
+const notificationTray = new Actor();
+notificationTray.sources = [];
+notificationTray.getSources = () => notificationTray.sources;
+const Main = {panel, layoutManager: layout, messageTray: notificationTray,
     overview: {showApps() {launches++;}},
     activateWindow(window) {
         activatedWindow = window;
@@ -330,6 +337,78 @@ assert.equal(runningDots[1].opacity, 255,
     'running pinned app shows its dot');
 assert.equal(runningDots[2].opacity, 255,
     'running unpinned app shows its dot');
+// Ubuntu Dock-style numeric badges reflect GNOME notifications (e.g. a
+// completed Terminal command), NEVER how many app windows are open.
+const betaItem = taskbar._appItems.get('beta.desktop');
+const betaBadge = betaItem.badge;
+const betaButton = betaItem.button;
+assert.ok(betaBadge, 'the app icon owns one notification overlay');
+assert.equal(betaBadge.visible, false,
+    'no notification means no numeric badge, even for running apps');
+assert.equal(betaBadge.reactive, false,
+    'badge cannot intercept app-icon click/hover');
+assert.equal(betaBadge.x_align, Clutter.ActorAlign.END);
+assert.equal(betaBadge.y_align, Clutter.ActorAlign.START);
+assert.equal(betaBadge.get_parent().get_children()[0].get_parent(),
+    betaBadge.get_parent(),
+    'badge shares an icon overlay rather than a separate taskbar slot');
+assert.equal(betaBadge.get_parent().get_parent().get_children()[1],
+    runningDots[1], 'white running dot remains directly beneath icon');
+
+const betaNotifications = new Actor();
+betaNotifications.app = appBeta;
+betaNotifications.notifications = [];
+notificationTray.sources.push(betaNotifications);
+notificationTray.emit('source-added', betaNotifications);
+assert.equal(betaBadge.visible, false);
+const notificationActors = [];
+for (let expected = 1; expected <= 3; expected++) {
+    const notification = new Actor({resident: false});
+    notificationActors.push(notification);
+    betaNotifications.notifications.push(notification);
+    betaNotifications.emit('notification-added', notification);
+    betaNotifications.emit('notify::count');
+    assert.equal(betaBadge.visible, true);
+    assert.equal(betaBadge.text, String(expected),
+        'task completion increments app notification badge');
+    assert.equal(taskbar._appItems.get('beta.desktop').button, betaButton,
+        'notifications must never rebuild hovered icons');
+    assert.equal(runningDots[1].opacity, 255,
+        'task completion cannot replace running indicator');
+}
+const gammaNotifications = new Actor();
+gammaNotifications.appId = 'gamma.desktop';
+gammaNotifications.notifications = [new Actor({resident: false})];
+notificationTray.sources.push(gammaNotifications);
+notificationTray.emit('source-added', gammaNotifications);
+assert.equal(taskbar._appItems.get('gamma.desktop').badge.text, '1',
+    'notification count is scoped to originating app');
+assert.equal(taskbar._appItems.get('alpha.desktop').badge.visible, false,
+    'pinned stopped app has no notification badge');
+assert.equal(betaBadge.text, '3',
+    'unrelated notifications do not increment Beta count');
+const resident = new Actor({resident: true});
+betaNotifications.notifications.push(resident);
+betaNotifications.emit('notification-added', resident);
+assert.equal(betaBadge.text, '3', 'resident media notifications are excluded');
+// GNOME removes the cleared notification from the Source's array, then
+// count-updated notifies VLIQ. Never use a monotonically increasing counter.
+betaNotifications.notifications.shift();
+notificationActors[0].emit('destroy');
+betaNotifications.emit('count-updated');
+assert.equal(betaBadge.text, '2');
+betaNotifications.notifications = [];
+betaNotifications.emit('count-updated');
+assert.equal(betaBadge.visible, false,
+    'clearing notifications also clears the number');
+notificationTray.sources =
+    notificationTray.sources.filter(src => src !== gammaNotifications);
+notificationTray.emit('source-removed', gammaNotifications);
+assert.equal(taskbar._appItems.get('gamma.desktop').badge.visible, false,
+    'destroyed GNOME Source clears its badge');
+assert.equal(gammaNotifications.handlers.size, 0,
+    'removed Source signal subscriptions are released');
+
 // An app becoming stopped must hide the dot; reopening must restore it.
 const originalBetaWindows = appBeta.get_windows;
 appBeta.get_windows = () => [];
@@ -532,6 +611,13 @@ assert.equal(extraMenu._boxPointer._userArrowSide, St.Side.BOTTOM,
     'late panel extension popup opens above taskbar');
 const previewBeforeCleanup = taskbar._previewManager;
 taskbar.cleanup();
+assert.equal(notificationTray.handlers.size, 0,
+    'unhook notification tray events on layout change/hot reload');
+assert.equal(betaNotifications.handlers.size, 0,
+    'unhook native notification sources on teardown');
+for (const notification of notificationActors)
+    assert.equal(notification.handlers.size, 0,
+        'notification destroy signals cannot leak after cleanup');
 assert.equal(previewBeforeCleanup.destroyed, true,
     'hot reload destroys live window previews and pending hover timers');
 assert.equal(taskbar._previewManager, null);
@@ -648,6 +734,13 @@ assert.match(runningDotStyle, /min-height:\s*5px\s*;/,
     'running dot has equal 5px height');
 assert.match(runningDotStyle, /border-radius:\s*999px\s*;/,
     'running indicator is circular');
+const notificationBadgeStyle = runtimeCSS.match(
+    /#panel\.vliq-bottom-taskbar \.vliq-taskbar-notification-badge\s*\{([^}]*)\}/
+)?.[1] ?? '';
+assert.match(notificationBadgeStyle, /border-radius:\s*999px\s*;/,
+    'top-right task notification count has rounded badge styling');
+assert.match(notificationBadgeStyle, /font-size:\s*10px\s*;/);
+assert.match(notificationBadgeStyle, /color:\s*#ffffff\s*!important/);
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar #panelCenter,'),
     'GNOME inherited center-pill background must be neutralised');
