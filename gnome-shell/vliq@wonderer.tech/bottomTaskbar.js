@@ -205,13 +205,14 @@ export class BottomTaskbar {
                 });
                 (this._centerGroup ?? panel._centerBox)
                     .insert_child_at_index(this._start, 0);
-                // Hide native Activities only after a working replacement
-                // Start button has been attached to the real panel.
+                // GNOME 50's native ActivitiesButton shows the workspace
+                // indicators and toggles Overview. Keep it at panelLeft,
+                // with VLIQ Start/apps centered separately in panelCenter.
                 this._activity =
                     panel.statusArea?.activities?.container ?? null;
                 this._activityWasVisible =
                     this._activity?.visible !== false;
-                this._activity?.hide?.();
+                this._activity?.show?.();
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] launcher unavailable: ' +
                     error);
@@ -691,8 +692,13 @@ export class BottomTaskbar {
         }
         this._date = null;
         this._dateParent = null;
-        if (this._activity && this._activityWasVisible)
-            this._activity.show?.();
+        if (this._activity) {
+            // Restore original GNOME visibility when leaving Bottom mode.
+            if (this._activityWasVisible)
+                this._activity.show?.();
+            else
+                this._activity.hide?.();
+        }
         this._activity = null;
 
         for (const [actor, old] of this._dockPaint) {
