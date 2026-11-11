@@ -579,10 +579,28 @@ assert.equal(bottomSessions.at(-1).active, true);
 assert.equal(configurable._regions[0].surface.options.cornerRadius, 0);
 assert.equal(configurable._regions[0].surface.options.borderless, true,
     'Bottom mode alone must disable optical borders');
-assert.equal(configurable._regions[0].surface.bounds.h, panelBox.height);
-assert.equal(configurable._regions[0].surface.bounds.y,
-    layout.primaryMonitor.y + layout.primaryMonitor.height - panelBox.height,
-    'bottom optical header follows moved native panel allocation');
+const bottomGlass = configurable._regions[0].surface;
+const expectedPaintHeight = Math.max(44, panelBox.height);
+assert.equal(bottomGlass.bounds.h, expectedPaintHeight + 2,
+    'Bottom glass extends 2px beyond physical screen for antialiased edge');
+assert.equal(bottomGlass.bounds.y,
+    layout.primaryMonitor.y + layout.primaryMonitor.height -
+        expectedPaintHeight,
+    'Bottom glass starts above full 44px bar height, never 36px stale CSS');
+assert.equal(bottomGlass.bounds.y + bottomGlass.bounds.h,
+    layout.primaryMonitor.y + layout.primaryMonitor.height + 2,
+    'Bottom shader cannot leave a visible lower-screen gap');
+assert.equal(bottomGlass.bounds.x, layout.primaryMonitor.x - 2);
+assert.equal(bottomGlass.bounds.w, layout.primaryMonitor.width + 4);
+// GNOME sometimes reports a stale transformed panel Y by 6-10px after
+// work-area changes; only the native controls follow it, not GPU coverage.
+const stableBottomPaint = bottomGlass.bounds;
+panelBox.y -= 8;
+configurable.sync();
+assert.equal(bottomGlass.bounds, stableBottomPaint,
+    'transient position jitter must not move/repaint the glass strip');
+panelBox.y += 8;
+configurable.sync();
 assert.equal(stageSignals.size, 1);
 const oldBottomSurface = configurable._regions[0].surface;
 const stableBottomBounds = oldBottomSurface.bounds;
