@@ -343,6 +343,55 @@
     box-shadow: none !important;
 }
 
+/* Bottom Taskbar: same bounded glass pipeline as Full Header, but
+ * GNOME's original panelBox now sits at the primary monitor bottom.
+ * Native Date Menu / Quick Settings keep full keyboard/menu semantics. */
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar {
+    background-color: rgba(232, 242, 255, 0.13) !important;
+    background-image: none !important;
+    border-radius: 0px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 3px 5px;
+    margin: 0px 1px;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:hover,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover,
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher:focus,
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:focus {
+    background-color: rgba(255,255,255,0.12) !important;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-apps {
+    spacing: 2px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-app-content {
+    spacing: 1px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-running-dot {
+    min-width: 10px;
+    min-height: 2px;
+    background-color: rgba(235,244,255,0.88);
+    border-radius: 2px;
+}
+#panel.vliq-bottom-taskbar .vliq-taskbar-launcher-icon {
+    color: #ffffff;
+}
+
 /* End independent panel islands. Native GNOME menu controls are untouched. */
 
 /* Top Panel controls: keep GNOME spacing/iconography untouched. Only hover,

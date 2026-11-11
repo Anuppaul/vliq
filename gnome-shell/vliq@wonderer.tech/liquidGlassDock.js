@@ -496,6 +496,7 @@ export class LiquidGlassIntegration {
         this._osdManager = null;
         this._nativeDashEntries = [];
         this._topPanelIslands = null;
+        this._bottomLauncherCallback = null;
         this._fullscreenPanelChromeGuard = null;
         this._dashToDockSettings = null;
         this._dashToDockPanelModeId = 0;
@@ -2016,6 +2017,14 @@ export class LiquidGlassIntegration {
         Main.messageTray?._banner?.queue_redraw?.();
     }
 
+    setBottomTaskbarLauncher(callback) {
+        this._bottomLauncherCallback =
+            typeof callback === 'function' ? callback : null;
+        this._topPanelIslands?.setLauncherCallback?.(
+            this._bottomLauncherCallback
+        );
+    }
+
     _setupTopPanelGlass() {
         if (this._topPanelIslands || !Main.panel)
             return;
@@ -2029,6 +2038,8 @@ export class LiquidGlassIntegration {
                 vendor: this._vendor,
                 settings: this._settings,
                 layoutSettings: this._vliqSettings,
+                getDockEntries: () => this._nativeDashEntries,
+                onLauncherClick: this._bottomLauncherCallback,
                 readAppearance: () => this._readSharedCardAppearance(),
             });
             if (!manager.setup()) {
@@ -3391,6 +3402,13 @@ export class LiquidGlassIntegration {
 
     _nativeDockGlassVisible(entry) {
         if (!entry?.container)
+            return false;
+
+        // The single bottom taskbar replaces Ubuntu Dock's visual strip.
+        // Retain its native state, but never paint a second overlapping
+        // Liquid Glass backplate until the user returns to header mode.
+        if (this._vliqSettings?.get_string?.(
+            'top-header-layout') === 'bottom')
             return false;
 
         if (this._dockIsPanelMode())

@@ -615,29 +615,30 @@ export default class VLIQPreferences extends ExtensionPreferences {
         );
 
         // -----------------------------------------------------------------
-        // Top Header
+        // Desktop Layout: the native GNOME header or one bottom taskbar.
         // -----------------------------------------------------------------
         const headerPage = addPage(
             window,
-            'Top Header',
-            'go-top-symbolic'
+            'Desktop Layout',
+            'video-display-symbolic'
         );
         const topHeader = new Adw.PreferencesGroup({
-            title: 'Top Header Layout',
+            title: 'Desktop Panel Position',
             description:
-                'Choose one full-width Liquid Glass header or three separate rounded sections. Applies immediately without moving GNOME controls.',
+                '3-Part and Full use the top header. Bottom Taskbar moves native GNOME controls and shows pinned/running apps at the bottom. Change modes live.',
         });
         headerPage.add(topHeader);
         const headerLayout = new Adw.ComboRow({
-            title: 'Header style',
+            title: 'Desktop layout',
             subtitle:
-                '3-Part: Left / Date / Quick Settings. Full: one continuous top bar.',
+                'Choose the original header or a single Windows-style bottom taskbar.',
             model: Gtk.StringList.new([
                 '3-Part Header',
                 'Full Header',
+                'Bottom Taskbar',
             ]),
         });
-        const headerLayoutValues = ['split', 'full'];
+        const headerLayoutValues = ['split', 'full', 'bottom'];
         let syncingHeaderLayout = false;
         const syncHeaderLayout = () => {
             syncingHeaderLayout = true;

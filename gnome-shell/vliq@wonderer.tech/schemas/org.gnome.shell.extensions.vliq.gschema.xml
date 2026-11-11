@@ -212,9 +212,10 @@
       <choices>
         <choice value="split"/>
         <choice value="full"/>
+        <choice value="bottom"/>
       </choices>
-      <summary>Top header glass layout</summary>
-      <description>Split creates three rounded left/center/right islands. Full paints one bounded square-corner edge-to-edge strip without reparenting GNOME controls.</description>
+      <summary>GNOME desktop panel layout</summary>
+      <description>Split and Full use the top header. Bottom moves GNOME's original panel to the primary monitor bottom, preserving menu actors and providing taskbar app launchers.</description>
     </key>
 
     <key name="panel-menu-hover-switch" type="b">

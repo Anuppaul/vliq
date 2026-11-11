@@ -356,6 +356,12 @@ export default class VLIQRuntime extends Extension {
         this._setOrbEnabled(
             this._settings.get_boolean('orb-enabled')
         );
+        // The bottom taskbar's VLIQ Start control opens the exact same
+        // native GNOME Apps view as the standalone Orb.
+        this._liquidGlassIntegration?.setBottomTaskbarLauncher?.(
+            () => this._showAllApps()
+        );
+        this._syncOrbTaskbarMode();
         this._connectSignals();
         this._setupDockHoverPreviews();
 
@@ -476,6 +482,29 @@ export default class VLIQRuntime extends Extension {
         this._syncLayerSize();
     }
 
+    _syncOrbTaskbarMode() {
+        if (!this._orb)
+            return;
+        const bottom = this._settings?.get_string?.(
+            'top-header-layout') === 'bottom';
+        if (bottom) {
+            this._cancelOpenTimer();
+            this._cancelCloseTimer();
+            this._cancelOrbAutoHideTimer();
+            this._cancelOrbAutoFadeTimer();
+            this._closeMenu(true);
+            this._hideAppPreview?.(true);
+            this._orb.remove_all_transitions?.();
+            this._orb.hide?.();
+        } else {
+            this._orb.show?.();
+            if (this._orbHidden)
+                this._revealOrb();
+            this._scheduleOrbAutoHide();
+            this._scheduleOrbAutoFade();
+        }
+    }
+
     _setOrbEnabled(enabled) {
         if (enabled) {
             if (this._orb)
@@ -485,6 +514,7 @@ export default class VLIQRuntime extends Extension {
             this._syncOrbFromSettings();
             this._scheduleOrbAutoHide();
             this._scheduleOrbAutoFade();
+            this._syncOrbTaskbarMode();
             return;
         }
 
@@ -750,6 +780,10 @@ export default class VLIQRuntime extends Extension {
 
     _connectSignals() {
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
+            if (key === 'top-header-layout') {
+                this._syncOrbTaskbarMode();
+                return;
+            }
             if (key === 'orb-x' || key === 'orb-y') {
                 if (!this._writingOrbPosition) {
                     this._syncOrbFromSettings();

@@ -385,10 +385,30 @@ layoutSettings.set_string = (key, next) => {
     layoutSettings.emit('changed::top-header-layout');
 };
 const beforeFull = glassSurfaces.length;
+const bottomSessions = [];
 const configurable = new TopBarIslands({
     vendor: {}, settings: {},
     layoutSettings, readAppearance: () => ({opacity: 0.05}),
     panel, layout, display,
+    bottomTaskbarFactory(options) {
+        const session = {
+            options,
+            active: false,
+            setup() {
+                this.active = true;
+                panelBox.y = layout.primaryMonitor.y +
+                    layout.primaryMonitor.height - panelBox.height;
+                return true;
+            },
+            cleanup() {
+                this.active = false;
+                panelBox.y = layout.primaryMonitor.y;
+            },
+            setLauncherCallback(callback) {this.callback = callback;},
+        };
+        bottomSessions.push(session);
+        return session;
+    },
 });
 assert.equal(configurable.setup(), true);
 assert.equal(configurable._layoutMode, 'full');
@@ -464,6 +484,34 @@ const beforeTickWrites = fullAgain.surface.boundsWrites;
 stage.tick();
 assert.equal(fullAgain.surface.boundsWrites, beforeTickWrites,
     'stationary full header should not rewrite glass bounds');
+// Switch from Full to Bottom and back without remounting native controls.
+layoutSettings.set_string('top-header-layout', 'bottom');
+assert.equal(configurable._layoutMode, 'bottom');
+assert.equal(configurable._regions.length, 1);
+assert.ok(panel.classes.has('vliq-bottom-taskbar'));
+assert.ok(panel.classes.has('vliq-full-header'));
+assert.ok(!panel.classes.has('vliq-three-islands'));
+assert.equal(bottomSessions.length, 1);
+assert.equal(bottomSessions[0].active, true);
+assert.equal(configurable._regions[0].surface.options.cornerRadius, 0);
+assert.equal(configurable._regions[0].surface.bounds.h, panelBox.height);
+assert.equal(configurable._regions[0].surface.bounds.y,
+    layout.primaryMonitor.y + layout.primaryMonitor.height - panelBox.height,
+    'bottom optical header follows moved native panel allocation');
+assert.equal(stageSignals.size, 1);
+const oldBottomSurface = configurable._regions[0].surface;
+layoutSettings.set_string('top-header-layout', 'bottom');
+assert.equal(configurable._regions[0].surface, oldBottomSurface,
+    'repeating current layout must not recreate GPU material');
+layoutSettings.set_string('top-header-layout', 'full');
+assert.equal(bottomSessions[0].active, false,
+    'exit restores original GNOME panel and Dock state');
+assert.equal(panelBox.y, layout.primaryMonitor.y);
+assert.equal(oldBottomSurface.destroyed, true);
+assert.equal(configurable._regions.length, 1);
+assert.ok(!panel.classes.has('vliq-bottom-taskbar'));
+assert.equal(configurable._regions[0].surface.bounds.y, 0);
+assert.equal(stageSignals.size, 1);
 configurable.cleanup();
 assert.equal(stageSignals.size, 0);
 assert.equal(layoutSettings.signals.size, 0,
@@ -477,6 +525,8 @@ const css = await readFile(new URL(
 ), 'utf8');
 assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-three-islands/);
 assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-full-header/);
+assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-bottom-taskbar/);
+assert.match(css, /\.vliq-taskbar-app-button/);
 assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-full-header\.vliq-top-header-ready/);
 assert.match(css, /#panelLeft\.vliq-panel-island/);
 assert.match(css, /#panelCenter\.vliq-panel-island/);
@@ -527,13 +577,16 @@ const prefs = await readFile(new URL(
 assert.match(schema, /name="top-header-layout" type="s"/);
 assert.match(schema, /<default>'split'<\/default>/,
     'original three-part look is default');
-assert.match(prefs, /'Top Header Layout'/);
-assert.match(prefs, /'Top Header',/,
-    'layout selector has a dedicated preferences page');
+assert.match(prefs, /'Desktop Panel Position'/);
+assert.match(prefs, /'Desktop Layout',/,
+    'layout selector has a dedicated desktop layout page');
 assert.match(prefs, /headerPage.add\(topHeader\)/,
     'Header layout controls belong in the Top Header page');
 assert.match(prefs, /'Full Header'/);
 assert.match(prefs, /'3-Part Header'/);
+assert.match(prefs, /'Bottom Taskbar'/);
+assert.match(schema, /<choice value="bottom"\s*\/>/,
+    'bottom layout persisted in canonical schema');
 
 const installer = await readFile(new URL(
     '../gnome-shell/install.sh', import.meta.url

@@ -7,6 +7,7 @@ import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {frameDue} from './frameBudget.js';
 import {PanelGlassSurface} from './panelGlass.js';
+import {BottomTaskbar} from './bottomTaskbar.js';
 import {primaryPanelIsFullscreen} from './fullscreenPanelGuard.js';
 
 const STAGE_SYNC_FPS = 24;
@@ -29,14 +30,20 @@ function clamp(value, minimum, maximum) {
 
 export class TopBarIslands {
     constructor({vendor, settings, readAppearance, layoutSettings = null,
-        panel = Main.panel, layout = Main.layoutManager,
-        display = global.display}) {
+        bottomTaskbarFactory = null, getDockEntries = null,
+        onLauncherClick = null, panel = Main.panel,
+        layout = Main.layoutManager, display = global.display}) {
         this._vendor = vendor;
         this._settings = settings;
         // VLIQ's canonical schema controls the layout. The renderer's
         // separate settings still control LiquidEffect optics.
         this._layoutSettings = layoutSettings;
         this._layoutMode = 'split';
+        this._bottomTaskbarFactory = bottomTaskbarFactory ??
+            (options => new BottomTaskbar(options));
+        this._getDockEntries = getDockEntries;
+        this._onLauncherClick = onLauncherClick;
+        this._bottomTaskbar = null;
         this._readAppearance = readAppearance;
         this._panel = panel;
         this._layout = layout;
@@ -51,6 +58,12 @@ export class TopBarIslands {
         this._hasReportedReady = false;
         this._lastStageSyncUs = 0;
         this._syncing = false;
+    }
+
+    setLauncherCallback(callback) {
+        this._onLauncherClick = typeof callback === 'function'
+            ? callback : null;
+        this._bottomTaskbar?.setLauncherCallback?.(callback);
     }
 
     setVisibilityGate(callback) {
@@ -139,8 +152,11 @@ export class TopBarIslands {
 
     _preferredLayout() {
         try {
-            return this._layoutSettings?.get_string?.('top-header-layout')
-                === 'full' ? 'full' : 'split';
+            const selected = this._layoutSettings?.get_string?.(
+                'top-header-layout'
+            );
+            return selected === 'full' || selected === 'bottom'
+                ? selected : 'split';
         } catch {
             return 'split';
         }
@@ -161,6 +177,10 @@ export class TopBarIslands {
             }
         }
         this._regions = [];
+        // Restore native GNOME chrome before creating the next header.
+        this._bottomTaskbar?.cleanup?.();
+        this._bottomTaskbar = null;
+        this._panel?.remove_style_class_name?.('vliq-bottom-taskbar');
         this._panel?.remove_style_class_name?.('vliq-three-islands');
         this._panel?.remove_style_class_name?.('vliq-full-header');
         this._panel?.remove_style_class_name?.('vliq-top-header-ready');
@@ -172,7 +192,18 @@ export class TopBarIslands {
         this._layoutMode = mode;
         const panel = this._panel;
         panel.add_style_class_name('vliq-liquid-top-panel');
-        if (mode === 'full') {
+        if (mode === 'full' || mode === 'bottom') {
+            if (mode === 'bottom') {
+                this._bottomTaskbar = this._bottomTaskbarFactory({
+                    panel: this._panel, layout: this._layout,
+                    display: this._display,
+                    getDockEntries: this._getDockEntries,
+                    onLauncherClick: this._onLauncherClick,
+                });
+                if (!this._bottomTaskbar?.setup?.())
+                    throw new Error('native bottom taskbar unavailable');
+                panel.add_style_class_name('vliq-bottom-taskbar');
+            }
             // One edge-to-edge bounded panel. It is placed under the native
             // panelBox and spans only its allocated 36-ish-pixel height.
             const surface = new PanelGlassSurface(
@@ -297,7 +328,8 @@ export class TopBarIslands {
     }
 
     _syncNow() {
-        if (this._layoutMode === 'full') {
+        if (this._layoutMode === 'full' ||
+            this._layoutMode === 'bottom') {
             this._syncFullHeader();
             return;
         }
