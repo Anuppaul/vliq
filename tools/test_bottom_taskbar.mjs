@@ -664,6 +664,30 @@ assert.match(runtimeCSS, /min-height:\s*44px;/,
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar #panelLeft #panelActivities'),
     'Bottom left native workspace toggle has scoped styling');
+const nativeWorkspaceBase = runtimeCSS.match(
+    /#panel\\.vliq-bottom-taskbar #panelLeft #panelActivities\\s*\\{([^}]+)\\}/
+)?.[1] ?? '';
+const nativeWorkspaceHover = runtimeCSS.match(
+    /#panel\\.vliq-bottom-taskbar #panelLeft #panelActivities:hover,[^{]*\\{([^}]+)\\}/
+)?.[1] ?? '';
+const nativeWorkspacePressed = runtimeCSS.match(
+    /#panel\\.vliq-bottom-taskbar #panelLeft #panelActivities:active,[^{]*\\{([^}]+)\\}/
+)?.[1] ?? '';
+assert.match(nativeWorkspaceBase, /background-color:\\s*transparent\\s*!important/,
+    'workspace switcher stays visually clear without hover');
+assert.match(nativeWorkspaceBase, /border-radius:\\s*11px/,
+    'workspace hover matches Quick Menu premium card roundness');
+assert.match(nativeWorkspaceHover,
+    /background-color:\\s*rgba\\(219, 223, 229, 0\\.18\\)\\s*!important/,
+    'workspace hover uses exact Quick Menu soft gray-white');
+assert.match(nativeWorkspaceHover,
+    /inset 0 0 0 1px rgba\\(220, 225, 232, 0\\.15\\)/,
+    'workspace hover uses the same single Quick Menu inset rim');
+assert.match(nativeWorkspacePressed,
+    /background-color:\\s*rgba\\(219, 223, 229, 0\\.27\\)\\s*!important/,
+    'workspace pressed state uses same stronger gray');
+assert.ok(!nativeWorkspaceBase.includes('padding:'),
+    'workspace native input geometry stays unchanged');
 assert.ok(runtimeCSS.includes(
     '#panel.vliq-bottom-taskbar .panel-corner'),
     'Bottom mode suppresses native panel corner borders');
