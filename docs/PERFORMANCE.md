@@ -15,6 +15,10 @@ python3 tools/vliq_perf.py capture --label orb-all-apps --seconds 20
 python3 tools/vliq_perf.py capture --label panel-idle --seconds 20
 # While recording, repeatedly reveal/hide the native dock panel:
 python3 tools/vliq_perf.py capture --label panel-motion --seconds 20
+# Select Desktop Layout -> Bottom Taskbar before these optional captures:
+python3 tools/vliq_perf.py capture --label bottom-taskbar-idle --seconds 20
+# During recording, hover and click running apps, then minimize/restore:
+python3 tools/vliq_perf.py capture --label bottom-taskbar-clicks --seconds 20
 ```
 
 During idle, keep the desktop still. During Overview/App Grid, leave the surface open. For Orb All Apps, keep a representative page open and still. Record a separate run for paging or rapid transitions. All reports are local at dist/vliq-perf/ (ignored by Git) as CSV and summary JSON.
@@ -45,7 +49,15 @@ Use --pid PID if multiple same-user gnome-shell processes exist, --delay 10 to g
 - Orb's small, single-batch surface still samples every compositor frame. Expanded, **stationary** All Apps pages (>16 visible regions) cap geometry/hover scans at 30 FPS; while translation/scale/opacity transitions are active, region placement follows **every compositor frame**. The window-clone scene keeps its original 24 FPS cap. Newly scanned/revealed regions get an immediate pass.
 - The existing native-Dock 180 px monitor-thickness guard, stage clipping, fallback veil and no-fullscreen-panel-FBO architecture are unchanged. This optimization does not claim measured CPU, GPU, FPS or latency gains: capture the same desktop scenarios and compositor traces before attributing improvements.
 
-Runtime guard checks: `node tools/test_frame_budget.mjs`; VLIQ JS modules are syntax-checked on PRs.
+### Bottom Taskbar rendering safeguards (source-level)
+
+- The native GNOME Shell 50 `panelBox` is reused, not duplicated. A single panel-height LiquidEffect paints behind native controls while the old Ubuntu Dock root, background sibling and input actor remain concealed.
+- A cached `WeakMap` tracks the native Dock root for normal compositor frames; cache entries are invalidated on monitor rebuild or actor-parent replacement. The per-frame guard still detects a reappearing Dock and hides it before paint, rather than throttling visual correctness.
+- Popup arrow reconciliation responds to native panel child-added signals and runs a fallback scan at most once per **350 ms** during an active compositor frame. A stationary panel avoids a menu-tree scan every frame.
+- Unchanged app IDs keep their native `St.Button`, texture, hover and focus state; app-start/stop only updates the existing 5 px running dot. Same-order app-state events skip redundant Clutter child-order queries. Mode exit releases cached actor references and restores GNOME/Ubuntu Dock state.
+- These are **code-path reductions, not measured CPU/FPS gains**. Compare bottom-taskbar-idle and bottom-taskbar-clicks captures to a pre-change build under identical conditions; use Sysprof to measure paint duration or stutter.
+
+Runtime guard checks: `node tools/test_frame_budget.mjs` and `node tools/test_bottom_taskbar.mjs`; VLIQ JS modules are syntax-checked on PRs.
 
 ## Transition blink / jump regression checklist
 
@@ -58,7 +70,9 @@ GNOME Overview / Home → Applications keeps a single native wallpaper BlurEffec
 2. Select Orb app source = All and open an expanded list with >16 apps. Test each geometry, then move between available pages via scroll. Check that icon glass and the icon themselves move in sync.
 3. Open/close Home (Activities) → Show Applications repeatedly. Verify no one-frame sharp-to-blurred pulse, black panel, or overlay flash.
 4. Verify dock autohide, native Panel Mode and panel↔dock switching remain unchanged.
-5. Use the performance sampler from above under matching conditions. A CI syntax/unit test alone cannot prove frame-perfect rendering on a real compositor.
+5. Switch VLIQ Desktop Layout between 3-Part, Full and Bottom repeatedly. Confirm no duplicate dark Dock pill, and no optical border on Bottom. Use a fast app-icon click/focus/minimize cycle: icons must stay painted without a blink while the running dot changes.
+6. While Bottom mode is active, rebuild GNOME monitor/work-area geometry and verify Activities on the left, Start/apps centered, Date/Quick Settings on the right, and menus opening above the bar.
+7. Use the performance sampler from above under matching conditions. A CI syntax/unit test alone cannot prove frame-perfect rendering on a real compositor.
 
 CI smoke checks: `node tools/test_frame_budget.mjs` and `node tools/test_orb_transitions.mjs`.
 
