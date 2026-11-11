@@ -565,8 +565,19 @@
 
 /* Keep ONLY the native GNOME Date/Clock white in Bottom Taskbar.
  * The rest of the panel retains its existing adaptive text palette. */
-#panel.vliq-bottom-taskbar #panelRight .clock {
+/* GNOME/Yaru paints a separate rounded pill on the inner .clock label
+ * for .clock-display:hover/:focus/:checked. Keep the OUTER milky Date
+ * button hover card, but suppress the clock label's own theme paint. */
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:hover .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:focus .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:active .clock,
+#panel.vliq-bottom-taskbar #panelRight .clock-display:checked .clock {
     color: #ffffff !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 /* End independent panel islands. Native GNOME menu controls are untouched. */
