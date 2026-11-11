@@ -598,9 +598,10 @@ assert.ok(panel.classes.has('vliq-top-header-ready'),
 assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
     'no double background is allowed during transient shader invalidation');
 configurable.sync();
-assert.ok(!panel.classes.has('vliq-bottom-taskbar-glass-attached'),
-    'prolonged GPU failure must restore one CSS fallback only');
-assert.ok(!panel.classes.has('vliq-top-header-ready'));
+assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'even prolonged GPU stall must not layer CSS over cached GPU texture');
+assert.ok(!panel.classes.has('vliq-top-header-ready'),
+    'prolonged GPU stall is visible in readiness health');
 oldBottomSurface._ready = true;
 configurable.sync();
 assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
