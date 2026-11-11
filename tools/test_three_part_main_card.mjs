@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-// 3-Part Header: native hover-card material becomes the persistent island
-// face, with no nested button card and no regressions in other layouts.
+// 3-Part Header: Liquid/Frosted use bounded glass materials and Milky
+// uses the existing native card, with no nested button or layout changes.
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');
@@ -25,30 +25,30 @@ for (const id of ['panelLeft', 'panelCenter', 'panelRight']) {
     const milky = '.vliq-global-milky ' + island;
     const fallback = '#panel.vliq-three-islands #' + id +
         '.vliq-panel-island-css-fallback';
-    assert.match(declarations(island), /rgba\\(232, 242, 255, 0\\.13\\)/,
+    assert.match(declarations(island), /rgba\(232, 242, 255, 0\.13\)/,
         'shader fallback cannot be opaque');
     assert.match(declarations(ready), /background-color: transparent !important/,
         'Liquid/Frosted material is the only ready painter');
     for (const selector of [milky, fallback]) {
         const body = declarations(selector);
-        assert.match(body, /rgba\\(245, 249, 255, 0\\.24\\)/);
-        assert.match(body, /rgba\\(255, 255, 255, 0\\.20\\)/);
+        assert.match(body, /rgba\(245, 249, 255, 0\.24\)/);
+        assert.match(body, /rgba\(255, 255, 255, 0\.20\)/);
         assert.match(body, /border-radius: 16px/);
     }
     const inactive = '.vliq-global-milky ' + island +
         '.vliq-panel-island-inactive';
     assert.match(declarations(inactive), /background-color: transparent !important/);
 }
-assert.match(top, /\\{cornerRadius: RADIUS\\}/,
+assert.match(top, /\{cornerRadius: RADIUS\}/,
     '3-Part allocates real bounded Liquid/Frosted shaders');
-assert.match(top, /\\{cornerRadius: RADIUS, cssOnly: true\\}/,
+assert.match(top, /\{cornerRadius: RADIUS, cssOnly: true\}/,
     'GPU failure has safe CSS-only fallback');
 assert.match(top, /vliq-panel-island-css-fallback/,
     'fallback class persists until layout is rebuilt');
 assert.match(top, /vliq-panel-island-inactive/,
     'native empty GNOME boxes remain hidden');
-assert.match(css, /#panel\\.vliq-liquid-top-panel\\.vliq-full-header/);
-assert.match(css, /#panel\\.vliq-liquid-top-panel\\.vliq-bottom-taskbar/);
-assert.match(css, /\\.vliq-liquid-popup-content\\.datemenu-popover \\.calendar/);
-assert.match(css, /\\.vliq-liquid-popup-content\\.quick-settings \\.quick-toggle/);
+assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-full-header/);
+assert.match(css, /#panel\.vliq-liquid-top-panel\.vliq-bottom-taskbar/);
+assert.match(css, /\.vliq-liquid-popup-content\.datemenu-popover \.calendar/);
+assert.match(css, /\.vliq-liquid-popup-content\.quick-settings \.quick-toggle/);
 console.log('3-Part Liquid/Frosted shader, Milky CSS and safe fallback PASS.');
