@@ -11,11 +11,16 @@ const source = (await readFile(new URL(
     .replace(/^export\s+/gm, '');
 
 let nextId = 0;
+let nowUs = 1_000_000;
+const glib = {get_monotonic_time: () => nowUs};
 const stageSignals = new Map();
 const stage = {
     connect(_name, cb) {const id = ++nextId; stageSignals.set(id, cb); return id;},
     disconnect(id) {stageSignals.delete(id);},
-    tick() {for (const cb of [...stageSignals.values()]) cb();},
+    tick(advanceUs = 16_666) {
+        nowUs += advanceUs;
+        for (const cb of [...stageSignals.values()]) cb();
+    },
 };
 class Actor {
     constructor(properties = {}) {
@@ -185,9 +190,9 @@ const Main = {panel, layoutManager: layout,
     },
 };
 const BottomTaskbar = new Function(
-    'St','Clutter','Gio','Shell','Main','global','console',
+    'St','Clutter','Gio','GLib','Shell','Main','global','console',
     source + '\nreturn BottomTaskbar;'
-)(St,Clutter,{Settings: class extends Actor {}},
+)(St,Clutter,{Settings: class extends Actor {}},glib,
     {AppSystem: {get_default: () => appSystem}},Main,
     {stage, display}, {warn() {}, log() {}});
 const taskbar = new BottomTaskbar({
@@ -197,6 +202,27 @@ const taskbar = new BottomTaskbar({
 });
 assert.equal(taskbar.setup(), true);
 assert.equal(taskbar.isActive(), true);
+assert.equal(taskbar._dockRootCache.get(dock)?.root, nativeDockRoot,
+    'native Dock root is cached for stage-frame concealment');
+// The normal paint-frame path must not re-walk every Dock ancestor or
+// rescan every menu. These are source-level work counters, not FPS claims.
+let arrowScans = 0;
+const originalSyncArrows = taskbar._syncMenuArrows.bind(taskbar);
+taskbar._syncMenuArrows = function () {
+    arrowScans++;
+    return originalSyncArrows();
+};
+for (let i = 0; i < 12; i++)
+    stage.tick();
+assert.equal(arrowScans, 0,
+    'stationary frames must avoid redundant statusArea menu scans');
+stage.tick(400_000);
+assert.equal(arrowScans, 1,
+    'menu scan fallback runs after bounded delay');
+assert.equal(taskbar._dockRootCache.get(dock)?.root, nativeDockRoot,
+    'cached native Dock root remains valid across painted frames');
+// Native relayout must invalidate old ancestry before attaching a new
+// dock root, rather than caching an unrelated GNOME chrome actor.
 assert.notEqual(layout._updateBoxes, originalUpdateBoxes,
     'bottom mode must intercept GNOME 50 native top-panel relayout');
 assert.ok(regionUpdates >= 1,
@@ -359,7 +385,16 @@ const previousButton = taskbar._appStrip.get_children()[0];
 const previousBetaButton = taskbar._appStrip.get_children()[1];
 const previousGammaButton = taskbar._appStrip.get_children()[2];
 stage.tick();
+const originalGetAppChildren = taskbar._appStrip.get_children.bind(taskbar._appStrip);
+let redundantLayoutReads = 0;
+taskbar._appStrip.get_children = function () {
+    redundantLayoutReads++;
+    return originalGetAppChildren();
+};
 appSystem.emit('app-state-changed');
+assert.equal(redundantLayoutReads, 0,
+    'running-state-only updates avoid Clutter child-order queries');
+taskbar._appStrip.get_children = originalGetAppChildren;
 assert.equal(taskbar._appStrip.get_children()[0], previousButton,
     'unchanged state signal must not rebuild icons');
 favorites = ['beta.desktop', 'alpha.desktop'];
@@ -406,7 +441,13 @@ assert.equal(dock.reactive, false, 'native Dock must not steal clicks');
 assert.ok(dockPanelSurface.hideCalls >= 2,
     'native Dock glass remains hidden across repeated compositor frames');
 layout.primaryMonitor = {x: 1920, y: 0, width: 1280, height: 720};
+const previousRootCache = taskbar._dockRootCache;
 layout.emit('monitors-changed');
+assert.notEqual(taskbar._dockRootCache, previousRootCache,
+    'monitor geometry rebuild invalidates native Dock root cache');
+stage.tick();
+assert.equal(taskbar._dockRootCache.get(dock)?.root, nativeDockRoot,
+    'next frame safely repopulates Dock root cache');
 assert.deepEqual(panelBox.get_position(), [1920, 684],
     'panel follows primary monitor changes');
 // GNOME can reconstruct its panel placements during session-mode changes.
@@ -437,7 +478,9 @@ assert.equal(taskbar._appStrip.get_children()[1], beforeExitButtons[1],
     'unrelated running icon exit must preserve pinned icon 2');
 const extraMenu = menu();
 panel.statusArea.newExtension = {menu: extraMenu};
-stage.tick();
+// A new indicator that bypassed child-added is repaired by the
+// low-frequency fallback; do not force a complete stage-tree scan.
+stage.tick(400_000);
 assert.equal(extraMenu._boxPointer._userArrowSide, St.Side.BOTTOM,
     'late panel extension popup opens above taskbar');
 taskbar.cleanup();
@@ -479,6 +522,10 @@ assert.equal(taskbar._centerGroup, null,
     'no invisible centered group remains after hot-unload');
 assert.equal(taskbar._appItems.size, 0,
     'hot unload clears cached app actors');
+assert.equal(taskbar._dockRootCache.get(dock), undefined,
+    'hot unload clears cached native Dock roots');
+assert.equal(taskbar._lastMenuReconcileUs, 0,
+    'hot unload stops menu scan bookkeeping');
 assert.equal(panel._centerBox.get_children().length, 1,
     'native Date Menu is sole restored center child');
 assert.equal(shellSettings.handlers.size, 0);
