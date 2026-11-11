@@ -31,21 +31,32 @@ const readAppearance = method(dock, '_readSharedCardAppearance() {',
     });
 const source = {_vliqSettings: settings};
 assert.equal(readAppearance.call(source).milky, true);
-for (const name of ['liquid', 'frosted']) {
+for (const name of ['liquid', 'frosted', 'charcoal']) {
     selected = name;
-    assert.equal(readAppearance.call(source).milky, false);
+    const appearance = readAppearance.call(source);
+    assert.equal(appearance.milky, false,
+        'only Milky suppresses global shaders');
+    assert.equal(appearance.charcoal, name === 'charcoal');
 }
 const classes = new Set();
 const host = {
     add_style_class_name(v) {classes.add(v);},
     remove_style_class_name(v) {classes.delete(v);},
 };
-const syncClass = method(dock, '_syncMilkyAppearanceClass(enabled) {',
+const syncClass = method(dock, '_syncMilkyAppearanceClass(enabled, charcoal = false) {',
     '_applySharedCardAppearance()', '_syncMilkyAppearanceClass',
     {Main: {layoutManager: {uiGroup: host}}});
 const classHost = {_syncMilkyOsdMaterial() {}};
 syncClass.call(classHost, true);
 assert.ok(classes.has('vliq-global-milky'));
+syncClass.call(classHost, false);
+assert.ok(!classes.has('vliq-global-milky'));
+syncClass.call(classHost, false, true);
+assert.ok(classes.has('vliq-global-charcoal'));
+assert.ok(!classes.has('vliq-global-milky'));
+syncClass.call(classHost, true);
+assert.ok(classes.has('vliq-global-milky'));
+assert.ok(!classes.has('vliq-global-charcoal'));
 syncClass.call(classHost, false);
 assert.ok(!classes.has('vliq-global-milky'));
 assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._syncMilkyAppearanceClass\(false\)/);
@@ -143,7 +154,7 @@ assert.match(dock, /buildMilkyAppearanceCss\(state\)/,
 // OSD owns a separate legacy vendor render path. Its instance adapter
 // must hide the shader even when the GJS vendor module was hot-cached.
 const installOsd = method(dock, '_installMilkyOsdAdapter() {',
-    '_syncMilkyAppearanceClass(enabled) {', '_installMilkyOsdAdapter');
+    '_syncMilkyAppearanceClass(enabled, charcoal = false) {', '_installMilkyOsdAdapter');
 let oldOsdPaint = 0, osdHidden = 0;
 const osd = {_syncGeometry() {oldOsdPaint++;}};
 const osdHost = {_osdManager: osd, _milkyModeActive: true};

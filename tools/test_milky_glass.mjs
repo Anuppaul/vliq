@@ -97,7 +97,7 @@ assert.match(milkyBranch, /vliq_milky_border/);
 assert.match(milkyBranch, /cogl_color_out = vec4\(body \* a, a\)/);
 assert.doesNotMatch(milkyBranch,
     /texture2D|sampleBackdrop|refract\(|shadowAlpha|new\s+/);
-assert.match(topbar, /cornerRadius: RADIUS\}/,
+assert.match(topbar, /cornerRadius: RADIUS, charcoalHeader: true\}/,
     '3-Part restores the optical material for Liquid and Frosted');
 assert.match(topbar, /cssOnly: true/,
     '3-Part retains a native fallback when glass fails');
