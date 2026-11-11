@@ -2239,8 +2239,8 @@ class PopupGlassSurface {
     }
 
     syncFrame() {
-        if (this._destroyed)
-            return;
+        if (this._destroyed || this._milky)
+            return; // No shader frame or backdrop clones for native Milky.
 
         // Check BEFORE the fixed-FPS frame throttle: opening the Calendar
         // on Super/Overview must never show one stale browser-web frame.
