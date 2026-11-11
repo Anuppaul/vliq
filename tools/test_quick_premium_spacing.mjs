@@ -25,7 +25,9 @@ function declarations(selector) {
 const grid = declarations('.vliq-liquid-popup-content.quick-settings .quick-settings-grid {');
 assert.equal(grid['spacing-rows'], '10px');
 assert.equal(grid['spacing-columns'], '10px');
-assert.equal(grid.padding, '4px 2px 6px 2px');
+assert.match(quick,
+    /\.quick-settings-grid\s*\{\s*padding:\s*4px 2px 6px 2px;/,
+    'grid keeps dedicated optical inset while spacing tokens come from the theme');
 
 const parent = declarations(
     '.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,');
