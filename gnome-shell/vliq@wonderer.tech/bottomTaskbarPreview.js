@@ -93,9 +93,17 @@ export class BottomTaskbarPreview {
     _getWindows(item) {
         let windows = [];
         try { windows = item.app?.get_windows?.() ?? []; } catch {}
-        return windows.filter(window => window &&
-            typeof window.get_compositor_private === 'function' &&
-            window.get_compositor_private() !== null);
+        return windows.filter(window => {
+            try {
+                return window &&
+                    typeof window.get_compositor_private === 'function' &&
+                    window.get_compositor_private() !== null;
+            } catch {
+                // Window may close while GNOME is emitting hover; skip the
+                // stale Meta.Window rather than aborting every preview.
+                return false;
+            }
+        });
     }
 
     _thumbnail(window) {
@@ -139,6 +147,7 @@ export class BottomTaskbarPreview {
             text: window.get_title?.() || item.app?.get_name?.() || 'Window',
             style_class: 'vliq-taskbar-preview-title',
             x_expand: true,
+            width: TILE_WIDTH - 54,
         });
         if (title.clutter_text)
             title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
