@@ -60,7 +60,7 @@ const high = buildMilkyAppearanceCss({
 assert.match(high, /0\.900/);
 assert.match(high, /rgba\(255,255,255,0\.750\)/);
 assert.ok(high.includes('vliq-panel-island-inactive'));
-assert.doesNotMatch(high, /:not\\(/,
+assert.doesNotMatch(high, /:not\(/,
     'St.Theme cannot reliably parse browser-only :not() selectors');
 const afterFill = high.lastIndexOf('background-color: transparent !important;');
 const beforeFill = high.indexOf('rgba(255,255,255,0.750)');
