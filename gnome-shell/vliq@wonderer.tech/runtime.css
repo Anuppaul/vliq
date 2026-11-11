@@ -1519,7 +1519,7 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
-/* Date Menu flat card material: a single CSS body beneath the real outer
+/* Date Menu flat card material: transparent at rest beneath the real outer
  * Liquid Glass, with EXACT taskbar-icon interaction paint on hover/press.
  * No second LiquidEffect or native border; use one inset highlight only. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
@@ -1529,7 +1529,7 @@
 .vliq-liquid-popup-content.datemenu-popover .weather-button,
 .vliq-liquid-popup-content.datemenu-popover .message,
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
-    background-color: rgba(255, 255, 255, 0.06) !important;
+    background-color: transparent !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 9px !important;
