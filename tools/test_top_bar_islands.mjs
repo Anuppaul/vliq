@@ -585,6 +585,15 @@ assert.equal(configurable._regions[0].surface.bounds.y,
     'bottom optical header follows moved native panel allocation');
 assert.equal(stageSignals.size, 1);
 const oldBottomSurface = configurable._regions[0].surface;
+const stableBottomBounds = oldBottomSurface.bounds;
+panel.mapped = false;
+configurable.sync();
+assert.equal(oldBottomSurface.visible, true,
+    'one native unmapped frame cannot blank the Bottom GPU material');
+assert.equal(oldBottomSurface.bounds, stableBottomBounds,
+    'transient GNOME unmapped frame keeps prior paint geometry');
+panel.mapped = true;
+configurable.sync();
 assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
     'native CSS must be transparent as soon as Bottom shader attaches');
 oldBottomSurface._ready = true;
