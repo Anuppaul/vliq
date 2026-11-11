@@ -2018,8 +2018,10 @@ export class LiquidGlassIntegration {
             '.modal-dialog.vliq-liquid-shell-card .modal-dialog-button:default {\n' +
             '  background-color: ' + accentColor + ' !important;\n' +
             '  color: #ffffff !important;\n' +
-            '}\n' +            '.vliq-running-dot {\n' +
-            '  background-color: ' + accentColor + ' !important;\n' +
+            '}\n' +            // Running indicators are always the accepted Bottom Taskbar
+            // cool-white, never the desktop's changing accent color.
+            '.vliq-running-dot {\n' +
+            '  background-color: rgba(235, 244, 255, 0.94) !important;\n' +
             '}\n' +
             '.vliq-native-notification-glass,\n' +
             '.vliq-native-notification-glass:hover,\n' +
