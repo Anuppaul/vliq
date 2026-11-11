@@ -2404,3 +2404,164 @@
     background-color: rgba(255, 255, 255, 0.07) !important;
     box-shadow: none !important;
 }
+
+/* Global Dark Charcoal for VLIQ-owned GNOME surfaces.
+ * Preserve native geometry, interactive controls, GNOME accent states and
+ * running dots. No system color-scheme write or full-screen overlay.
+ * These are the actual native targets: VLIQ disables only its own glass
+ * actor behind them while the flat charcoal preset is selected. */
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-full-header,
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready,
+.vliq-global-charcoal .vliq-liquid-popup-content,
+.vliq-global-charcoal .vliq-liquid-popup-content.popup-menu-content,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .quick-toggle-menu-container,
+.vliq-global-charcoal .vliq-liquid-shell-card,
+.vliq-global-charcoal .vliq-app-preview-card.vliq-liquid-shell-card,
+.vliq-global-charcoal .vliq-native-notification-glass,
+.vliq-global-charcoal .vliq-native-notification-glass:hover,
+.vliq-global-charcoal .vliq-native-notification-glass:focus,
+.vliq-global-charcoal .vliq-milky-osd,
+.vliq-global-charcoal .vliq-orb-face-v2,
+.vliq-global-charcoal .vliq-spotlight-glass-entry,
+.vliq-global-charcoal .vliq-spotlight-glass-results,
+.vliq-global-charcoal #overviewGroup #dash .dash-background.vliq-liquid-shell-card,
+.vliq-global-charcoal .dash-background.vliq-ubuntu-dock-glass-background,
+.vliq-global-charcoal .dash-background.vliq-ubuntu-dock-panel-background,
+.vliq-global-charcoal .dash-background.vliq-ubuntu-dock-panel-background.vliq-native-panel-liquid-ready,
+.vliq-global-charcoal .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-glass-background {
+    background-color: rgba(29, 31, 35, 0.98) !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13) !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-shell,
+.vliq-global-charcoal .vliq-liquid-date-menu-shell,
+.vliq-global-charcoal .vliq-liquid-quick-menu-shell {
+    -arrow-background-color: rgba(29,31,35,0.98) !important;
+    -arrow-border-color: rgba(255,255,255,0.13) !important;
+}
+/* Native NotificationMessage, OSD, and popup body text: high contrast
+ * even if a stale light-theme adaptation class was previously sampled. */
+.vliq-global-charcoal .vliq-liquid-popup-content,
+.vliq-global-charcoal .vliq-liquid-popup-content StLabel,
+.vliq-global-charcoal .vliq-liquid-popup-content StIcon,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root StLabel,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root StIcon,
+.vliq-global-charcoal .vliq-native-notification-glass,
+.vliq-global-charcoal .vliq-native-notification-glass StLabel,
+.vliq-global-charcoal .vliq-native-notification-glass StIcon,
+.vliq-global-charcoal .vliq-milky-osd,
+.vliq-global-charcoal .vliq-milky-osd StLabel,
+.vliq-global-charcoal .vliq-milky-osd StIcon,
+.vliq-global-charcoal .vliq-liquid-shell-card,
+.vliq-global-charcoal .vliq-liquid-shell-card StLabel,
+.vliq-global-charcoal .vliq-liquid-shell-card StIcon,
+.vliq-global-charcoal #panel.vliq-liquid-top-panel.vliq-full-header .panel-button {
+    color: rgba(248,249,253,0.96) !important;
+}
+/* Explicitly override white-background adaptive text classes (their
+ * original light/dark polarity still works after switching material back). */
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-date-card-text-dark,
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-date-card-text-dark StLabel,
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-date-card-text-dark StIcon,
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-quick-card-text-dark,
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-quick-card-text-dark StLabel,
+.vliq-global-charcoal .vliq-liquid-popup-content .vliq-quick-card-text-dark StIcon,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .vliq-quick-card-text-dark StLabel,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .vliq-quick-card-text-dark StIcon,
+.vliq-global-charcoal .vliq-native-notification-glass.vliq-notification-text-dark StLabel,
+.vliq-global-charcoal .vliq-native-notification-glass.vliq-notification-text-dark StIcon {
+    color: rgba(248,249,253,0.96) !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-content .quick-toggle-subtitle,
+.vliq-global-charcoal .vliq-liquid-popup-content .device-subtitle,
+.vliq-global-charcoal .vliq-liquid-popup-content .event-time,
+.vliq-global-charcoal .vliq-liquid-popup-content .event-placeholder,
+.vliq-global-charcoal .vliq-liquid-popup-content .world-clocks-timezone,
+.vliq-global-charcoal .vliq-native-notification-glass .event-time {
+    color: rgba(207,211,219,0.86) !important;
+}
+/* Calendar/Date widgets: a quiet charcoal interior with no unwanted
+ * Liquid-like silver cards or double borders. Calendar grid remains native. */
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .events-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .weather-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .message,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar-month-label,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar-day,
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar-day-heading {
+    background-color: rgba(43,46,52,0.96) !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.095) !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+/* Quick Settings owns one outer charcoal card plus charcoal internal tiles.
+ * Split-toggle inner buttons remain transparent hit targets, not extra cards. */
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-toggle,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-slider,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
+    background-color: rgba(43,46,52,0.96) !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.095) !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-content .popup-menu-item:hover,
+.vliq-global-charcoal .vliq-liquid-popup-content .popup-menu-item:focus,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:hover,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {
+    background-color: rgba(255,255,255,0.09) !important;
+}
+/* Respect GNOME accent semantics: today's date and selected Quick toggles
+ * are deliberately NOT forced white by the generic text rules above. */
+.vliq-global-charcoal .vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today {
+    background-color: -st-accent-color !important;
+    color: -st-accent-fg-color !important;
+    box-shadow: none !important;
+}
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .vliq-quick-active StLabel,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .vliq-quick-active .quick-toggle-title,
+.vliq-global-charcoal .vliq-liquid-popup-content.quick-settings .vliq-quick-active .quick-toggle-subtitle,
+.vliq-global-charcoal .vliq-liquid-quick-menu-root .vliq-quick-active StLabel {
+    color: -st-accent-color !important;
+}
+/* Replace bright Milky-like icon hover paint with restrained charcoal
+ * feedback. Keep the already accepted 5px running indicators unchanged. */
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover,
+.vliq-global-charcoal #panel.vliq-bottom-taskbar .vliq-taskbar-launcher:hover,
+.vliq-global-charcoal .vliq-app-button:hover,
+.vliq-global-charcoal .vliq-app-button:focus,
+.vliq-global-charcoal #dashtodockDashContainer .dash-item-container .app-well-app:hover .overview-icon,
+.vliq-global-charcoal #overviewGroup #dash .dash-item-container .app-well-app:hover .overview-icon {
+    background-color: rgba(255,255,255,0.085) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13) !important;
+}
+.vliq-global-charcoal .vliq-app-button,
+.vliq-global-charcoal .vliq-app-button:active {
+    background-color: rgba(29,31,35,0.98) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13) !important;
+}
+/* The charcoal preset cannot repaint invisible 3-Part header boxes. */
+.vliq-global-charcoal #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-charcoal #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
+.vliq-global-charcoal #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}

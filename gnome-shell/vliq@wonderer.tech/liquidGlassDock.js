@@ -172,7 +172,9 @@ function milkyPaintTokens(state = {}) {
 }
 
 function buildMilkyAppearanceCss(state = {}) {
-    if (!state.milky)
+    // Charcoal reuses native flat surface handling, but must NEVER inherit
+    // Milky's white density/shade/edge controls or generated paint.
+    if (!state.milky || state.charcoal)
         return '';
     const {fill, rim} = milkyPaintTokens(state);
     const roots = [
@@ -669,7 +671,7 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
-                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
+                ['vliq-milky-mode', ['milky', 'charcoal'].includes(mode) ? 1.0 : 0.0],
                 ['vliq-milky-opacity', fraction('milky-opacity')],
                 ['vliq-milky-border', fraction('milky-border')],
                 ['vliq-milky-whiteness', fraction('milky-whiteness')],
@@ -727,7 +729,7 @@ export class LiquidGlassIntegration {
         // managers start attaching; prevent a one-frame Liquid flash.
         const initialMaterial = this._vliqSettings?.get_string?.('glass-style');
         this._syncMilkyAppearanceClass(
-            initialMaterial === 'milky',
+            ['milky', 'charcoal'].includes(initialMaterial),
             initialMaterial === 'charcoal'
         );
 
@@ -1677,9 +1679,11 @@ export class LiquidGlassIntegration {
         };
 
         return {
-            // Flat material only for Milky. Charcoal overrides ONLY
-            // GNOME's 3-Part and Bottom Taskbar panel actors.
-            milky: this._vliqSettings.get_string('glass-style') === 'milky',
+            // The "milky" flag is the shared CSS-only material switch.
+            // Both Milky and Charcoal bypass VLIQ's refractive shaders.
+            // A separate "charcoal" flag chooses the dark paint palette.
+            milky: ['milky', 'charcoal'].includes(
+                this._vliqSettings.get_string('glass-style')),
             charcoal: this._vliqSettings.get_string('glass-style') === 'charcoal',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
@@ -1810,9 +1814,8 @@ export class LiquidGlassIntegration {
     }
 
     _syncMilkyAppearanceClass(enabled, charcoal = false) {
-        // Milky's global shader suppression is distinct from Charcoal,
-        // which only replaces paint on the 3-Part and Bottom panel actors.
-        // All other native GNOME/Dock/theme surfaces are left untouched.
+        // Both flat materials suppress VLIQ-owned glass producers. Apply
+        // exactly one native paint class, preserving all window/menu input.
         this._milkyModeActive = enabled;
         const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
         if (uiGroup) {
@@ -3614,10 +3617,11 @@ export class LiquidGlassIntegration {
     _nativeDockGlassVisible(entry) {
         if (!entry?.container)
             return false;
-        // Only Milky overrides the floating Ubuntu Dock background.
-        // Dark Charcoal reuses the Dock's existing GNOME theme/material.
+        // Both flat materials paint the real native Dock background.
+        // Never display a second GPU glass plate underneath them.
         try {
-            if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
+            if (['milky', 'charcoal'].includes(
+                this._vliqSettings?.get_string?.('glass-style')))
                 return false;
         } catch {}
 
@@ -4750,19 +4754,25 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        // Dark Charcoal is a native GNOME/Dock presentation elsewhere.
-        // Do not impose a new dark backplate on the Ubuntu Dock.
-        const desired = this._vliqSettings?.get_string?.('glass-style') === 'milky'
-            ? (() => {
-                const tokens = milkyPaintTokens(
-                    this._readSharedCardAppearance());
-                return 'background-color: ' + tokens.fill + '; ' +
-                    'background-image: none; border-color: transparent; ' +
-                    'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
-            })()
-            : (entry.panelLiquidReady
-                ? DOCK_PANEL_GLASS_STYLE
-                : DOCK_PANEL_PREMIUM_STYLE);
+        // Keep the native GNOME Dock geometry. Only replace the material
+        // for VLIQ's two CSS-only styles; never rewrite Liquid/Frosted prefs.
+        const mode = this._vliqSettings?.get_string?.('glass-style');
+        const desired = mode === 'charcoal'
+            ? 'background-color: rgba(29,31,35,0.98); ' +
+                'background-image: none; border-color: transparent; ' +
+                'border-radius: 0px; ' +
+                'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.13);'
+            : (mode === 'milky'
+                ? (() => {
+                    const tokens = milkyPaintTokens(
+                        this._readSharedCardAppearance());
+                    return 'background-color: ' + tokens.fill + '; ' +
+                        'background-image: none; border-color: transparent; ' +
+                        'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
+                })()
+                : (entry.panelLiquidReady
+                    ? DOCK_PANEL_GLASS_STYLE
+                    : DOCK_PANEL_PREMIUM_STYLE));
         if (current === desired)
             return;
 
