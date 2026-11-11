@@ -63,36 +63,33 @@ assert.equal(newEffects, 1, 'Quick Settings still creates one nested effect');
 assert.ok(popup.includes('this._scanDateCardActors(false);'),
     'Date keeps adaptive card text scan even without nested shader');
 
-const dateBlockStart = css.indexOf('/* Date Menu flat card material');
+const dateBlockStart = css.indexOf('/* Date Menu: restrained cool gray-white cards');
 const quickBlockStart = css.indexOf('/* Quick Settings ', dateBlockStart);
 assert.ok(dateBlockStart >= 0 && quickBlockStart > dateBlockStart,
-    'flat card CSS is scoped exclusively to the Date Menu');
+    'gray-white card CSS scoped to Date Menu only');
 const flatCss = css.slice(dateBlockStart, quickBlockStart);
-assert.match(flatCss, /background-color:\s*rgba\(245, 249, 255, 0\.24\)\s*!important/,
-    'idle Calendar cards permanently display the taskbar hover fill');
-assert.match(flatCss, /box-shadow:\s*inset 0 0 0 1px rgba\(255, 255, 255, 0\.20\)\s*!important/,
-    'idle Calendar cards permanently display the taskbar hover inset rim');
-assert.doesNotMatch(flatCss, /rgba\(255, 255, 255, 0\.06\)/,
-    'old 6% resting veil never appears');
-assert.match(flatCss, /rgba\(245, 249, 255, 0\.24\)/,
-    'Date card hover matches taskbar app-icon hover fill exactly');
-assert.match(flatCss, /inset 0 0 0 1px rgba\(255, 255, 255, 0\.20\)/,
-    'Date hover draws the same ONE inset rim as app icons');
-assert.match(flatCss, /rgba\(245, 249, 255, 0\.34\)/,
-    'Date pressed fill matches taskbar app icon');
-assert.match(flatCss, /rgba\(255, 255, 255, 0\.32\)/,
-    'Date pressed inset rim matches app icon');
+assert.match(flatCss, /rgba\(219, 223, 229, 0\.18\)/,
+    'idle inner cards use soft gray-white rather than bright milky white');
+assert.match(flatCss, /rgba\(220, 225, 232, 0\.15\)/,
+    'inner card subtle inset uses cool gray rim');
 assert.match(flatCss, /border:\s*0\s*!important/,
-    'Date cards do not draw any second border');
-assert.match(flatCss, /box-shadow:\s*none\s*!important/,
-    'Date card idle surface has no double border/shadow');
+    'inner cards do not draw a native second border');
 assert.match(flatCss, /border-radius:\s*9px\s*!important/,
-    'Date card radius matches the app icon card');
-for (const klass of ['datemenu-today-button','calendar',
-    'events-button','world-clocks-button','weather-button',
-    'message','message-list-clear-button'])
+    'inner cards retain 9px radius');
+for (const klass of ['datemenu-today-button', 'events-button',
+    'world-clocks-button', 'weather-button', 'message',
+    'message-list-clear-button'])
     assert.ok(flatCss.includes('.' + klass),
-        'missing CSS card ' + klass);
+        'missing gray-white inner card ' + klass);
+const calendarGrid = flatCss.match(
+    /\.vliq-liquid-popup-content\.datemenu-popover \.calendar,\n[\s\S]*?\{([^}]+)\}/)?.[1];
+assert.ok(calendarGrid, 'native calendar grid must have explicit no-card rule');
+assert.match(calendarGrid, /background-color:\s*transparent\s*!important/,
+    'calendar grid stays transparent over outer Liquid Glass');
+assert.match(calendarGrid, /box-shadow:\s*none\s*!important/,
+    'calendar grid never receives a card rim');
+assert.doesNotMatch(flatCss, /rgba\(245, 249, 255, 0\.24\)/,
+    'removed milky-white fill cannot return to Date inner cards');
 
 assert.ok(css.includes('.vliq-liquid-date-menu-shell'),
     'the original Liquid Glass outer popover remains intact');
@@ -101,4 +98,4 @@ assert.ok(css.includes('-arrow-border-color: transparent !important'),
 assert.ok(css.includes('.vliq-liquid-popup-content.quick-settings .quick-toggle'),
     'Quick Settings nested GPU pods remain untouched');
 
-console.log('Calendar: outer Liquid Glass only, exact taskbar icon hover on inner cards, no double border, Quick Settings intact PASS.');
+console.log('Calendar: gray-white inner cards, transparent calendar grid, one outer Liquid Glass, no double rim PASS.');
