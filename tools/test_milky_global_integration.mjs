@@ -137,6 +137,8 @@ for (const cls of [
 ]) assert.ok(css.includes('.vliq-global-milky ' + cls),
     'Missing native Milky material: ' + cls);
 assert.match(css, /rgba\(245, 249, 255, 0\.24\) !important/);
+assert.match(dock, /buildMilkyAppearanceCss\(state\)/,
+    'live Milky controls must reach dynamic native stylesheet');
 
 // OSD owns a separate legacy vendor render path. Its instance adapter
 // must hide the shader even when the GJS vendor module was hot-cached.

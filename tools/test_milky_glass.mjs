@@ -90,13 +90,17 @@ const shaderEnd = shader.indexOf(
 assert.ok(shaderBegin > 0 && shaderEnd > shaderBegin);
 const milkyBranch = shader.slice(shaderBegin, shaderEnd);
 assert.match(milkyBranch, /if \(vliq_milky_mode > 0\.5\)/);
-assert.match(milkyBranch, /insideMask \* 0\.24/);
+assert.match(milkyBranch, /insideMask \* clamp\(vliq_milky_opacity/);
 assert.match(milkyBranch, /245\.0, 249\.0, 255\.0/);
+assert.match(milkyBranch, /vliq_milky_whiteness/);
+assert.match(milkyBranch, /vliq_milky_border/);
 assert.match(milkyBranch, /cogl_color_out = vec4\(body \* a, a\)/);
 assert.doesNotMatch(milkyBranch,
     /texture2D|sampleBackdrop|refract\(|shadowAlpha|new\s+/);
+assert.match(topbar, /cornerRadius: RADIUS\}/,
+    '3-Part restores the optical material for Liquid and Frosted');
 assert.match(topbar, /cssOnly: true/,
-    '3-Part remains CSS-only regardless of new global material');
+    '3-Part retains a native fallback when glass fails');
 assert.match(css, /rgba\(245, 249, 255, 0\.24\)/,
     'new material matches the accepted 3-Part main card RGB and opacity');
 
