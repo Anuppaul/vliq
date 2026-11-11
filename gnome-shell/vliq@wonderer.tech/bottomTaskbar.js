@@ -4,12 +4,16 @@
 // effect is created here: TopBarIslands owns the single full-width glass.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const MAX_TASKBAR_APPS = 11;
 const APP_ICON_SIZE = 24;
+// Late GNOME indicators are reconciled at low frequency; first paint and
+// child-added events still receive an immediate arrow update.
+const MENU_RECONCILE_INTERVAL_US = 350_000;
 
 function safeDisconnect(object, id) {
     if (!id)
@@ -44,7 +48,9 @@ export class BottomTaskbar {
         this._originalCenterTranslation = 0;
         this._placingPanel = false;
         this._dockPaint = new Map();
+        this._dockRootCache = new WeakMap();
         this._menuSides = new Map();
+        this._lastMenuReconcileUs = 0;
         this._appKey = '';
         // Preserve native St.Button actors across app-state updates. Rebuilding
         // every icon on click resets hover/focus and flashes the full row.
@@ -257,6 +263,8 @@ export class BottomTaskbar {
 
             for (const [actor, signal, callback] of [
                 [this._layout, 'monitors-changed', () => {
+                    // GNOME may rebuild Dock chrome under a different root.
+                    this._dockRootCache = new WeakMap();
                     this._placePanel();
                     this._syncCenterAlignment();
                     this._refreshApps();
@@ -275,6 +283,11 @@ export class BottomTaskbar {
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
                     () => this._refreshApps()],
+                // Existing native indicators should keep their arrow
+                // direction immediately when GNOME changes panel boxes.
+                [panel._leftBox, 'child-added', () => this._syncMenuArrows()],
+                [panel._rightBox, 'child-added', () => this._syncMenuArrows()],
+                [panel._centerBox, 'child-added', () => this._syncMenuArrows()],
             ]) {
                 try {
                     if (actor?.connect) {
@@ -290,8 +303,20 @@ export class BottomTaskbar {
             try {
                 this._stageId = global.stage.connect('before-update', () => {
                     this._placePanel();
+                    // Keep the Dock root hidden on the very frame GNOME
+                    // tries to reveal it, avoiding an opaque flash/input
+                    // hitbox above the VLIQ app icons.
                     this._hideOriginalDock();
-                    this._syncMenuArrows();
+                    // Re-reading EVERY statusArea menu on each paint frame
+                    // unnecessarily allocated and inspected Shell objects.
+                    // Periodic fallback handles indicators added outside
+                    // the normal child-added event path.
+                    const nowUs = GLib.get_monotonic_time();
+                    if (nowUs - this._lastMenuReconcileUs >=
+                        MENU_RECONCILE_INTERVAL_US) {
+                        this._lastMenuReconcileUs = nowUs;
+                        this._syncMenuArrows();
+                    }
                 });
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] stage follow unavailable: ' +
@@ -300,6 +325,7 @@ export class BottomTaskbar {
             this._placePanel();
             this._syncCenterAlignment();
             this._syncMenuArrows();
+            this._lastMenuReconcileUs = GLib.get_monotonic_time();
             this._hideOriginalDock();
             console.log('[VLIQ][Taskbar] BOTTOM_ACTIVE at ' +
                 (this._layout.primaryMonitor?.height ?? '?') + 'px monitor');
@@ -484,6 +510,7 @@ export class BottomTaskbar {
         // state, causing the app icon and its dot to visibly flicker.
         const nextKey = ordered.map(app => app.get_id()).join('|');
         const desiredIds = new Set(ordered.map(app => app.get_id()));
+        const orderChanged = nextKey !== this._appKey;
 
         for (const [id, item] of this._appItems) {
             if (desiredIds.has(id))
@@ -532,7 +559,8 @@ export class BottomTaskbar {
                 item.app = app;
                 // Reorder existing actors in-place, without reparenting or
                 // destroying them; GNOME 50 exposes set_child_at_index().
-                if (this._appStrip.get_children?.()[index] !== item.button)
+                if (orderChanged &&
+                    this._appStrip.get_children?.()[index] !== item.button)
                     this._appStrip.set_child_at_index(item.button, index);
             }
 
@@ -606,6 +634,18 @@ export class BottomTaskbar {
         if (!host || !container)
             return null;
 
+        // Cache the root for a stable Dock icon container. This method is
+        // called from before-update, and repeatedly climbing GNOME's actor
+        // hierarchy/performing descendant checks every frame is unnecessary.
+        // Invalidate if the container or top-level chrome parent changes.
+        const directParent = container.get_parent?.() ?? null;
+        const cached = this._dockRootCache.get(container);
+        if (cached &&
+            cached.parent === directParent &&
+            cached.root.get_parent?.() === host)
+            return cached.root;
+        this._dockRootCache.delete(container);
+
         // Ubuntu Dock's #dashtodockDashContainer contains the icons, but
         // its black .dash-background is a SIBLING in the native Dock root.
         // Hiding only the icon container leaves the sibling painted above
@@ -621,6 +661,10 @@ export class BottomTaskbar {
         if (root === panelBox || root === this._panel ||
             root.contains?.(panelBox) || root.contains?.(this._panel))
             return null;
+        this._dockRootCache.set(container, {
+            parent: directParent,
+            root,
+        });
         return root;
     }
 
@@ -738,6 +782,8 @@ export class BottomTaskbar {
             } catch {}
         }
         this._dockPaint.clear();
+        this._dockRootCache = new WeakMap();
+        this._lastMenuReconcileUs = 0;
         this._enabled = false;
         const box = this._layout?.panelBox;
         const monitor = this._layout?.primaryMonitor;
