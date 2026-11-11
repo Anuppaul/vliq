@@ -1280,45 +1280,9 @@
 /* One outer LiquidEffect only. Today, calendar, events, clocks, weather and
  * messages are lightweight regular St cards like VLIQ's window-preview tiles.
  * Quick Settings retains its existing independent inner glass pods. */
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
-.vliq-liquid-popup-content.datemenu-popover .calendar,
-.vliq-liquid-popup-content.datemenu-popover .events-button,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
-.vliq-liquid-popup-content.datemenu-popover .weather-button,
-.vliq-liquid-popup-content.datemenu-popover .message,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
-
-/* Hover/press is only a thin interaction sheen; the actual material remains
- * the nested shader underneath, so the card never turns back into a flat box. */
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .events-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .events-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:focus,
-.vliq-liquid-popup-content.datemenu-popover .message:hover,
-.vliq-liquid-popup-content.datemenu-popover .message:focus,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
-    background-color: rgba(255, 255, 255, 0.038) !important;
-    border-color: rgba(255, 255, 255, 0.075) !important;
-}
-
-.vliq-liquid-popup-content.datemenu-popover .message:active,
-.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:active,
-.vliq-liquid-popup-content.datemenu-popover .events-button:active,
-.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:active,
-.vliq-liquid-popup-content.datemenu-popover .weather-button:active,
-.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:active {
-    background-color: rgba(255, 255, 255, 0.075) !important;
-}
+/* Date Menu card bodies and hover paint are defined once near the end of
+ * this section. They are normal CSS cards, never nested LiquidEffect
+ * materials. The outer Date Menu Liquid Glass remains unchanged. */
 
 /* Keep the two-column divider quiet; no fake second panel behind the cards. */
 .vliq-liquid-popup-content.datemenu-popover .message-list {
