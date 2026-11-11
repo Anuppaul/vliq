@@ -462,12 +462,18 @@ assert.equal(configurable._layoutMode, 'bottom',
 assert.equal(layoutSettings.status,
     'Bottom Taskbar active (Liquid Glass)');
 assert.equal(configurable.isBottomTaskbarActive(), true);
+assert.equal(configurable.ownsBottomTaskbarChrome(), true);
 assert.equal(bottomSessions.length, 1);
 // A native allocation may initially report "unavailable" before Shell
 // finishes placing the panel. Once allocation succeeds, the idle watcher
 // must repair stale status without requiring another Settings selection.
 bottomSessions[0].active = false;
+bottomSessions[0].ownsChrome = () => true;
 reconcileAfter();
+assert.equal(configurable.ownsBottomTaskbarChrome(), true,
+    'relayout health failures cannot resurrect a competing Dock painter');
+assert.equal(configurable.isBottomTaskbarActive(), false,
+    'position health is still reported independently');
 assert.equal(layoutSettings.status,
     'Bottom Taskbar selected; native panel not at bottom');
 bottomSessions[0].active = true;
@@ -476,6 +482,8 @@ assert.equal(layoutSettings.status,
     'Bottom Taskbar active (Liquid Glass)',
     'reconcile clears stale unavailable status after native placement');
 layoutSettings.set_string('top-header-layout', 'full');
+assert.equal(configurable.ownsBottomTaskbarChrome(), false,
+    'actual Bottom mode exit releases paint ownership');
 assert.equal(configurable._layoutMode, 'full');
 assert.equal(layoutSettings.status, 'Full Header active');
 assert.equal(configurable._regions.length, 1);
@@ -577,6 +585,27 @@ assert.equal(configurable._regions[0].surface.bounds.y,
     'bottom optical header follows moved native panel allocation');
 assert.equal(stageSignals.size, 1);
 const oldBottomSurface = configurable._regions[0].surface;
+assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'native CSS must be transparent as soon as Bottom shader attaches');
+oldBottomSurface._ready = true;
+configurable.sync();
+assert.ok(panel.classes.has('vliq-top-header-ready'));
+oldBottomSurface._ready = false;
+for (let frame = 0; frame < 11; frame++)
+    configurable.sync();
+assert.ok(panel.classes.has('vliq-top-header-ready'),
+    'transient GPU not-ready frames must not flash native CSS fallback');
+assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'no double background is allowed during transient shader invalidation');
+configurable.sync();
+assert.ok(!panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'prolonged GPU failure must restore one CSS fallback only');
+assert.ok(!panel.classes.has('vliq-top-header-ready'));
+oldBottomSurface._ready = true;
+configurable.sync();
+assert.ok(panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'shader recovery restores single paint owner synchronously');
+assert.ok(panel.classes.has('vliq-top-header-ready'));
 layoutSettings.set_string('top-header-layout', 'bottom');
 assert.equal(configurable._regions[0].surface, oldBottomSurface,
     'repeating current layout must not recreate GPU material');
@@ -591,6 +620,8 @@ assert.equal(panelBox.y, layout.primaryMonitor.y);
 assert.equal(oldBottomSurface.destroyed, true);
 assert.equal(configurable._regions.length, 1);
 assert.ok(!panel.classes.has('vliq-bottom-taskbar'));
+assert.ok(!panel.classes.has('vliq-bottom-taskbar-glass-attached'),
+    'leaving Bottom removes the temporary single-paint CSS class');
 assert.equal(configurable._regions[0].surface.bounds.y, 0);
 assert.equal(stageSignals.size, 1);
 configurable.cleanup();
