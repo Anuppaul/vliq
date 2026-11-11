@@ -61,25 +61,35 @@ const overlayHover = declarations(quickCss,
 const overlayActive = declarations(quickCss,
     '.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:active');
 
+const quickBase = declarations(quickCss,
+    '.vliq-liquid-popup-content.quick-settings .quick-toggle,');
+const overlayBase = declarations(quickCss,
+    '.vliq-liquid-quick-menu-root .quick-toggle-menu,');
 for (const [name, style] of [
+    ['Quick tile idle', quickBase],
     ['Quick tile hover', quickHover],
+    ['Quick expanded menu idle', overlayBase],
     ['Quick expanded-row hover', overlayHover],
 ]) {
-    assert.equal(style['background-color'], appHover['background-color'],
-        name + ' uses identical app-hover fill');
-    assert.equal(style['box-shadow'], appHover['box-shadow'],
-        name + ' uses identical 1px inset outline');
+    assert.equal(style['background-color'],
+        'rgba(219, 223, 229, 0.18) !important',
+        name + ' has the same permanent cool gray-white as Calendar');
+    assert.equal(style['box-shadow'],
+        'inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important',
+        name + ' uses exactly the Calendar resting inset rim');
     assert.equal(style.border, '0 !important',
-        name + ' has no second native painted border');
+        name + ' cannot add a second native border');
 }
 for (const [name, style] of [
     ['Quick tile pressed', quickActive],
     ['Quick expanded-row pressed', overlayActive],
 ]) {
-    assert.equal(style['background-color'], appActive['background-color'],
-        name + ' uses identical app-pressed fill');
-    assert.equal(style['box-shadow'], appActive['box-shadow'],
-        name + ' uses identical pressed outline');
+    assert.equal(style['background-color'],
+        'rgba(219, 223, 229, 0.27) !important',
+        name + ' uses the Calendar pressed gray');
+    assert.equal(style['box-shadow'],
+        'inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important',
+        name + ' uses the Calendar pressed inset rim');
 }
 
 assert.equal(dateBase['background-color'],
@@ -112,8 +122,10 @@ for (const selector of [
 }
 assert.ok(!quickCss.includes('.quick-toggle-has-menu:hover'),
     'the same GNOME QuickToggle cannot draw two nested hover outlines');
-assert.ok(!quickCss.includes(':checked'),
-    'a checked Quick toggle must retain native accent without permanent hover fill');
+assert.ok(quickCss.includes('.quick-toggle:checked'),
+    'checked Quick toggle retains the same neutral tile paint');
+assert.ok(css.includes('.vliq-liquid-quick-menu-root .vliq-quick-active StLabel'),
+    'checked state remains communicated by native GNOME accent text');
 
 const fnStart = popup.indexOf('    _dateCardResponse(actor, klass, quickState = null) {');
 const fnEnd = popup.indexOf('\n    _syncDateInnerRegions(', fnStart);
@@ -139,4 +151,4 @@ assert.ok(css.includes(
 assert.ok(css.includes('#panel.vliq-bottom-taskbar .vliq-taskbar-app-button:hover'),
     'the previously accepted taskbar icon paint is still present');
 
-console.log('Popup hover parity: soft gray Calendar cards, exact Quick taskbar hover, no shader double highlight, native accent retained PASS.');
+console.log('Popup cards: permanent cool gray-white Calendar/Quick tiles, no hover flash or double rim, native accent retained PASS.');
