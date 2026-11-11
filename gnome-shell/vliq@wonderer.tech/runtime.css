@@ -1519,8 +1519,8 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
-/* Date Menu cards always display the EXACT taskbar-icon hover material.
- * Hover/focus do not change the card; only an active press is stronger.
+/* Date Menu flat card material — always displays the EXACT taskbar-icon
+ * hover paint even with no pointer hover. Only active press is stronger.
  * Keep the outer LiquidEffect, native menu layout, and single CSS inset rim. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
 .vliq-liquid-popup-content.datemenu-popover .calendar,
