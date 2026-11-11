@@ -586,7 +586,11 @@ class PopupGlassSurface {
         let dateInnerClone = null;
         let dateInnerEffect = null;
 
-        if (this._isDateMenu || this._isQuickSettings) {
+        // Date Menu keeps ONE outer Liquid Glass surface. Today/Calendar/
+        // events/weather/message cards use regular lightweight CSS cards,
+        // never a second clone-of-parent LiquidEffect with a second rim.
+        // Quick Settings intentionally retains its nested glass pods.
+        if (this._isQuickSettings) {
             dateInnerRoot = new this._vendor.UnpickableActor({
                 name: 'vliq-popup-inner-material-root',
                 reactive: false,
@@ -2459,13 +2463,10 @@ class PopupGlassSurface {
         }
 
         if (this._isDateMenu) {
-            this._syncDateInnerRegions(
-                monitorX,
-                monitorY,
-                screenW,
-                screenH,
-                !shaderOnly
-            );
+            // Date's inner surfaces are CSS-only; no nested shader region
+            // updates during the outer LiquidEffect paint hook.
+            if (!shaderOnly)
+                this._scanDateCardActors(false);
         } else if (this._isQuickSettings) {
             const overlayOpen =
                 Boolean(this._menu?._activeMenu?.isOpen);
