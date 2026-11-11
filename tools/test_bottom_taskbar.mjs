@@ -684,6 +684,33 @@ assert.equal(oldGlassDraws, 1,
 assert.equal(nativeReady, true,
     'returning to ordinary Ubuntu Dock restores native glass paint');
 
+// The Ubuntu Dock panel-background style watcher must NOT resurrect
+// native paint while Bottom owns the panel, even if Ubuntu Panel Mode
+// remains selected or a previously active Dock paint flag is still set.
+const paintPolicyStart = integrationSource.indexOf(
+    '    _dockPanelPaintShouldOwn(entry) {');
+const paintPolicyEnd = integrationSource.indexOf(
+    '\n    _disconnectDockPanelBackgroundWatcher(entry) {',
+    paintPolicyStart);
+assert.ok(paintPolicyStart >= 0 && paintPolicyEnd > paintPolicyStart);
+const paintPolicy = new Function('return ({' +
+    integrationSource.slice(paintPolicyStart, paintPolicyEnd) +
+    '\n})._dockPanelPaintShouldOwn;')();
+let bottomOwnsPaint = true;
+const dockPaintPolicyContext = {
+    ownsBottomTaskbarChrome: () => bottomOwnsPaint,
+    _dockIsPanelMode: () => true,
+    _dockModeTransitionTarget: false,
+    _dockHandoffActive: true,
+};
+assert.equal(paintPolicy.call(dockPaintPolicyContext,
+    {panelPaintActive: true}), false,
+'GNOME theme changes must not repaint old Dock background during Bottom');
+bottomOwnsPaint = false;
+assert.equal(paintPolicy.call(dockPaintPolicyContext,
+    {panelPaintActive: true}), true,
+'old Dock theme ownership resumes on leaving Bottom mode');
+
 // Test the native Ubuntu Dock Panel Mode *owner* too: bottom mode must
 // remove its CSS background and shader, not just hide a stale snapshot.
 const modeStart = integrationSource.indexOf(
