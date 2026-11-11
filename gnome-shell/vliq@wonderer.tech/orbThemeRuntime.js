@@ -1939,7 +1939,9 @@ export default class VLIQRuntime extends Extension {
             running &&
             this._settings.get_boolean('show-running-indicator')
         ) {
-            const dotSize = Math.max(3, Math.round(iconSize * 0.09));
+            // Identical 5px native white running indicator across Orb,
+            // Ubuntu Dock and Bottom Taskbar; never scale it with icon size.
+            const dotSize = 5;
             const dot = new St.Widget({
                 style_class: 'vliq-running-dot',
                 reactive: false,

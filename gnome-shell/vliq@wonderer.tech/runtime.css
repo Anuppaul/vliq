@@ -2239,3 +2239,98 @@
     border-radius: 999px !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
+
+
+/* VLIQ app icon consistency -----------------------------------------------
+ * Same exact Bottom Taskbar hover/pressed material everywhere:
+ * - Ubuntu Dock floating and extended/panel modes
+ * - GNOME Overview Dash
+ * - Orb radial app buttons
+ * Keep every native icon, running state, click target and padding intact.
+ * Paint only the existing icon/indicator actors; NO new clone or timer. */
+
+/* Ubuntu Dock: state is owned by GNOME's app-well-app actor. Avoid styling
+ * .dash-item-container as a whole (that makes a continuous row highlight). */
+#dashtodockDashContainer .dash-item-container .app-well-app .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps .overview-icon {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
+}
+#dashtodockDashContainer .dash-item-container .app-well-app:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .app-well-app:focus .overview-icon,
+#dashtodockDashContainer .dash-item-container .app-well-app.focused .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:focus .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:hover .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:focus .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:hover .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:focus .overview-icon {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+#dashtodockDashContainer .dash-item-container .app-well-app:active .overview-icon,
+#dashtodockDashContainer .dash-item-container .overview-tile:active .overview-icon,
+#dashtodockDashContainer .dash-item-container .show-apps:active .overview-icon,
+#overviewGroup #dash .dash-item-container .app-well-app:active .overview-icon,
+#overviewGroup #dash .dash-item-container .overview-tile:active .overview-icon,
+#overviewGroup #dash .dash-item-container .show-apps:active .overview-icon {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* GNOME native dots remain the ONLY indication of running state. Do not
+ * duplicate them with another St.Widget; preserve native offset and position
+ * in left/right/top/bottom Dock orientations. */
+#dashtodockDashContainer .app-well-app-running-dot,
+#dashtodockDashContainer .app-grid-running-dot,
+#overviewGroup #dash .app-well-app-running-dot,
+#overviewGroup #dash .app-grid-running-dot,
+.vliq-running-dot,
+#panel.vliq-bottom-taskbar .vliq-taskbar-running-dot {
+    min-width: 5px;
+    min-height: 5px;
+    background-color: rgba(235, 244, 255, 0.94) !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+}
+
+/* Orb: same native 120ms milky card on hover. The existing radial actor
+ * retains circular hit testing, scale animation and app launch behavior. */
+.vliq-app-button:hover,
+.vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    transition-duration: 120ms;
+}
+.vliq-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    background-image: none !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+.vliq-global-milky .vliq-app-button {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+.vliq-global-milky .vliq-app-button:hover,
+.vliq-global-milky .vliq-app-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+.vliq-global-milky .vliq-app-button:active {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
