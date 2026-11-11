@@ -575,41 +575,81 @@ export class BottomTaskbar {
         }
     }
 
+    _findNativeDockRoot(container) {
+        const host = this._layout?.uiGroup;
+        if (!host || !container)
+            return null;
+
+        // Ubuntu Dock's #dashtodockDashContainer contains the icons, but
+        // its black .dash-background is a SIBLING in the native Dock root.
+        // Hiding only the icon container leaves the sibling painted above
+        // the VLIQ Start/app buttons (and can intercept their hover input).
+        let root = container;
+        let depth = 0;
+        while (root && root.get_parent?.() !== host && depth++ < 12)
+            root = root.get_parent?.() ?? null;
+
+        if (!root || root.get_parent?.() !== host)
+            return null;
+        const panelBox = this._layout?.panelBox;
+        if (root === panelBox || root === this._panel ||
+            root.contains?.(panelBox) || root.contains?.(this._panel))
+            return null;
+        return root;
+    }
+
+    _concealDockActor(actor) {
+        if (!actor || actor === this._panel ||
+            actor === this._layout?.panelBox ||
+            actor === this._layout?.uiGroup)
+            return;
+
+        // Capture the first untouched state, never the hidden state from
+        // our own previous frame. All changes are reversible on mode exit.
+        if (!this._dockPaint.has(actor)) {
+            this._dockPaint.set(actor, {
+                opacity: actor.opacity,
+                reactive: actor.reactive,
+                visible: actor.visible,
+            });
+        }
+        if (actor.visible !== false)
+            actor.hide?.();
+        if (actor.opacity !== 0)
+            actor.opacity = 0;
+        if (actor.reactive !== false)
+            actor.reactive = false;
+    }
+
     _hideOriginalDock() {
         if (!this._enabled)
             return;
         let entries = [];
         try { entries = this._getDockEntries?.() ?? []; } catch {}
         for (const entry of entries) {
-            const actor = entry?.container;
-            if (!actor)
+            const container = entry?.container;
+            if (!container)
                 continue;
-            if (!this._dockPaint.has(actor)) {
-                this._dockPaint.set(actor, {
-                    opacity: actor.opacity,
-                    reactive: actor.reactive,
-                    visible: actor.visible,
-                    glass: entry?.manager?.bgActor ?? null,
-                    glassOpacity: entry?.manager?.bgActor?.opacity,
-                });
-            }
-            // A transparent native Dock can still contain reactive child
-            // icons. Unmap the legacy Dock while the taskbar owns app input.
-            // The exact actor visibility is restored on layout exit.
             try {
-                if (actor.visible !== false)
-                    actor.hide?.();
-                if (actor.opacity !== 0)
-                    actor.opacity = 0;
-                if (actor.reactive !== false)
-                    actor.reactive = false;
+                // Hide the COMPLETE native Dock chrome subtree, including
+                // Dash-to-Dock's sibling background and input surfaces.
+                // Keep the original GNOME panelBox and its menus untouched.
+                const root = this._findNativeDockRoot(container);
+                if (root)
+                    this._concealDockActor(root);
+                this._concealDockActor(container);
+
+                // Defense-in-depth for late background reparenting and
+                // installations where Dock root lookup is unavailable.
+                const background = entry?.panelBackgroundActor;
+                if (background)
+                    this._concealDockActor(background);
+
                 const glass = entry?.manager?.bgActor;
-                if (glass && glass.opacity !== 0)
-                    glass.opacity = 0;
-                // Ubuntu Dock Panel Mode uses a separate stage-level
-                // PanelGlassSurface, NOT the manager bgActor. Hide it
-                // before first taskbar paint. The integration's own stage
-                // guard prevents that glass from reappearing next frame.
+                if (glass)
+                    this._concealDockActor(glass);
+
+                // Panel Mode glass has a separate stage-level surface.
                 entry?.panelLiquidSurface?.hide?.();
             } catch (error) {
                 if (!this._dockWarning) {
@@ -663,9 +703,6 @@ export class BottomTaskbar {
                     actor.reactive = old.reactive;
                 if (old.visible !== false && actor.visible === false)
                     actor.show?.();
-                if (old.glass && old.glass.opacity === 0 &&
-                    old.glassOpacity !== undefined)
-                    old.glass.opacity = old.glassOpacity;
             } catch {}
         }
         this._dockPaint.clear();
