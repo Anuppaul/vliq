@@ -230,6 +230,23 @@ assert.equal(chromeAdds, chromeRemoves,
 assert.equal(uiGroup.get_children().length, 1,
     'native panel/app icon actors are never removed by preview cleanup');
 
+// Window actors may disappear between get_windows and thumbnail creation
+// while an app exits. That cannot crash a Shell hover callback.
+const disposed = makeWindow('closing');
+let compositorReads = 0;
+disposed.get_compositor_private = () =>
+    ++compositorReads === 1 ? disposed.actor : null;
+windows.push(disposed);
+const race = new BottomTaskbarPreview({layout});
+race.onButtonHover(item, true);
+tick(260);
+assert.ok(race._popup, 'other live previews survive one stale window');
+assert.equal(race._popup.get_children().length, 2,
+    'destroyed Meta.WindowActor does not create a ghost thumbnail');
+race.destroy();
+windows.pop();
+assert.equal(chromeAdds, chromeRemoves);
+
 // On narrower monitors, a multiwindow application is safely bounded.
 layout.primaryMonitor = {x: 0, y: 0, width: 480, height: 900};
 panelBox.y = 856;
