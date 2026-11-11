@@ -46,6 +46,9 @@ export class BottomTaskbar {
         this._dockPaint = new Map();
         this._menuSides = new Map();
         this._appKey = '';
+        this._nativeUpdateBoxes = null;
+        this._patchedUpdateBoxes = null;
+        this._updateBoxesWasOwn = false;
     }
 
     isActive() {
@@ -56,11 +59,19 @@ export class BottomTaskbar {
         if (!box || !monitor)
             return false;
         try {
-            const [, y] = box.get_position?.() ?? [box.x, box.y];
-            const height = box.height > 1
-                ? box.height : (this._panel?.height || 36);
+            // GNOME 50 uses transformed allocation, not actor.x/y, to
+            // determine the panel's real chrome/strut location. During a
+            // relayout the local position may already be updated while the
+            // painted actor is still at the previous location.
+            const [x, y] = box.get_transformed_position?.() ??
+                box.get_position?.() ?? [box.x, box.y];
+            const [, drawnHeight] = box.get_transformed_size?.() ?? [];
+            const height = Number.isFinite(drawnHeight) && drawnHeight > 1
+                ? drawnHeight : (box.height > 1
+                    ? box.height : (this._panel?.height || 36));
             const expectedY = monitor.y + monitor.height - height;
-            return Number.isFinite(y) &&
+            return Number.isFinite(x) && Number.isFinite(y) &&
+                Math.abs(x - monitor.x) < 3 &&
                 Math.abs(y - expectedY) < 3;
         } catch {
             return false;
@@ -70,6 +81,54 @@ export class BottomTaskbar {
     setLauncherCallback(callback) {
         this._onLauncherClick = typeof callback === 'function'
             ? callback : null;
+    }
+
+    _hookNativePanelRelayout() {
+        const layout = this._layout;
+        if (!layout || typeof layout._updateBoxes !== 'function')
+            return;
+
+        // GNOME 50 LayoutManager._updateBoxes() puts panelBox at the TOP
+        // every time the monitor geometry is rebuilt. Wrap that native
+        // operation so the original logic runs and our bottom placement
+        // is restored in the SAME call, before Shell paints the top frame.
+        // Do not reparent panelBox or alter its chrome/input ownership.
+        const previous = layout._updateBoxes;
+        const wasOwn = Object.prototype.hasOwnProperty.call(
+            layout, '_updateBoxes');
+        const taskbar = this;
+        const wrapper = function (...args) {
+            const result = previous.apply(this, args);
+            if (taskbar._enabled)
+                taskbar._placePanel();
+            return result;
+        };
+        try {
+            layout._updateBoxes = wrapper;
+            if (layout._updateBoxes !== wrapper)
+                return;
+            this._nativeUpdateBoxes = previous;
+            this._patchedUpdateBoxes = wrapper;
+            this._updateBoxesWasOwn = wasOwn;
+        } catch (error) {
+            console.warn('[VLIQ][Taskbar] relayout hook unavailable: ' +
+                error);
+        }
+    }
+
+    _unhookNativePanelRelayout() {
+        const layout = this._layout;
+        if (layout && this._patchedUpdateBoxes &&
+            layout._updateBoxes === this._patchedUpdateBoxes) {
+            // Never overwrite a later hook installed by another extension.
+            if (this._updateBoxesWasOwn)
+                layout._updateBoxes = this._nativeUpdateBoxes;
+            else
+                delete layout._updateBoxes;
+        }
+        this._nativeUpdateBoxes = null;
+        this._patchedUpdateBoxes = null;
+        this._updateBoxesWasOwn = false;
     }
 
     setup() {
@@ -101,6 +160,7 @@ export class BottomTaskbar {
             this._originalCenterTranslation =
                 panel._centerBox.translation_x ?? 0;
             this._enabled = true;
+            this._hookNativePanelRelayout();
             // Native panel movement is the essential feature. Optional
             // launcher/app icon rendering must never abort bottom placement.
             this._placePanel();
@@ -204,8 +264,11 @@ export class BottomTaskbar {
                 // Correct after native allocation (not just every 24fps)
                 // and avoid one-frame flashing at the top edge.
                 [box, 'notify::allocation', () => this._placePanel()],
-                [this._display, 'workareas-changed',
-                    () => this._syncCenterAlignment()],
+                [this._display, 'workareas-changed', () => {
+                    this._placePanel();
+                    this._syncCenterAlignment();
+                    this._refreshApps();
+                }],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
@@ -279,6 +342,10 @@ export class BottomTaskbar {
             Math.abs(currentY - y) > 0.1) {
             try {
                 box.set_position(x, y);
+                // GNOME 50 computes native struts from the transformed
+                // panelBox actor during _updateRegions(). Request that
+                // calculation only when its position actually changed.
+                this._layout?._queueUpdateRegions?.();
             } catch (error) {
                 // A compositor migration may temporarily forbid GObject
                 // geometry writes; log once and retry at the next frame.
@@ -555,6 +622,8 @@ export class BottomTaskbar {
     }
 
     cleanup() {
+        this._enabled = false;
+        this._unhookNativePanelRelayout();
         if (this._stageId) {
             try { global.stage.disconnect(this._stageId); } catch {}
             this._stageId = 0;

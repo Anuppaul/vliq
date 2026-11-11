@@ -463,6 +463,18 @@ assert.equal(layoutSettings.status,
     'Bottom Taskbar active (Liquid Glass)');
 assert.equal(configurable.isBottomTaskbarActive(), true);
 assert.equal(bottomSessions.length, 1);
+// A native allocation may initially report "unavailable" before Shell
+// finishes placing the panel. Once allocation succeeds, the idle watcher
+// must repair stale status without requiring another Settings selection.
+bottomSessions[0].active = false;
+reconcileAfter();
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar selected; native panel not at bottom');
+bottomSessions[0].active = true;
+reconcileAfter();
+assert.equal(layoutSettings.status,
+    'Bottom Taskbar active (Liquid Glass)',
+    'reconcile clears stale unavailable status after native placement');
 layoutSettings.set_string('top-header-layout', 'full');
 assert.equal(configurable._layoutMode, 'full');
 assert.equal(layoutSettings.status, 'Full Header active');
