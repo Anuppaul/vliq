@@ -358,12 +358,19 @@
     background-image: none !important;
     border: 0 !important;
 }
+/* Windows 11-like CENTERED Start + apps. The entire group uses one
+ * native panelCenter allocation; no fixed left-anchored launcher or
+ * invisible box taking up half the monitor's useful width. */
+#panel.vliq-bottom-taskbar #panelCenter .vliq-taskbar-center-group {
+    spacing: 7px;
+    padding: 0px;
+}
 #panel.vliq-bottom-taskbar .vliq-taskbar-launcher,
 #panel.vliq-bottom-taskbar .vliq-taskbar-app-button {
-    min-width: 32px;
+    min-width: 36px;
     min-height: 32px;
     padding: 3px 5px;
-    margin: 0px 1px;
+    margin: 0px;
     background-color: transparent !important;
     background-image: none !important;
     border: 0 !important;
@@ -377,7 +384,8 @@
     background-color: rgba(255,255,255,0.12) !important;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-apps {
-    spacing: 2px;
+    spacing: 4px;
+    padding: 0px;
 }
 #panel.vliq-bottom-taskbar .vliq-taskbar-app-content {
     spacing: 1px;

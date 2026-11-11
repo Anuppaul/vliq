@@ -33,6 +33,7 @@ export class BottomTaskbar {
         this._enabled = false;
         this._start = null;
         this._appStrip = null;
+        this._centerGroup = null;
         this._activity = null;
         this._date = null;
         this._dateParent = null;
@@ -40,6 +41,7 @@ export class BottomTaskbar {
         this._signals = [];
         this._stageId = 0;
         this._originalPanelPosition = null;
+        this._originalCenterTranslation = 0;
         this._dockPaint = new Map();
         this._menuSides = new Map();
         this._appKey = '';
@@ -80,11 +82,31 @@ export class BottomTaskbar {
             this._originalPanelPosition = box.get_position?.() ?? [
                 box.x ?? 0, box.y ?? 0,
             ];
+            this._originalCenterTranslation =
+                panel._centerBox.translation_x ?? 0;
             this._enabled = true;
             // Native panel movement is the essential feature. Optional
-            // launcher/app icon rendering must never abort bottom placement
-            // and silently revert the entire layout to the top header.
+            // launcher/app icon rendering must never abort bottom placement.
             this._placePanel();
+            try {
+                // One center allocation for Start + apps. GNOME centers
+                // panelCenter as a UNIT, unlike a far-left Start icon.
+                this._centerGroup = new St.BoxLayout({
+                    style_class: 'vliq-taskbar-center-group',
+                    vertical: false,
+                    reactive: false,
+                    x_expand: false,
+                    y_expand: false,
+                    x_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.CENTER,
+                });
+                panel._centerBox.insert_child_at_index(
+                    this._centerGroup, 0);
+            } catch (error) {
+                console.warn('[VLIQ][Taskbar] center group fallback: ' +
+                    error);
+                this._centerGroup = null;
+            }
             try {
                 const icon = new St.Icon({
                     icon_name: 'start-here-symbolic',
@@ -105,7 +127,8 @@ export class BottomTaskbar {
                     else
                         Main.overview?.showApps?.();
                 });
-                panel._leftBox.insert_child_at_index(this._start, 0);
+                (this._centerGroup ?? panel._centerBox)
+                    .insert_child_at_index(this._start, 0);
                 // Hide native Activities only after a working replacement
                 // Start button has been attached to the real panel.
                 this._activity =
@@ -129,7 +152,7 @@ export class BottomTaskbar {
                     this._dateIndex = Math.max(0,
                         panel._centerBox.get_children().indexOf(date));
                     panel._centerBox.remove_child(date);
-                    panel._rightBox.insert_child_at_index(date, 0);
+                    panel._rightBox.add_child(date);
                 }
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] native Date Menu stays in ' +
@@ -143,7 +166,9 @@ export class BottomTaskbar {
                     x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER,
                 });
-                panel._centerBox.insert_child_at_index(this._appStrip, 0);
+                (this._centerGroup ?? panel._centerBox)
+                    .insert_child_at_index(
+                        this._appStrip, this._start ? 1 : 0);
                 this._refreshApps();
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] app strip unavailable: ' +
@@ -155,8 +180,11 @@ export class BottomTaskbar {
             for (const [actor, signal, callback] of [
                 [this._layout, 'monitors-changed', () => {
                     this._placePanel();
+                    this._syncCenterAlignment();
                     this._refreshApps();
                 }],
+                [this._display, 'workareas-changed',
+                    () => this._syncCenterAlignment()],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
@@ -184,6 +212,7 @@ export class BottomTaskbar {
                     error);
             }
             this._placePanel();
+            this._syncCenterAlignment();
             this._syncMenuArrows();
             this._hideOriginalDock();
             console.log('[VLIQ][Taskbar] BOTTOM_ACTIVE at ' +
@@ -207,7 +236,7 @@ export class BottomTaskbar {
         // Restore only the original Date Menu container if it moved back.
         if (this._date?.get_parent?.() === this._dateParent) {
             this._dateParent.remove_child(this._date);
-            this._panel._rightBox.insert_child_at_index(this._date, 0);
+            this._panel._rightBox.add_child(this._date);
         }
         const h = Number(box.height) > 1 ? box.height :
             (Number(this._panel?.height) > 1 ? this._panel.height : 36);
@@ -230,6 +259,39 @@ export class BottomTaskbar {
                 }
             }
         }
+    }
+
+    _syncCenterAlignment() {
+        if (!this._enabled)
+            return;
+        const box = this._panel?._centerBox;
+        const monitor = this._layout?.primaryMonitor;
+        if (!box || !monitor)
+            return;
+        let correction = 0;
+        try {
+            // GNOME Shell 50 panel.vfunc_allocate centers using
+            // sideWidth=(panelWidth-centerWidth+centerOffset)/2 where
+            // centerOffset=2*(workarea.x-monitor.x)+workarea.width-
+            // monitor.width. When Ubuntu Dock reserves left-hand work
+            // area, that moves Start/apps away from the actual monitor
+            // midpoint. Cancel only THAT known native offset.
+            const area = this._layout?.getWorkAreaForMonitor?.(
+                monitor.index);
+            if (area && Number.isFinite(area.x) &&
+                Number.isFinite(area.width) &&
+                area.width > 0) {
+                const centerOffset =
+                    2 * (area.x - monitor.x) +
+                    area.width - monitor.width;
+                correction = -centerOffset / 2;
+            }
+        } catch {}
+        if (!Number.isFinite(correction))
+            return;
+        const x = this._originalCenterTranslation + correction;
+        if (Math.abs((box.translation_x ?? 0) - x) > 0.1)
+            box.translation_x = x;
     }
 
     _syncMenuArrows() {
@@ -268,13 +330,27 @@ export class BottomTaskbar {
         } catch {}
         let running = [];
         try { running = this._appSystem?.get_running?.() ?? []; } catch {}
-        // GNOME's center allocation is independent from the left/right
-        // groups. Limit the icon strip on smaller displays so Quick Settings
-        // and its native Date Menu never overlap app launchers.
+        // GNOME centers panelCenter using its NATURAL width. Measure the
+        // real right side including the relocated Date/Quick Settings, not
+        // a guessed 320px budget which caused icon/tray overlap.
         const monitorWidth = this._layout?.primaryMonitor?.width ?? 1280;
-        const available = Math.max(0, monitorWidth - 320);
-        const maxApps = Math.max(2,
-            Math.min(MAX_TASKBAR_APPS, Math.floor(available / 43)));
+        const naturalWidth = actor => {
+            try {
+                const [, natural] = actor?.get_preferred_width?.(-1) ?? [];
+                if (Number.isFinite(natural) && natural >= 0)
+                    return natural;
+            } catch {}
+            return Math.max(0, actor?.width ?? 0);
+        };
+        const sideWidth = Math.max(
+            naturalWidth(this._panel?._leftBox),
+            naturalWidth(this._panel?._rightBox)
+        );
+        const centerBudget = Math.max(0,
+            monitorWidth - sideWidth * 2 - 36);
+        const startWidth = this._start ? 46 : 0;
+        const maxApps = Math.max(0, Math.min(MAX_TASKBAR_APPS,
+            Math.floor((centerBudget - startWidth) / 44)));
         const ordered = [];
         const seen = new Set();
         const add = app => {
@@ -341,12 +417,64 @@ export class BottomTaskbar {
                 reactive: true,
                 track_hover: true,
             });
-            button.connect('clicked', () => {
-                try { app.activate?.(); } catch (error) {
-                    console.warn('[VLIQ][Taskbar] activate failed: ' + error);
-                }
-            });
+            // Focus/restore the actual Meta.Window for running apps; launch
+            // a pinned app when it has no window.
+            button.connect('clicked', () => this._activateApp(app));
             this._appStrip.add_child(button);
+        }
+    }
+
+    _activateApp(app) {
+        if (!app)
+            return;
+        try {
+            const windows = (app.get_windows?.() ?? []).filter(window =>
+                window && typeof window === 'object' &&
+                (typeof window.activate === 'function' ||
+                 typeof Main.activateWindow === 'function')
+            );
+            if (windows.length) {
+                const focused = windows.find(window =>
+                    window.has_focus?.() === true);
+                const latest = windows.slice().sort((a, b) =>
+                    (b.get_user_time?.() ?? 0) -
+                    (a.get_user_time?.() ?? 0)
+                )[0];
+                const window = focused ?? latest;
+                // Windows 11 behavior: second click minimizes a focused
+                // app; first click restores/raises it on its workspace.
+                if (focused && typeof window.minimize === 'function') {
+                    window.minimize();
+                    return;
+                }
+                if (window.minimized)
+                    window.unminimize?.();
+                if (typeof Main.activateWindow === 'function') {
+                    Main.activateWindow(window);
+                    return;
+                }
+                if (typeof app.activate_window === 'function') {
+                    app.activate_window(window,
+                        global.get_current_time?.() ?? 0);
+                    return;
+                }
+                if (typeof window.activate === 'function') {
+                    window.activate(global.get_current_time?.() ?? 0);
+                    return;
+                }
+            }
+            if (typeof app.activate === 'function') {
+                app.activate();
+                return;
+            }
+            console.warn('[VLIQ][Taskbar] no launch method for ' +
+                (app.get_id?.() ?? 'unknown app'));
+        } catch (error) {
+            console.warn('[VLIQ][Taskbar] application click: ' + error);
+            try { app.activate?.(); } catch (fallbackError) {
+                console.warn('[VLIQ][Taskbar] launch fallback: ' +
+                    fallbackError);
+            }
         }
     }
 
@@ -406,8 +534,10 @@ export class BottomTaskbar {
 
         try { this._start?.destroy?.(); } catch {}
         try { this._appStrip?.destroy?.(); } catch {}
+        try { this._centerGroup?.destroy?.(); } catch {}
         this._start = null;
         this._appStrip = null;
+        this._centerGroup = null;
         if (this._date?.get_parent?.() === this._panel?._rightBox) {
             try {
                 this._panel._rightBox.remove_child(this._date);
@@ -445,6 +575,12 @@ export class BottomTaskbar {
         } else if (box && this._originalPanelPosition) {
             try { box.set_position(...this._originalPanelPosition); } catch {}
         }
+        // Undo the native panel's temporary Windows 11 centering
+        // correction, including custom offsets owned by other extensions.
+        if (this._panel?._centerBox)
+            this._panel._centerBox.translation_x =
+                this._originalCenterTranslation;
+        this._originalCenterTranslation = 0;
         this._appKey = '';
         this._originalPanelPosition = null;
         if (this._ownsShellSettings)
