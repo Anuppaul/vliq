@@ -132,24 +132,30 @@ const css = await readFile(new URL(
 assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
     'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
 
-// Native DateMenuButton carries the clock-display class. Its background
-// must remain clear in every pseudo-state; the neighboring Quick Settings
-// button still owns the original rounded hover feedback.
+// Date has ONE outer milky hover card, but no second nested rounded box.
+const outerHover = css.match(
+    /#panel\\.vliq-bottom-taskbar #panelRight \\.panel-button:hover,[^{]*\\{([^}]+)\\}/
+)?.[1] ?? '';
+assert.match(outerHover,
+    /background-color:\\s*rgba\\(245, 249, 255, 0\\.24\\)\\s*!important/,
+    'Date retains the existing milky outer panel-button hover card');
+assert.match(outerHover,
+    /inset 0 0 0 1px rgba\\(255, 255, 255, 0\\.20\\)/,
+    'the original outer card retains its single subtle rim');
 for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
     const selector = '#panel.vliq-bottom-taskbar #panelRight ' +
-        '.panel-button.clock-display' + state;
+        '.clock-display .clock-display-box' + state;
     assert.ok(css.includes(selector),
-        'Date/Clock transparent override covers ' + (state || 'idle'));
+        'nested Date actor paint is suppressed in ' + (state || 'idle'));
 }
-
-const dateClear = css.match(
-    /\/\* Bottom Date\/Clock is text-only[\s\S]*?\{([^}]+)\}/
+const innerClear = css.match(
+    /\\/\\* Date\\/Clock: retain the accepted outer milky[\\s\\S]*?\\{([^}]+)\\}/
 )?.[1] ?? '';
-assert.match(dateClear, /background-color:\s*transparent\s*!important/,
-    'Date hover never paints a center rounded card');
-assert.match(dateClear, /box-shadow:\s*none\s*!important/,
-    'Date hover no longer paints inset card outline');
-assert.ok(css.includes('#panel.vliq-bottom-taskbar #panelRight .panel-button:hover'),
-    'other native controls keep their hover styling');
+assert.match(innerClear, /background-color:\\s*transparent\\s*!important/,
+    'nested clock box cannot paint a second card');
+assert.match(innerClear, /box-shadow:\\s*none\\s*!important/,
+    'nested clock box cannot paint a second rounded inset rim');
+assert.ok(!css.includes('.panel-button.clock-display:hover'),
+    'outer Date hover must not be forcibly disabled');
 
 console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');
