@@ -470,14 +470,16 @@
     background-color: rgba(245, 249, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
-/* Bottom Date/Clock is text-only, including on pointer hover and when the
- * calendar popup is open. Only the native date button is exempted; the
- * adjacent Quick Settings button retains its premium hover card. */
-#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display,
-#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:hover,
-#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:focus,
-#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:active,
-#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:checked {
+/* Date/Clock: retain the accepted outer milky hover card from the
+ * shared #panelRight .panel-button rules above. GNOME DateMenuButton
+ * contains a nested .clock-display-box, which can receive another rounded
+ * theme highlight. Only that INNER box has its paint suppressed.
+ * Do not alter the native label, button geometry or menu activation. */
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:hover,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:focus,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:active,
+#panel.vliq-bottom-taskbar #panelRight .clock-display .clock-display-box:checked {
     background-color: transparent !important;
     background-image: none !important;
     border: 0 !important;
