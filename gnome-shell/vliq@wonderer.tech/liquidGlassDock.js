@@ -2021,6 +2021,13 @@ export class LiquidGlassIntegration {
         return this._topPanelIslands?.isBottomTaskbarActive?.() === true;
     }
 
+    ownsBottomTaskbarChrome() {
+        // Geometry can temporarily read "not at bottom" during a GNOME
+        // 50 relayout. Paint ownership cannot: a live Bottom Taskbar must
+        // suppress the old Dock shader and .dash-background throughout.
+        return this._topPanelIslands?.ownsBottomTaskbarChrome?.() === true;
+    }
+
     setBottomTaskbarLauncher(callback) {
         this._bottomLauncherCallback =
             typeof callback === 'function' ? callback : null;
@@ -4375,7 +4382,7 @@ export class LiquidGlassIntegration {
         // its container/icons are hidden, making a second stripe or gap.
         // Suppress the producer each frame; otherwise its own compositor
         // callback would re-show the old glass immediately.
-        if (this.isBottomTaskbarActive()) {
+        if (this.ownsBottomTaskbarChrome()) {
             surface.hide();
             this._setPanelLiquidReady(entry, false);
             return;
@@ -4738,7 +4745,7 @@ export class LiquidGlassIntegration {
         );
         this._watchDockPanelBackground(entry);
 
-        if (this.isBottomTaskbarActive()) {
+        if (this.ownsBottomTaskbarChrome()) {
             // The Windows-style bar has ONE glass owner: Main.panel.
             // Even a hidden Dash-to-Dock container can leave its own
             // Panel Mode .dash-background and stage-level glass visible.
