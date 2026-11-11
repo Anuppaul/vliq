@@ -3,10 +3,10 @@ import {readFile} from 'node:fs/promises';
 
 const read = f => readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/' + f, import.meta.url), 'utf8');
-const [dock, panel, popup, shell, notify, orb, spotlight, css] =
+const [dock, panel, popup, shell, notify, orb, spotlight, css, overview] =
     await Promise.all(['liquidGlassDock.js', 'panelGlass.js', 'popupGlass.js',
         'shellCards.js', 'notificationGlass.js', 'orbGlass.js',
-        'spotlightGlass.js', 'runtime.css'].map(read));
+        'spotlightGlass.js', 'runtime.css', 'overviewCloseGlass.js'].map(read));
 
 // Compile methods copied verbatim from shipped source, never a test stub.
 function method(source, start, end, name, imports = {}) {
@@ -136,4 +136,60 @@ for (const cls of [
 ]) assert.ok(css.includes('.vliq-global-milky ' + cls),
     'Missing native Milky material: ' + cls);
 assert.match(css, /rgba\(245, 249, 255, 0\.24\) !important/);
-console.log('Global Milky native material, visibility and reversible styles PASS.');
+
+// OSD owns a separate legacy vendor render path. Its instance adapter
+// must hide the shader even when the GJS vendor module was hot-cached.
+const installOsd = method(dock, '_installMilkyOsdAdapter() {',
+    '_syncMilkyAppearanceClass(enabled) {', '_installMilkyOsdAdapter');
+let oldOsdPaint = 0, osdHidden = 0;
+const osd = {_syncGeometry() {oldOsdPaint++;}};
+const osdHost = {_osdManager: osd, _milkyModeActive: true};
+installOsd.call(osdHost);
+const osdClasses = new Set();
+const osdState = {
+    bgActor: {hide() {osdHidden++;}},
+    targetBox: {
+        add_style_class_name(name) {osdClasses.add(name);},
+        remove_style_class_name(name) {osdClasses.delete(name);},
+    },
+};
+osd._syncGeometry(osdState);
+assert.equal(osdHidden, 1);
+assert.equal(oldOsdPaint, 0);
+assert.ok(osdClasses.has('vliq-milky-osd'));
+osdHost._milkyModeActive = false;
+osd._syncGeometry(osdState);
+assert.equal(oldOsdPaint, 1);
+assert.ok(!osdClasses.has('vliq-milky-osd'));
+
+// Overview normally renders a sharp clone of every icon above its glass.
+// Milky must restore native icon opacity before hiding that clone layer.
+const updateOverview = method(overview, 'updateAppearance(\n' +
+    '        state = this._readAppearance()\n    ) {',
+    '_ignoreTreeNode(', 'updateAppearance');
+const nativeIcon = {opacity: 0}, closeButton = {opacity: 255};
+let overviewHidden = 0, overviewRepainted = 0;
+const overviewHost = {
+    _targets: new Map([
+        [nativeIcon, {kind: 'icon', nativeOpacity: 187}],
+        [closeButton, {kind: 'close'}],
+    ]),
+    _root: {hide() {overviewHidden++;}},
+    _applyAppearance() {overviewRepainted++;},
+    _lastRegionKey: '',
+};
+updateOverview.call(overviewHost, {milky: true});
+assert.equal(nativeIcon.opacity, 187);
+assert.equal(closeButton.opacity, 255);
+assert.equal(overviewHidden, 1);
+updateOverview.call(overviewHost, {milky: false});
+assert.equal(nativeIcon.opacity, 0);
+assert.equal(overviewRepainted, 1);
+for (const cls of [
+    '.vliq-milky-osd',
+    '#overviewGroup .window-close.vliq-window-close-shared-glass',
+    '#overviewGroup .window-icon.vliq-window-icon-shared-glass',
+]) assert.ok(css.includes('.vliq-global-milky ' + cls),
+    'global Milky missed native OSD/Overview ' + cls);
+
+console.log('Global Milky native material, OSD/Overview visibility and reversible styles PASS.');
