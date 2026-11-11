@@ -1983,7 +1983,7 @@ export default class VLIQRuntime extends Extension {
                 }
             } else {
                 this._hideTooltip();
-                this._scheduleAppPreviewHide();
+                this._scheduleAppPreviewHide(button);
 
                 button.ease({
                     scale_x: 1,
@@ -2495,7 +2495,7 @@ export default class VLIQRuntime extends Extension {
                             );
                         }
                     } else {
-                        this._scheduleAppPreviewHide();
+                        this._scheduleAppPreviewHide(actor);
                     }
                 }
             );
@@ -3018,9 +3018,13 @@ export default class VLIQRuntime extends Extension {
         );
     }
 
-    _scheduleAppPreviewHide() {
+    _scheduleAppPreviewHide(anchorActor = null) {
         if (this._globalWindowPreview) {
+            // Late LEAVE from another icon must never dismiss the newly
+            // hovered icon's pending live preview.
             const anchor = this._globalPreviewAnchor;
+            if (anchorActor && anchorActor !== anchor)
+                return;
             const item = anchor
                 ? this._globalPreviewItems?.get(anchor) : null;
             if (item)

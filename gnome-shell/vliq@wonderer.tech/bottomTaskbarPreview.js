@@ -340,7 +340,9 @@ export class BottomTaskbarPreview {
         }
         // The original taskbar remains panel-anchored. Orb/Dock are anchored
         // to their icon's live position and fitted to their monitor.
-        if (!side && buttonY >= panelY - 8)
+        if (!side &&
+            panelY >= monitor.y + monitor.height / 2 &&
+            buttonY >= panelY - 8)
             target = [centerX - width / 2, panelY - height - GAP];
         const x = clamp(Math.round(target[0]), monitor.x + GAP, boundsX);
         const y = clamp(Math.round(target[1]), monitor.y + GAP, boundsY);
