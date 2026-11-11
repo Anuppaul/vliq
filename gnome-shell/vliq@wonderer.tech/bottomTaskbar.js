@@ -300,6 +300,8 @@ export class BottomTaskbar {
                 }],
                 [this._display, 'in-fullscreen-changed', () =>
                     this._previewManager?.close()],
+                [Main.overview, 'showing', () =>
+                    this._previewManager?.close()],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
