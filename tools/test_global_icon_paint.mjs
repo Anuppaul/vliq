@@ -5,9 +5,9 @@ import {readFile} from 'node:fs/promises';
 // reproduced across native Ubuntu Dock, Overview Dash and the VLIQ Orb.
 // No cloned app buttons, separate dot actors, input wrappers or frame timers.
 const root = '../gnome-shell/vliq@wonderer.tech/';
-const [css, orb, bottom, preview] = await Promise.all([
+const [css, orb, bottom, preview, integration] = await Promise.all([
     'runtime.css', 'orbThemeRuntime.js', 'bottomTaskbar.js',
-    'bottomTaskbarPreview.js',
+    'bottomTaskbarPreview.js', 'liquidGlassDock.js',
 ].map(f => readFile(new URL(root + f, import.meta.url), 'utf8')));
 
 const start = css.indexOf('/* VLIQ app icon consistency');
@@ -97,4 +97,17 @@ assert.doesNotMatch(shared, /add_child\(|new St\.Widget|new Clutter\.Clone|set_s
     'global paint must never create extra indicator actors');
 assert.doesNotMatch(shared, /\.dash-item-container\s*\{/,
     'never paint one solid card around an entire app icon row');
+// Dynamic Appearance CSS is loaded after runtime.css, and must not win
+// over white with the desktop accent when Liquid/Frosted/Milky toggles.
+const dynamic = integration.slice(
+    integration.indexOf('    _applyCardAppearanceStylesheet('),
+    integration.indexOf('    isBottomTaskbarActive()', integration.indexOf(
+        '    _applyCardAppearanceStylesheet(')));
+assert.ok(dynamic.includes(
+    "background-color: rgba(235, 244, 255, 0.94) !important"),
+    'runtime-generated CSS must keep the white Orb dot');
+assert.doesNotMatch(dynamic,
+    /\.vliq-running-dot \{\\n' \+\s*'  background-color: ' \+ accentColor/,
+    'desktop accent may never recolor native running indicators');
+
 console.log('Global app hover and 5px native running indicators PASS.');
