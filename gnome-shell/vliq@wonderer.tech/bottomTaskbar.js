@@ -49,6 +49,8 @@ export class BottomTaskbar {
         this._originalCenterTranslation = 0;
         this._placingPanel = false;
         this._dockPaint = new Map();
+        this._dockVisibilityWatchers = new Map();
+        this._dockConcealingActors = new Set();
         this._dockRootCache = new WeakMap();
         this._menuSides = new Map();
         this._lastMenuReconcileUs = 0;
@@ -693,24 +695,49 @@ export class BottomTaskbar {
     _concealDockActor(actor) {
         if (!actor || actor === this._panel ||
             actor === this._layout?.panelBox ||
-            actor === this._layout?.uiGroup)
+            actor === this._layout?.uiGroup ||
+            this._dockConcealingActors.has(actor))
             return;
 
-        // Capture the first untouched state, never the hidden state from
-        // our own previous frame. All changes are reversible on mode exit.
-        if (!this._dockPaint.has(actor)) {
-            this._dockPaint.set(actor, {
-                opacity: actor.opacity,
-                reactive: actor.reactive,
-                visible: actor.visible,
-            });
+        this._dockConcealingActors.add(actor);
+        try {
+            // Capture the original state once, before any VLIQ writes.
+            // The native Dock may call show() during app focus/hover *after*
+            // our before-update callback has run. Observe the change and
+            // hide the old layer synchronously in the same signal turn,
+            // instead of permitting one frame of duplicate Dock paint.
+            if (!this._dockPaint.has(actor)) {
+                this._dockPaint.set(actor, {
+                    opacity: actor.opacity,
+                    reactive: actor.reactive,
+                    visible: actor.visible,
+                });
+            }
+            if (!this._dockVisibilityWatchers.has(actor)) {
+                const ids = [];
+                for (const signal of ['notify::visible', 'notify::opacity']) {
+                    try {
+                        const id = actor.connect?.(signal, () => {
+                            if (this._enabled &&
+                                (actor.visible !== false ||
+                                 actor.opacity !== 0))
+                                this._concealDockActor(actor);
+                        });
+                        if (id)
+                            ids.push(id);
+                    } catch {}
+                }
+                this._dockVisibilityWatchers.set(actor, ids);
+            }
+            if (actor.visible !== false)
+                actor.hide?.();
+            if (actor.opacity !== 0)
+                actor.opacity = 0;
+            if (actor.reactive !== false)
+                actor.reactive = false;
+        } finally {
+            this._dockConcealingActors.delete(actor);
         }
-        if (actor.visible !== false)
-            actor.hide?.();
-        if (actor.opacity !== 0)
-            actor.opacity = 0;
-        if (actor.reactive !== false)
-            actor.reactive = false;
     }
 
     _hideOriginalDock() {
@@ -795,6 +822,14 @@ export class BottomTaskbar {
         }
         this._activity = null;
 
+        // Disconnect synchronous anti-flicker guards BEFORE restoration.
+        // Otherwise showing the original Dock would immediately hide it.
+        for (const [actor, ids] of this._dockVisibilityWatchers) {
+            for (const id of ids)
+                safeDisconnect(actor, id);
+        }
+        this._dockVisibilityWatchers.clear();
+        this._dockConcealingActors.clear();
         for (const [actor, old] of this._dockPaint) {
             try {
                 if (actor.opacity === 0)
