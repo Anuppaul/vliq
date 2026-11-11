@@ -24,6 +24,8 @@
 <p align="center">
   <a href="#features"><b>Features</b></a>
   ·
+  <a href="#desktop-layout--native-bottom-taskbar"><b>Desktop Layout</b></a>
+  ·
   <a href="#gallery"><b>Gallery</b></a>
   ·
   <a href="#install"><b>Install</b></a>
@@ -71,6 +73,7 @@ It does not place a second Dock over Ubuntu Dock, recreate Quick Settings, dupli
 | **VLIQ Orb** | Draggable, multi-monitor radial launcher with Dock Apps, Custom Apps and All Apps sources, paging, previews, tooltips and running indicators. |
 | **VLIQ Spotlight** | Centered `Super+Space` application search with adaptive glass and native-style result presentation. |
 | **Ubuntu Dock integration & settings** | Restyles the existing Ubuntu Dock and lets you manage its native autohide, intellihide, pressure, delays, position, panel mode, icons, application list and click actions inside VLIQ Preferences. |
+| **Three desktop layouts** | Switch live between 3-Part Header, Full Header and a centered Windows-style Bottom Taskbar. The bottom layout keeps native GNOME Activities/workspace controls, Date and Quick Settings, with one borderless Liquid Glass strip and running-app dots. |
 | **Native Shell surfaces** | Shared glass treatment for Quick Settings, Date/Calendar, notifications, panel/status popups and supported Shell-owned cards. |
 | **Brightness directly below Sound** | GNOME's original brightness QuickSlider on supported hardware; a matching software-dimming slider (30–100%) on desktop monitors without a native backlight. Original image at 100% costs no extra GPU effect. |
 | **Monitor-safe launcher geometry** | Orbit, Star, Molecule, Spiral and Petal layouts with fit-first placement and paging near monitor edges/corners. |
@@ -207,7 +210,8 @@ The original Liquid Glass refraction and Frosted Crystal matte finish still diff
 
 | Surface | GNOME keeps | VLIQ changes |
 | --- | --- | --- |
-| Ubuntu Dock / Dash-to-Dock | icons, hit targets, autohide/intellihide, app behavior | supported background/material |
+| Ubuntu Dock / Dash-to-Dock | icons, hit targets, autohide/intellihide, app behavior | supported background/material in header modes; temporarily concealed in Bottom Taskbar mode |
+| GNOME panel / Bottom Taskbar | native Activities/workspace toggle, Date/Quick Settings and their menu input | relocated native panel, centered launcher/app shortcuts and glass material in Bottom mode |
 | App Grid / Overview | application view, interaction, layout | supported backdrop/material |
 | Quick Settings | controls, geometry, interaction | supported Shell material |
 | Date / Calendar | calendar, controls, animation | glass material underneath |
@@ -238,6 +242,24 @@ compatibility, and use one Liquid/Frosted composite shader. Native input,
 Date-menu cards, Quick Settings controls, Dock and 480×270 window previews
 remain unchanged.
 
+
+## Desktop Layout — native Bottom Taskbar
+
+Open **GNOME Extensions → VLIQ → Preferences → Desktop Layout → Desktop layout** and choose one of three live-switchable modes:
+
+| Mode | Layout |
+| --- | --- |
+| **3-Part Header** (default) | Three separate rounded Liquid Glass islands across the top: Activities, Date and Quick Settings. |
+| **Full Header** | GNOME's original full-width top panel with a square Liquid Glass backdrop. |
+| **Bottom Taskbar** | Moves the **existing GNOME panel** to the bottom of the primary monitor, with workspace/Activities at the left, **centered VLIQ Start + pinned/running apps**, and Quick Settings + Date/Clock at the right. |
+
+The Bottom Taskbar preserves the native GNOME controls and popup owners instead of drawing a second panel over them. The Start button opens VLIQ's application view. Clicking a pinned app launches it; clicking a running app focuses/restores it, or minimizes a focused window on the next click. Each running app has a centered **5 px round dot** underneath its icon; a stopped pinned app has no visible dot.
+
+**Bottom-only appearance:** one edge-to-edge, borderless Liquid Glass strip. There is no bottom optical rim, dark outline or drop shadow. App hover/pressed states highlight each icon separately; the Date/Clock text is fixed white in this mode. The original Ubuntu Dock (including its background and reactive chrome) is temporarily concealed to prevent a second dark capsule or overlapping click targets. Switching back to either header mode restores the Dock and native panel positions.
+
+**Rendering / lifecycle:** GNOME Shell 50's own `LayoutManager.panelBox` remains the input owner. VLIQ restores bottom placement after native monitor relayout, follows native fullscreen visibility and retains the same `St.Button`/icon actor across app-state changes to avoid click flicker. Dock ancestry is cached for normal frames, while a cheap per-frame visibility guard prevents stale Dock paint; menu arrows use event-driven updates and a bounded fallback. All added actors, signal handlers and temporary settings-side changes are cleaned up on mode exit.
+
+The **Saved layout request** and **Active desktop layout** rows in Preferences report the persisted selection and the running Shell status independently. The bottom layout currently targets **GNOME Shell 50**; other Shell versions have not been verified.
 
 ## Manage Ubuntu Dock from VLIQ
 
@@ -464,6 +486,9 @@ runtime.js
 ├── shellCards.js
 ├── appGridBackdrop.js
 └── liquidGlassDock.js
+    ├── topBarIslands.js        # 3-Part / Full / Bottom layout lifecycle
+    │   └── bottomTaskbar.js    # GNOME panel movement + app buttons
+    ├── panelGlass.js          # bounded panel-height glass surfaces
     └── vendor/liquid-glass/
 ```
 
@@ -507,6 +532,8 @@ VLIQ's runtime is designed around a few constraints:
 - Overview window captions reuse sampled geometry and skip unchanged color writes; empty close-button glass regions clear just once
 - native Overview actor add/remove events invalidate the window-chrome registry; quiet frames skip full-tree scans with a conservative fallback reconciliation
 - Ubuntu Dock Panel Mode uses its own strictly **panel-sized LiquidEffect** (VLIQ refraction, micro-grain and 15% milky-white body shade) behind native DockDash icons; 0px square corners and a native fallback remain, without DashManager's full-screen FBO.
+- Bottom Taskbar reuses one bounded native-panel glass surface: unchanged app-state signals update existing buttons/dots without recreating icon textures or reordering actors; steady frames skip unnecessary child-order queries.
+- Bottom Taskbar caches the native Dock chrome root, hides any reappearing Dock paint/input on the same compositor frame, and reconciles newly added menu arrows by signals plus a bounded 350 ms fallback rather than a full scan every paint.
 - native GNOME animation remains responsible for transforms
 
 Performance-sensitive changes should include reproducible before/after evidence where practical.
