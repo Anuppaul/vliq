@@ -470,6 +470,19 @@
     background-color: rgba(245, 249, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
+/* Bottom Date/Clock is text-only, including on pointer hover and when the
+ * calendar popup is open. Only the native date button is exempted; the
+ * adjacent Quick Settings button retains its premium hover card. */
+#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display,
+#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:hover,
+#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:focus,
+#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:active,
+#panel.vliq-bottom-taskbar #panelRight .panel-button.clock-display:checked {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
 #panel.vliq-bottom-taskbar .vliq-taskbar-apps {
     spacing: 4px;
     padding: 0px;
