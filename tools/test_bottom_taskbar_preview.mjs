@@ -193,7 +193,7 @@ assert.equal(timers.size, 0);
 preview.onButtonHover(item, true);
 tick(260);
 const tiles = preview._popup.get_children();
-tiles[1].emit('clicked');
+tiles[1].get_children()[0].emit('clicked');
 assert.equal(focusCount, 1);
 assert.equal(windows[1].focused, true);
 assert.equal(preview._popup, null);
@@ -201,8 +201,11 @@ assert.equal(preview._popup, null);
 // Closing from the thumbnail must call Meta.Window.delete only, not focus.
 preview.onButtonHover(item, true);
 tick(260);
-const close = preview._popup.get_children()[0]
-    .get_children()[0].get_children()[1].get_children()[1];
+const closeTile = preview._popup.get_children()[0];
+const activateButton = closeTile.get_children()[0];
+const close = closeTile.get_children()[1];
+assert.notEqual(activateButton, close,
+    'close and activate must be sibling buttons, never nested click targets');
 close.emit('clicked');
 assert.equal(windows[0].deleted, 1);
 assert.equal(focusCount, 1);
