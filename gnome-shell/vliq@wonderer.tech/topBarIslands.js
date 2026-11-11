@@ -767,15 +767,12 @@ export class TopBarIslands {
                 (region.notReadyFrames ?? 0) + 1;
             const failureStable = region.notReadyFrames >= 12;
             ready = materialReady || (region.ready && !failureStable);
-            if (materialReady) {
-                panel.add_style_class_name(
-                    'vliq-bottom-taskbar-glass-attached');
-            } else if (failureStable) {
-                // A real prolonged shader failure still receives the
-                // single native CSS fallback (never both paint layers).
-                panel.remove_style_class_name(
-                    'vliq-bottom-taskbar-glass-attached');
-            }
+            // Never turn CSS fallback back on while an attached GPU actor
+            // can still contain a cached frame. `ready=false` alone does
+            // not guarantee that the old Cogl texture stopped painting.
+            // CSS fallback is used ONLY when material.attach() failed and
+            // there is no concurrent GPU material at all.
+            // Paint ownership remains attached until _disposeLayout().
         }
         if (ready !== region.ready) {
             region.ready = ready;
