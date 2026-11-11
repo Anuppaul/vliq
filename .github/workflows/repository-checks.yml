@@ -63,6 +63,7 @@ jobs:
           node tools/test_liquid_optics.mjs
           node tools/test_frosted_crystal.mjs
           node tools/test_milky_glass.mjs
+          node tools/test_milky_controls.mjs
           node tools/test_milky_global_integration.mjs
           node tools/test_adaptive_blue_edge.mjs
           # Validate the modified vendored modules as well as VLIQ's own JS.
