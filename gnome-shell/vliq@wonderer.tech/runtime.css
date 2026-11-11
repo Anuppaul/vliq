@@ -470,8 +470,14 @@
     box-shadow: none;
 }
 .vliq-taskbar-preview-tile:hover,
-.vliq-taskbar-preview-tile:focus {
+.vliq-taskbar-preview-activate:focus {
     background-color: rgba(255, 255, 255, 0.16);
+}
+.vliq-taskbar-preview-activate {
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    box-shadow: none;
 }
 .vliq-taskbar-preview-content {
     spacing: 6px;
