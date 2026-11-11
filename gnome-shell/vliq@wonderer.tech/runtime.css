@@ -435,6 +435,27 @@
     background-color: rgba(245, 249, 255, 0.34) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
+/* Bottom Taskbar's Calendar/Date and Quick Settings buttons use the same
+ * individual hover cards as running-app icons. This changes PAINT only;
+ * native indicator size, popup menu and input allocation are unchanged. */
+#panel.vliq-bottom-taskbar #panelRight .panel-button {
+    border-radius: 9px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    transition-duration: 120ms;
+}
+#panel.vliq-bottom-taskbar #panelRight .panel-button:hover,
+#panel.vliq-bottom-taskbar #panelRight .panel-button:focus {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+#panel.vliq-bottom-taskbar #panelRight .panel-button:active,
+#panel.vliq-bottom-taskbar #panelRight .panel-button:checked {
+    background-color: rgba(245, 249, 255, 0.34) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+}
 #panel.vliq-bottom-taskbar .vliq-taskbar-apps {
     spacing: 4px;
     padding: 0px;
