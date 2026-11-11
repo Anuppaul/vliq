@@ -2213,3 +2213,13 @@
     border: 0 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
+
+/* Native GNOME volume/brightness OSD. Vendor's UI container is restored as
+ * the Milky card while its original icons, slider and fade remain native. */
+.vliq-global-milky .vliq-milky-osd {
+    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
