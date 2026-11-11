@@ -316,7 +316,7 @@ export class TopBarIslands {
             // panelBox and spans only its allocated 36-ish-pixel height.
             const surface = new PanelGlassSurface(
                 this._vendor, this._settings, this._readAppearance,
-                {cornerRadius: 0}
+                {cornerRadius: 0, borderless: mode === 'bottom'}
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
