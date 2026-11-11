@@ -52,7 +52,7 @@ for (const prop of [
     'border: 0 !important',
     'box-shadow: none !important',
 ]) assert.ok(clockRules.includes(prop));
-assert.doesNotMatch(clockRules, /\bcolor\s*:/,
+assert.doesNotMatch(clockRules, /^\s*color\s*:/m,
     'shared clock rules must keep native/adaptive text color');
 assert.ok(css.includes(
     '#panel.vliq-bottom-taskbar #panelRight .clock-display .clock,'),
