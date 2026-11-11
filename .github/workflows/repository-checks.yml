@@ -53,6 +53,7 @@ jobs:
           node tools/test_top_bar_islands.mjs
           node tools/test_bottom_taskbar.mjs
           node tools/test_bottom_taskbar_preview.mjs
+          node tools/test_global_preview_router.mjs
           node tools/test_bottom_taskbar_borderless.mjs
           node tools/test_bottom_taskbar_date_contrast.mjs
           node tools/test_desktop_layout_preferences.mjs
