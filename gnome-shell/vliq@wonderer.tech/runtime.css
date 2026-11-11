@@ -450,6 +450,65 @@
     border: 0;
     box-shadow: none;
 }
+
+/* GNOME 50 Bottom Taskbar — live native Meta.WindowActor hover thumbnails.
+ * Single popover created on demand; NO extra LiquidEffect/compositor loop.
+ * Kept separate from the borderless bar and its white Date/Clock styling. */
+.vliq-taskbar-window-previews {
+    spacing: 8px;
+    padding: 10px;
+    border-radius: 14px;
+    background-color: rgba(29, 33, 43, 0.94);
+    border: 1px solid rgba(220, 232, 255, 0.24);
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.34);
+}
+.vliq-taskbar-preview-tile {
+    padding: 7px;
+    border-radius: 10px;
+    border: 0;
+    background-color: rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+}
+.vliq-taskbar-preview-tile:hover,
+.vliq-taskbar-preview-activate:focus {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+.vliq-taskbar-preview-activate {
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    box-shadow: none;
+}
+.vliq-taskbar-preview-content {
+    spacing: 6px;
+}
+.vliq-taskbar-preview-thumbnail {
+    background-color: rgba(0, 0, 0, 0.16);
+    border-radius: 6px;
+    border: 0;
+}
+.vliq-taskbar-preview-footer {
+    spacing: 5px;
+}
+.vliq-taskbar-preview-title,
+.vliq-taskbar-preview-empty,
+.vliq-taskbar-preview-extra {
+    color: #ffffff;
+    font-size: 11px;
+}
+.vliq-taskbar-preview-close {
+    padding: 2px;
+    border-radius: 6px;
+    color: #ffffff;
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+}
+.vliq-taskbar-preview-close:hover,
+.vliq-taskbar-preview-close:focus {
+    background-color: rgba(255, 255, 255, 0.22);
+}
+
 #panel.vliq-bottom-taskbar .vliq-taskbar-launcher-icon {
     color: #ffffff;
 }

@@ -8,6 +8,7 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {BottomTaskbarPreview} from './bottomTaskbarPreview.js';
 
 const MAX_TASKBAR_APPS = 11;
 const APP_ICON_SIZE = 24;
@@ -48,6 +49,8 @@ export class BottomTaskbar {
         this._originalCenterTranslation = 0;
         this._placingPanel = false;
         this._dockPaint = new Map();
+        this._dockVisibilityWatchers = new Map();
+        this._dockConcealingActors = new Set();
         this._dockRootCache = new WeakMap();
         this._menuSides = new Map();
         this._lastMenuReconcileUs = 0;
@@ -55,6 +58,7 @@ export class BottomTaskbar {
         // Preserve native St.Button actors across app-state updates. Rebuilding
         // every icon on click resets hover/focus and flashes the full row.
         this._appItems = new Map();
+        this._previewManager = null;
         this._nativeUpdateBoxes = null;
         this._patchedUpdateBoxes = null;
         this._updateBoxesWasOwn = false;
@@ -251,6 +255,12 @@ export class BottomTaskbar {
             }
 
             try {
+                // Live GNOME WindowActor previews are created only on hover.
+                // They are independent of the pinned/running app strip and
+                // do not add a second compositor-time paint loop.
+                this._previewManager = new BottomTaskbarPreview({
+                    layout: this._layout,
+                });
                 this._appStrip = new St.BoxLayout({
                     style_class: 'vliq-taskbar-apps',
                     reactive: false,
@@ -270,6 +280,7 @@ export class BottomTaskbar {
 
             for (const [actor, signal, callback] of [
                 [this._layout, 'monitors-changed', () => {
+                    this._previewManager?.close();
                     // GNOME may rebuild Dock chrome under a different root.
                     this._dockRootCache = new WeakMap();
                     this._placePanel();
@@ -282,10 +293,15 @@ export class BottomTaskbar {
                 // and avoid one-frame flashing at the top edge.
                 [box, 'notify::allocation', () => this._placePanel()],
                 [this._display, 'workareas-changed', () => {
+                    this._previewManager?.close();
                     this._placePanel();
                     this._syncCenterAlignment();
                     this._refreshApps();
                 }],
+                [this._display, 'in-fullscreen-changed', () =>
+                    this._previewManager?.close()],
+                [Main.overview, 'showing', () =>
+                    this._previewManager?.close()],
                 [this._appSystem, 'installed-changed', () => this._refreshApps()],
                 [this._appSystem, 'app-state-changed', () => this._refreshApps()],
                 [this._shellSettings, 'changed::favorite-apps',
@@ -522,6 +538,7 @@ export class BottomTaskbar {
         for (const [id, item] of this._appItems) {
             if (desiredIds.has(id))
                 continue;
+            this._previewManager?.closeForItem(item);
             item.button.destroy();
             this._appItems.delete(id);
         }
@@ -559,7 +576,13 @@ export class BottomTaskbar {
                 item = {app, button, dot};
                 // Resolve the current Shell.App when clicked. The shell can
                 // refresh AppSystem references while an actor remains stable.
-                button.connect('clicked', () => this._activateApp(item.app));
+                button.connect('clicked', () => {
+                    this._previewManager?.close();
+                    this._activateApp(item.app);
+                });
+                button.connect('notify::hover', () =>
+                    this._previewManager?.onButtonHover(item,
+                        button.get_hover?.() ?? button.hover ?? false));
                 this._appItems.set(id, item);
                 this._appStrip.insert_child_at_index(button, index);
             } else {
@@ -678,24 +701,49 @@ export class BottomTaskbar {
     _concealDockActor(actor) {
         if (!actor || actor === this._panel ||
             actor === this._layout?.panelBox ||
-            actor === this._layout?.uiGroup)
+            actor === this._layout?.uiGroup ||
+            this._dockConcealingActors.has(actor))
             return;
 
-        // Capture the first untouched state, never the hidden state from
-        // our own previous frame. All changes are reversible on mode exit.
-        if (!this._dockPaint.has(actor)) {
-            this._dockPaint.set(actor, {
-                opacity: actor.opacity,
-                reactive: actor.reactive,
-                visible: actor.visible,
-            });
+        this._dockConcealingActors.add(actor);
+        try {
+            // Capture the original state once, before any VLIQ writes.
+            // The native Dock may call show() during app focus/hover *after*
+            // our before-update callback has run. Observe the change and
+            // hide the old layer synchronously in the same signal turn,
+            // instead of permitting one frame of duplicate Dock paint.
+            if (!this._dockPaint.has(actor)) {
+                this._dockPaint.set(actor, {
+                    opacity: actor.opacity,
+                    reactive: actor.reactive,
+                    visible: actor.visible,
+                });
+            }
+            if (!this._dockVisibilityWatchers.has(actor)) {
+                const ids = [];
+                for (const signal of ['notify::visible', 'notify::opacity']) {
+                    try {
+                        const id = actor.connect?.(signal, () => {
+                            if (this._enabled &&
+                                (actor.visible !== false ||
+                                 actor.opacity !== 0))
+                                this._concealDockActor(actor);
+                        });
+                        if (id)
+                            ids.push(id);
+                    } catch {}
+                }
+                this._dockVisibilityWatchers.set(actor, ids);
+            }
+            if (actor.visible !== false)
+                actor.hide?.();
+            if (actor.opacity !== 0)
+                actor.opacity = 0;
+            if (actor.reactive !== false)
+                actor.reactive = false;
+        } finally {
+            this._dockConcealingActors.delete(actor);
         }
-        if (actor.visible !== false)
-            actor.hide?.();
-        if (actor.opacity !== 0)
-            actor.opacity = 0;
-        if (actor.reactive !== false)
-            actor.reactive = false;
     }
 
     _hideOriginalDock() {
@@ -753,6 +801,8 @@ export class BottomTaskbar {
         }
         this._menuSides.clear();
 
+        try { this._previewManager?.destroy?.(); } catch {}
+        this._previewManager = null;
         try { this._start?.destroy?.(); } catch {}
         try { this._appStrip?.destroy?.(); } catch {}
         this._appItems.clear();
@@ -778,6 +828,14 @@ export class BottomTaskbar {
         }
         this._activity = null;
 
+        // Disconnect synchronous anti-flicker guards BEFORE restoration.
+        // Otherwise showing the original Dock would immediately hide it.
+        for (const [actor, ids] of this._dockVisibilityWatchers) {
+            for (const id of ids)
+                safeDisconnect(actor, id);
+        }
+        this._dockVisibilityWatchers.clear();
+        this._dockConcealingActors.clear();
         for (const [actor, old] of this._dockPaint) {
             try {
                 if (actor.opacity === 0)

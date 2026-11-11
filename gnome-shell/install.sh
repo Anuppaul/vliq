@@ -54,6 +54,7 @@ RUNTIME_FILES=(
     "panelGlass.js"
     "topBarIslands.js"
     "bottomTaskbar.js"
+    "bottomTaskbarPreview.js"
     "frameBudget.js"
 )
 
@@ -694,6 +695,7 @@ if command -v unzip >/dev/null 2>&1; then
         "extension.js"
         "topBarIslands.js"
         "bottomTaskbar.js"
+        "bottomTaskbarPreview.js"
         "prefs.js"
         "stylesheet.css"
         "runtime.js"
@@ -768,7 +770,7 @@ record_bootstrap_identity
 refresh_prefs_process
 
 for installed_file in \
-    metadata.json extension.js topBarIslands.js bottomTaskbar.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
+    metadata.json extension.js topBarIslands.js bottomTaskbar.js bottomTaskbarPreview.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
     runtime.js orbThemeRuntime.js terminalBackdropBlur.js runtime.css apps.js geometry.js \
     liquidGlassDock.js notificationGlass.js popupGlass.js shellCards.js; do
     [[ -f "${TARGET_DIR}/${installed_file}" ]] ||

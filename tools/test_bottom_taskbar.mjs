@@ -53,8 +53,19 @@ class Actor {
     get_parent() {return this.parent;}
     get_position() {return [this.x ?? 0, this.y ?? 0];}
     set_position(x, y) {this.x = x; this.y = y;}
-    hide() {this.visible = false;}
-    show() {this.visible = true;}
+    hide() {
+        this.visible = false;
+        this.emit('notify::visible');
+    }
+    show() {
+        this.visible = true;
+        this.emit('notify::visible');
+    }
+    get_hover() {return this.hover ?? false;}
+    set_hover(value) {
+        this.hover = value;
+        this.emit('notify::hover');
+    }
     destroy() {
         this.parent?.remove_child(this);
         for (const c of [...this.children]) c.destroy?.();
@@ -189,18 +200,33 @@ const Main = {panel, layoutManager: layout,
         window.activate();
     },
 };
+class MockTaskbarPreview {
+    constructor() {
+        this.hovers = [];
+        this.closed = 0;
+        this.removed = [];
+        this.destroyed = false;
+    }
+    onButtonHover(item, hover) {this.hovers.push([item, hover]);}
+    closeForItem(item) {this.removed.push(item);}
+    close() {this.closed++;}
+    destroy() {this.destroyed = true;this.close();}
+}
 const BottomTaskbar = new Function(
     'St','Clutter','Gio','GLib','Shell','Main','global','console',
+    'BottomTaskbarPreview',
     source + '\nreturn BottomTaskbar;'
 )(St,Clutter,{Settings: class extends Actor {}},glib,
     {AppSystem: {get_default: () => appSystem}},Main,
-    {stage, display}, {warn() {}, log() {}});
+    {stage, display}, {warn() {}, log() {}}, MockTaskbarPreview);
 const taskbar = new BottomTaskbar({
     panel, layout, appSystem, shellSettings,
     getDockEntries: () => dockEntries,
     onLauncherClick: () => launches++,
 });
 assert.equal(taskbar.setup(), true);
+assert.ok(taskbar._previewManager instanceof MockTaskbarPreview,
+    'native window-preview handler must be installed before app icons');
 assert.equal(taskbar.isActive(), true);
 assert.equal(taskbar.ownsChrome(), true,
     'single-paint owner remains active independently of geometry');
@@ -273,6 +299,14 @@ assert.equal(taskbar._centerGroup.reactive, false,
     'center group must not swallow native child input');
 assert.equal(taskbar._start.reactive, true);
 assert.equal(taskbar._appStrip.get_children()[0].reactive, true);
+const firstPreviewButton = taskbar._appStrip.get_children()[1];
+firstPreviewButton.set_hover(true);
+assert.equal(taskbar._previewManager.hovers.at(-1)[0].app, appBeta,
+    'running app hover is routed to live native window previews');
+assert.equal(taskbar._previewManager.hovers.at(-1)[1], true);
+firstPreviewButton.set_hover(false);
+assert.equal(taskbar._previewManager.hovers.at(-1)[1], false,
+    'leaving a running app initiates preview dismissal');
 assert.equal(date.get_parent(), panel._rightBox);
 assert.equal(panel._rightBox.get_children().at(-1), date,
     'Date/Clock stays rightmost after Quick Settings');
@@ -428,10 +462,19 @@ favorites = ['alpha.desktop','beta.desktop'];
 shellSettings.emit('changed::favorite-apps');
 dock.opacity = 255; dock.show();dock.reactive = true;
 nativeDockRoot.show();
+assert.equal(nativeDockRoot.visible, false,
+    'native Dock must be hidden synchronously on show(), before any frame');
 nativeDockRoot.opacity = 255;
+nativeDockRoot.emit('notify::opacity');
+assert.equal(nativeDockRoot.opacity, 0,
+    'native Dock opacity resets synchronously when the theme changes it');
 nativeDockRoot.reactive = true;
 nativeBlackPill.show();
+assert.equal(nativeBlackPill.visible, false,
+    'sibling Dock background cannot paint even one frame after show()');
 nativeBlackPill.opacity = 255;
+nativeBlackPill.emit('notify::opacity');
+assert.equal(nativeBlackPill.opacity, 0);
 nativeBlackPill.reactive = true;
 stage.tick();
 assert.equal(nativeDockRoot.visible, false,
@@ -487,7 +530,13 @@ panel.statusArea.newExtension = {menu: extraMenu};
 stage.tick(400_000);
 assert.equal(extraMenu._boxPointer._userArrowSide, St.Side.BOTTOM,
     'late panel extension popup opens above taskbar');
+const previewBeforeCleanup = taskbar._previewManager;
 taskbar.cleanup();
+assert.equal(previewBeforeCleanup.destroyed, true,
+    'hot reload destroys live window previews and pending hover timers');
+assert.equal(taskbar._previewManager, null);
+assert.equal(taskbar._dockVisibilityWatchers.size, 0,
+    'native Dock visual-guard signals are disconnected on teardown');
 assert.equal(taskbar.ownsChrome(), false,
     'paint ownership releases during cleanup');
 assert.equal(stageSignals.size, 0);
