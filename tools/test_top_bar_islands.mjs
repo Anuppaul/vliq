@@ -488,6 +488,8 @@ assert.ok(!panel.classes.has('vliq-three-islands'));
 const full = configurable._regions[0];
 assert.equal(full.surface.options.cornerRadius, 0,
     'Full Header uses square native-panel corners');
+assert.equal(full.surface.options.borderless, false,
+    'Full Header must retain its own optical border');
 assert.ok(full.surface.bounds.w > 1000 &&
     full.surface.bounds.w <= layout.primaryMonitor.width,
     'Full Header spans the native primary panel and no desktop area');
@@ -567,6 +569,8 @@ assert.equal(bottomSessions.length, 2,
     'each independent bottom activation gets one native session');
 assert.equal(bottomSessions.at(-1).active, true);
 assert.equal(configurable._regions[0].surface.options.cornerRadius, 0);
+assert.equal(configurable._regions[0].surface.options.borderless, true,
+    'Bottom mode alone must disable optical borders');
 assert.equal(configurable._regions[0].surface.bounds.h, panelBox.height);
 assert.equal(configurable._regions[0].surface.bounds.y,
     layout.primaryMonitor.y + layout.primaryMonitor.height - panelBox.height,

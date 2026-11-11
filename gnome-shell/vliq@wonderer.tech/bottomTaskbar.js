@@ -183,6 +183,12 @@ export class BottomTaskbar {
                     error);
                 this._centerGroup = null;
             }
+            // Native workspace switcher is independent of the optional
+            // VLIQ Start icon. Keep it visible even if icon theme/creation
+            // fails, without reparenting GNOME's real Activities button.
+            this._activity = panel.statusArea?.activities?.container ?? null;
+            this._activityWasVisible = this._activity?.visible !== false;
+            this._activity?.show?.();
             try {
                 const icon = new St.Icon({
                     icon_name: 'start-here-symbolic',
@@ -205,13 +211,6 @@ export class BottomTaskbar {
                 });
                 (this._centerGroup ?? panel._centerBox)
                     .insert_child_at_index(this._start, 0);
-                // Hide native Activities only after a working replacement
-                // Start button has been attached to the real panel.
-                this._activity =
-                    panel.statusArea?.activities?.container ?? null;
-                this._activityWasVisible =
-                    this._activity?.visible !== false;
-                this._activity?.hide?.();
             } catch (error) {
                 console.warn('[VLIQ][Taskbar] launcher unavailable: ' +
                     error);
@@ -691,8 +690,13 @@ export class BottomTaskbar {
         }
         this._date = null;
         this._dateParent = null;
-        if (this._activity && this._activityWasVisible)
-            this._activity.show?.();
+        if (this._activity) {
+            // Restore original GNOME visibility when leaving Bottom mode.
+            if (this._activityWasVisible)
+                this._activity.show?.();
+            else
+                this._activity.hide?.();
+        }
         this._activity = null;
 
         for (const [actor, old] of this._dockPaint) {

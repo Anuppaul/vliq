@@ -362,6 +362,33 @@
     background-image: none !important;
     border: 0 !important;
 }
+/* Bottom-only flat edge: native CSS borders/corners and the separate
+ * glass effect's optical rim are disabled, preserving translucent fill. */
+#panel.vliq-bottom-taskbar,
+#panel.vliq-bottom-taskbar #panelLeft,
+#panel.vliq-bottom-taskbar #panelCenter,
+#panel.vliq-bottom-taskbar #panelRight {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar .panel-corner {
+    -panel-corner-radius: 0px;
+    -panel-corner-background-color: transparent;
+    -panel-corner-border-color: transparent;
+}
+/* GNOME's original workspace/screen toggle remains at far left.
+ * The centered VLIQ Start and app icons are intentionally unchanged. */
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities {
+    margin-left: 8px;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:hover,
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:focus,
+#panel.vliq-bottom-taskbar #panelLeft #panelActivities:checked {
+    background-color: rgba(245, 249, 255, 0.16) !important;
+}
 /* Windows 11-like CENTERED Start + apps. The entire group uses one
  * native panelCenter allocation; no fixed left-anchored launcher or
  * invisible box taking up half the monitor's useful width. */
