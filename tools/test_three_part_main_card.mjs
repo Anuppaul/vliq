@@ -54,8 +54,17 @@ assert.match(css, /\.vliq-liquid-popup-content\.datemenu-popover \.calendar/,
     'Calendar internal styling is unchanged');
 assert.match(css, /\.vliq-liquid-popup-content\.quick-settings \.quick-toggle/,
     'Quick Settings internal styling is unchanged');
-assert.match(top, /new PanelGlassSurface\([\s\S]*?\{cornerRadius: RADIUS\}/,
-    '3-Part glass renderer remains active in both material modes');
+assert.match(top, /\{cornerRadius: RADIUS, cssOnly: true\}/,
+    '3-Part constructs only a lightweight CSS-only surface');
+const surface = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/panelGlass.js', import.meta.url
+), 'utf8');
+assert.match(surface, /this\._cssOnly = options\.cssOnly === true/,
+    'renderer constructor identifies CSS-only island cards');
+assert.match(surface, /if \(this\._cssOnly\)\s*return true;/,
+    'CSS-only attach bypasses the GPU material creation path');
+assert.match(surface, /if \(this\._cssOnly\)\s*return !this\._destroyed;/,
+    'CSS-only ready state never depends on shader compilation');
 assert.match(top, /vliq-panel-island-inactive/,
     'runtime continues to hide empty GNOME boxes');
-console.log('3-Part main milky card across ready/idle, no nested hover PASS.');
+console.log('3-Part main milky card without LiquidEffect in all material modes PASS.');

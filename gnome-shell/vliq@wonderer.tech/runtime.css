@@ -282,7 +282,7 @@
 
 /* GNOME 50 three-part header: the accepted milky HOVER card is now the
  * permanent MAIN card for each native panel island. Keep the existing
- * rounded region geometry and the bounded Liquid/Frosted shader beneath it.
+ * rounded region geometry WITHOUT any GPU Liquid/Frosted shader underneath.
  * Native indicator allocations, popup anchors and input handling stay put. */
 #panel.vliq-liquid-top-panel.vliq-three-islands {
     background-color: transparent !important;
@@ -299,8 +299,8 @@
     border: 0 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
-/* Optical readiness must never erase the main card: the shader is behind
- * the permanent milky face in both Liquid Glass and Frosted Crystal. */
+/* Keep this permanent paint when runtime marks an island ready.
+ * The 3-Part surface is CSS-only: no shader is created for either mode. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island-ready,
 #panel.vliq-three-islands #panelRight.vliq-panel-island-ready {
@@ -310,8 +310,8 @@
     border: 0 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
-/* Truly empty/hidden islands must remain invisible, regardless of shader
- * readiness; never leave a floating blank pill on the desktop. */
+/* Truly empty/hidden islands must remain invisible; never leave
+ * a floating blank pill on the desktop. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island.vliq-panel-island-inactive,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island.vliq-panel-island-inactive,
 #panel.vliq-three-islands #panelRight.vliq-panel-island.vliq-panel-island-inactive {

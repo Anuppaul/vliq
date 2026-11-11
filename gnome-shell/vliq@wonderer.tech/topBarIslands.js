@@ -360,9 +360,13 @@ export class TopBarIslands {
             panel.add_style_class_name('vliq-three-islands');
             for (const [role, key] of REGIONS) {
                 const actor = panel[key];
+                // The 3-Part Header uses permanent CSS milky cards only.
+                // Keep the lightweight surface contract for native geometry
+                // and visibility, but NEVER allocate a LiquidEffect, window
+                // clones, GL framebuffer or glass actor for these islands.
                 const surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS}
+                    {cornerRadius: RADIUS, cssOnly: true}
                 );
                 if (!surface.attach(this._host, this._panelRoot)) {
                     surface.destroy();

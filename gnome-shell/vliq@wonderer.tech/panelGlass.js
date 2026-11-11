@@ -16,6 +16,9 @@ export class PanelGlassSurface {
     constructor(vendor, settings, readAppearance, options = {}) {
         this._cornerRadius = Math.max(0, options.cornerRadius ?? 0);
         this._borderless = options.borderless === true;
+        // True 3-Part milky cards: CSS alone paints the native GNOME
+        // island boxes. No LiquidEffect/Clutter actor is allocated.
+        this._cssOnly = options.cssOnly === true;
         this._vendor = vendor;
         this._settings = settings;
         this._readAppearance = readAppearance;
@@ -31,7 +34,11 @@ export class PanelGlassSurface {
     }
 
     attach(group, dockRoot) {
-        if (this._material || !group || !dockRoot)
+        if (!group || !dockRoot)
+            return false;
+        if (this._cssOnly)
+            return true;
+        if (this._material)
             return false;
         let material = null;
         let manager = null;
@@ -183,6 +190,8 @@ export class PanelGlassSurface {
     }
 
     get ready() {
+        if (this._cssOnly)
+            return !this._destroyed;
         return Boolean(
             !this._destroyed &&
             this._effect?._shadersLoaded &&
