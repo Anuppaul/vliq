@@ -1277,9 +1277,9 @@
  * ---------------------------------------------------------------------- */
 
 /* Date / Calendar -------------------------------------------------------- */
-/* The outer popover already owns the first LiquidEffect. These native cards
- * are made paint-transparent because PopupGlass now places a second shared
- * multi-region LiquidEffect between the outer glass and GNOME content. */
+/* One outer LiquidEffect only. Today, calendar, events, clocks, weather and
+ * messages are lightweight regular St cards like VLIQ's window-preview tiles.
+ * Quick Settings retains its existing independent inner glass pods. */
 .vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
 .vliq-liquid-popup-content.datemenu-popover .calendar,
 .vliq-liquid-popup-content.datemenu-popover .events-button,
@@ -1555,11 +1555,64 @@
     border-color: rgba(255, 255, 255, 0.10);
 }
 
+/* Date Menu flat card material — deliberately last in the Date section so
+ * previous theme/day focus styles cannot restore a second rim or inset
+ * highlight. Match taskbar window-preview tiles: one neutral 6% surface,
+ * rounded 10px corners, no independent shader, border or shadow. */
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button,
+.vliq-liquid-popup-content.datemenu-popover .calendar,
+.vliq-liquid-popup-content.datemenu-popover .events-button,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button,
+.vliq-liquid-popup-content.datemenu-popover .weather-button,
+.vliq-liquid-popup-content.datemenu-popover .message,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .calendar:hover,
+.vliq-liquid-popup-content.datemenu-popover .events-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .events-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .world-clocks-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .weather-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .message:hover,
+.vliq-liquid-popup-content.datemenu-popover .message:focus,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:hover,
+.vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus {
+    background-color: rgba(255, 255, 255, 0.16) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* Calendar inner controls may still show focus/selected state but must not
+ * draw their own inner + outer border pair. The single accent-coloured
+ * current day is intentionally preserved by the earlier semantic rule. */
+.vliq-liquid-popup-content.datemenu-popover .calendar-month-label,
+.vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day-heading,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:focus,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:active,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:selected,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
 /* Quick Settings --------------------------------------------------------- */
-/* Quick Settings now uses the SAME PopupGlass nested-card pipeline as Date
- * Menu. Native pod paint is cleared so the shared clone-of-parent
- * LiquidEffect is the visible card; CSS only supplies interaction/selection
- * hints and never another opaque card, border or shadow. */
+/* Quick Settings retains its existing nested glass pod pipeline. Native
+ * pod paint is cleared so its clone-of-parent LiquidEffect remains visible. */
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
 .vliq-liquid-popup-content.quick-settings .quick-toggle,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-menu-button,
