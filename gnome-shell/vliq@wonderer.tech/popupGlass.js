@@ -586,51 +586,9 @@ class PopupGlassSurface {
         let dateInnerClone = null;
         let dateInnerEffect = null;
 
-        // Date Menu keeps ONE outer Liquid Glass surface. Today/Calendar/
-        // events/weather/message cards use regular lightweight CSS cards,
-        // never a second clone-of-parent LiquidEffect with a second rim.
-        // Quick Settings intentionally retains its nested glass pods.
-        if (this._isQuickSettings) {
-            dateInnerRoot = new this._vendor.UnpickableActor({
-                name: 'vliq-popup-inner-material-root',
-                reactive: false,
-            });
-            dateInnerRoot.set_size(1, 1);
-            dateInnerRoot.hide();
-
-            dateInnerLiquidBox = new this._vendor.UnpickableActor({
-                name: 'vliq-popup-inner-liquid-box',
-                reactive: false,
-            });
-            dateInnerLiquidBox.set_clip_to_allocation(true);
-            dateInnerLiquidBox.set_position(0, 0);
-            dateInnerLiquidBox.set_size(1, 1);
-            dateInnerRoot.add_child(dateInnerLiquidBox);
-
-            // Safe non-recursive source: dateInnerRoot is a sibling ABOVE
-            // root, while the clone points DOWN to root. root never contains
-            // dateInnerRoot, so this cannot form a paint cycle.
-            dateInnerClone = new Clutter.Clone({
-                source: root,
-                reactive: false,
-            });
-            dateInnerClone.set_position(0, 0);
-            dateInnerClone.set_size(1, 1);
-            dateInnerLiquidBox.add_child(dateInnerClone);
-
-            dateInnerEffect = new this._vendor.LiquidEffect({
-                extensionPath: this._vendor.root,
-                settings: this._settings,
-                owner: 'vliq-popup-inner-cards',
-            });
-            dateInnerEffect.setPadding?.(DATE_INNER_PAD);
-            dateInnerEffect.setIsDock?.(false);
-            dateInnerEffect.setSurfaceLightEnabled?.(true);
-            dateInnerEffect.setCornerRadius?.(16);
-            dateInnerEffect.setBlurMethod?.(1);
-            dateInnerEffect.setMultiRegionMode?.(true);
-            dateInnerLiquidBox.add_effect(dateInnerEffect);
-        }
+        // Both Date Menu and Quick Settings have ONE outer LiquidEffect.
+        // Their internal cards are native CSS gray-white tiles. Do not
+        // allocate a second clone-of-popup GPU effect/rim for either menu.
 
         try {
             const paintRoot =
@@ -957,6 +915,7 @@ class PopupGlassSurface {
         }
 
         const markDirty = () => {
+            this._syncQuickSelectedClasses();
             const wasDirty =
                 this._quickRegionDirty;
 
@@ -990,6 +949,24 @@ class PopupGlassSurface {
             } catch {
                 // Not every card actor exposes every property notification.
             }
+        }
+    }
+
+    _syncQuickSelectedClasses() {
+        if (!this._isQuickSettings)
+            return;
+
+        // Preserve GNOME's accent foreground on ON/checked tiles even
+        // though the old nested-region shader no longer tracks selection.
+        for (const actor of this._dateCardActors) {
+            const selected = quickCardState(actor).selected;
+            if (this._quickSelectedState.get(actor) === selected)
+                continue;
+            this._quickSelectedState.set(actor, selected);
+            if (selected)
+                actor.add_style_class_name?.(QUICK_ACTIVE_CLASS);
+            else
+                actor.remove_style_class_name?.(QUICK_ACTIVE_CLASS);
         }
     }
 
@@ -1113,6 +1090,7 @@ class PopupGlassSurface {
         if (this._isQuickSettings) {
             this._rebuildQuickSignalEntries();
             this._quickNeedsRescan = false;
+            this._syncQuickSelectedClasses();
         }
 
         const live = new Set(this._dateCardActors);
@@ -2514,14 +2492,11 @@ class PopupGlassSurface {
                     this._quickNeedsRescan
                 )
             ) {
-                this._syncDateInnerRegions(
-                    monitorX,
-                    monitorY,
-                    screenW,
-                    screenH,
-                    this._quickNeedsRescan ||
-                        this._dateCardActors.length === 0
-                );
+                if (this._quickNeedsRescan ||
+                    this._dateCardActors.length === 0)
+                    this._scanDateCardActors(true);
+                this._syncQuickSelectedClasses();
+                this._quickRegionDirty = false;
             }
         }
 
