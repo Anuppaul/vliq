@@ -132,4 +132,24 @@ const css = await readFile(new URL(
 assert.match(css, /#panel\.vliq-bottom-taskbar #panelRight \.clock\s*\{\s*color:\s*#ffffff\s*!important;/,
     'Bottom Taskbar GNOME Date/Clock has an explicit white CSS fallback');
 
+// Native DateMenuButton carries the clock-display class. Its background
+// must remain clear in every pseudo-state; the neighboring Quick Settings
+// button still owns the original rounded hover feedback.
+for (const state of ['', ':hover', ':focus', ':active', ':checked']) {
+    const selector = '#panel.vliq-bottom-taskbar #panelRight ' +
+        '.panel-button.clock-display' + state;
+    const escaped = selector.replace(/[.*+?^\$\{\}()|[\]\\]/g, '\\console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');');
+    assert.match(css, new RegExp(escaped + '(?:,|\\s*\\{)'),
+        'Date/Clock transparent override must cover ' + (state || 'idle'));
+}
+const dateClear = css.match(
+    /\/\* Bottom Date\/Clock is text-only[\s\S]*?\{([^}]+)\}/
+)?.[1] ?? '';
+assert.match(dateClear, /background-color:\s*transparent\s*!important/,
+    'Date hover never paints a center rounded card');
+assert.match(dateClear, /box-shadow:\s*none\s*!important/,
+    'Date hover no longer paints inset card outline');
+assert.ok(css.includes('#panel.vliq-bottom-taskbar #panelRight .panel-button:hover'),
+    'other native controls keep their hover styling');
+
 console.log('Bottom Taskbar Date: pure white text on all backgrounds and native mode restoration PASS.');
