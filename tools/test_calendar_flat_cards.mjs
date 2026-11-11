@@ -70,12 +70,20 @@ assert.ok(dateBlockStart >= 0 && quickBlockStart > dateBlockStart,
 const flatCss = css.slice(dateBlockStart, quickBlockStart);
 assert.match(flatCss, /rgba\(255, 255, 255, 0\.06\)/,
     'regular inner cards match taskbar preview tile neutral fill');
-assert.match(flatCss, /rgba\(255, 255, 255, 0\.16\)/,
-    'Date card hover matches taskbar preview hover fill');
+assert.match(flatCss, /rgba\(245, 249, 255, 0\.24\)/,
+    'Date card hover matches taskbar app-icon hover fill exactly');
+assert.match(flatCss, /inset 0 0 0 1px rgba\(255, 255, 255, 0\.20\)/,
+    'Date hover draws the same ONE inset rim as app icons');
+assert.match(flatCss, /rgba\(245, 249, 255, 0\.34\)/,
+    'Date pressed fill matches taskbar app icon');
+assert.match(flatCss, /rgba\(255, 255, 255, 0\.32\)/,
+    'Date pressed inset rim matches app icon');
 assert.match(flatCss, /border:\s*0\s*!important/,
     'Date cards do not draw any second border');
 assert.match(flatCss, /box-shadow:\s*none\s*!important/,
-    'Date card corners do not draw inset/double shadows');
+    'Date card idle surface has no double border/shadow');
+assert.match(flatCss, /border-radius:\s*9px\s*!important/,
+    'Date card radius matches the app icon card');
 for (const klass of ['datemenu-today-button','calendar',
     'events-button','world-clocks-button','weather-button',
     'message','message-list-clear-button'])
@@ -89,4 +97,4 @@ assert.ok(css.includes('-arrow-border-color: transparent !important'),
 assert.ok(css.includes('.vliq-liquid-popup-content.quick-settings .quick-toggle'),
     'Quick Settings nested GPU pods remain untouched');
 
-console.log('Calendar: outer Liquid Glass only; inner flat preview-style cards; no double border; Quick Settings intact PASS.');
+console.log('Calendar: outer Liquid Glass only, exact taskbar icon hover on inner cards, no double border, Quick Settings intact PASS.');
