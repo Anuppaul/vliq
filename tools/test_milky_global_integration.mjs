@@ -43,9 +43,10 @@ const host = {
 const syncClass = method(dock, '_syncMilkyAppearanceClass(enabled) {',
     '_applySharedCardAppearance()', '_syncMilkyAppearanceClass',
     {Main: {layoutManager: {uiGroup: host}}});
-syncClass.call({}, true);
+const classHost = {_syncMilkyOsdMaterial() {}};
+syncClass.call(classHost, true);
 assert.ok(classes.has('vliq-global-milky'));
-syncClass.call({}, false);
+syncClass.call(classHost, false);
 assert.ok(!classes.has('vliq-global-milky'));
 assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._syncMilkyAppearanceClass\(false\)/);
 
