@@ -56,9 +56,14 @@ assert.equal(newEffects, 0, 'Date creates zero additional GPU effects');
 assert.equal(newActors, 0, 'Date creates zero redundant inner clone actors');
 
 const quick = initializer.call(fakeThis('quick'), Clutter, 20, {nativeOuter: true});
-assert.ok(quick.dateInnerRoot, 'Quick Settings keeps its previous inner pods');
-assert.ok(quick.dateInnerEffect, 'Quick Settings keeps LiquidEffect pods');
-assert.equal(newEffects, 1, 'Quick Settings still creates one nested effect');
+assert.equal(quick.dateInnerRoot, null,
+    'Quick Settings no longer allocates a second GPU/clone root');
+assert.equal(quick.dateInnerEffect, null,
+    'Quick Settings cards use CSS, not a nested LiquidEffect');
+assert.equal(newEffects, 0,
+    'both native popups create no nested GPU effects');
+assert.equal(newActors, 0,
+    'both native popups create no redundant scene-clone actors');
 
 assert.ok(popup.includes('this._scanDateCardActors(false);'),
     'Date keeps adaptive card text scan even without nested shader');
@@ -96,6 +101,6 @@ assert.ok(css.includes('.vliq-liquid-date-menu-shell'),
 assert.ok(css.includes('-arrow-border-color: transparent !important'),
     'GNOME BoxPointer border stays suppressed');
 assert.ok(css.includes('.vliq-liquid-popup-content.quick-settings .quick-toggle'),
-    'Quick Settings nested GPU pods remain untouched');
+    'Quick Settings native toggle controls remain styled');
 
-console.log('Calendar: gray-white inner cards, transparent calendar grid, one outer Liquid Glass, no double rim PASS.');
+console.log('Calendar: gray-white inner cards, transparent calendar grid, one outer Liquid Glass, no double rim and no nested Quick shader PASS.');
