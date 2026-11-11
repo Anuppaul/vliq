@@ -715,6 +715,16 @@ export class TopBarIslands {
         const show = this._canShow();
         const box = this._layout?.panelBox;
         const monitor = this._layout?.primaryMonitor;
+        // GNOME Shell can briefly unmap its native panel during window
+        // focus/activation. Preserve the Bottom Taskbar's last valid GPU
+        // backdrop for that transient frame rather than toggling opacity.
+        const transientBottomUnmap = this._layoutMode === 'bottom' &&
+            region.lastBounds !== null &&
+            panel.mapped === false &&
+            panel.visible !== false &&
+            box?.visible !== false &&
+            !primaryPanelIsFullscreen(this._layout, this._display) &&
+            (!this._visibilityGate || this._visibilityGate());
         const hide = () => {
             glass.hide();
             region.lastBounds = null;
@@ -724,6 +734,8 @@ export class TopBarIslands {
             }
         };
         if (!show || !box || !monitor) {
+            if (transientBottomUnmap)
+                return;
             hide();
             return;
         }
