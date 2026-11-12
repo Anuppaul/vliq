@@ -6,7 +6,7 @@ const [glass, css, spotlight] = await Promise.all([
     'spotlightGlass.js', 'runtime.css', 'spotlightSearch.js',
 ].map(f => readFile(new URL(root + f, import.meta.url), 'utf8')));
 assert.match(glass, /const SHARED_RADIUS = 18;/);
-assert.match(glass, /return resultsRegion \? \[resultsRegion\] : \[\];/);
+assert.match(glass, /_regions\(\) \{[\s\S]*?return \[\];/);
 assert.doesNotMatch(
     glass.slice(glass.indexOf('    _regions() {'),
         glass.indexOf('    _syncEffectRegion() {')),
@@ -46,7 +46,8 @@ const host = {
 };
 assert.deepEqual(regions.call(host), []);
 host._hasResults = true;
-assert.deepEqual(regions.call(host), [{id: 'results'}]);
+assert.deepEqual(regions.call(host), [],
+    'dark results must not enable the old GPU glass renderer');
 host._hasResults = false;
 assert.deepEqual(regions.call(host), [],
     'cleared queries cannot leave an old entry shader region');
@@ -69,14 +70,19 @@ assert.equal(stages, 0);
 assert.equal(runtime._lastRegionKey, '');
 assert.equal(runtime._lastSceneSyncUs, 0);
 assert.equal(runtime._lastCullKey, '');
-runtime._regions = () => [{id: 'results'}];
-runtime._root.show = function () {this.visible = true;};
-runtime._syncActors = () => {stages++;};
-runtime._syncEffectRegion = () => {stages++;};
-runtime._syncScene = () => {stages++;};
-runtime._ensureStageLoop = () => {stages++;};
+runtime._regions = regions.bind(host);
 sync.call(runtime);
-assert.equal(stages, 5,
-    'results retain their existing glass and stage sync');
-assert.equal(runtime._root.visible, true);
-console.log('Spotlight global dark rounded search and results-only shader PASS.');
+assert.equal(stages, 0, 'result rows must not restart the GPU glass loop');
+assert.equal(runtime._root.visible, false);
+const list = css.slice(css.indexOf('/* VLIQ Spotlight: the RESULTS list'));
+assert.ok(list.startsWith('/* VLIQ Spotlight: the RESULTS list'));
+assert.match(list, /rgba\(28, 30, 35, 0\.98\)/);
+assert.match(list, /border-radius: 16px !important/);
+assert.match(list, /list-search-result-title/);
+assert.match(list, /list-search-result-description/);
+assert.match(list, /list-search-result:focus/);
+assert.match(list, /rgba\(255, 255, 255, 0\.10\)/);
+assert.match(list, /\.vliq-global-milky \.vliq-spotlight-card/);
+assert.doesNotMatch(list, /#overviewGroup|\.vliq-search-surface/,
+    'normal GNOME Overview search must not change');
+console.log('Spotlight search and results globally dark, native, rounded PASS.');
