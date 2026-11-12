@@ -2389,3 +2389,42 @@
     border-radius: 999px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
+
+
+/* VLIQ Spotlight — GLOBAL dark rounded-rectangle search field.
+ * This is independent of Liquid/Frosted/Milky and GNOME light/dark theme.
+ * Do not change the overview/App Grid search box or window content.
+ * SpotlightGlassManager no longer draws an entry LiquidEffect underneath. */
+.search-entry.vliq-spotlight-glass-entry,
+.search-entry.vliq-spotlight-glass-entry:hover,
+.search-entry.vliq-spotlight-glass-entry:focus,
+.vliq-global-milky .search-entry.vliq-spotlight-glass-entry,
+.vliq-global-milky .search-entry.vliq-spotlight-glass-entry:hover,
+.vliq-global-milky .search-entry.vliq-spotlight-glass-entry:focus {
+    background-color: rgba(28, 30, 35, 0.98) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.055) !important;
+    color: #f7f8fc !important;
+}
+.search-entry.vliq-spotlight-glass-entry:focus,
+.vliq-global-milky .search-entry.vliq-spotlight-glass-entry:focus {
+    border-color: rgba(220, 231, 246, 0.32) !important;
+}
+.search-entry.vliq-spotlight-glass-entry StLabel.hint-text,
+.search-entry.vliq-spotlight-glass-entry .search-entry-icon,
+.search-entry.vliq-spotlight-glass-entry StIcon,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-dark,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-light,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-dark StLabel.hint-text,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-light StLabel.hint-text,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-dark .search-entry-icon,
+.search-entry.vliq-spotlight-glass-entry.vliq-shared-text-light .search-entry-icon {
+    color: rgba(246, 248, 252, 0.94) !important;
+}
+/* Keep results as a distinct, modestly rounded card; never allow the
+ * search entry's dark CSS to style the independent App Grid search. */
+.vliq-spotlight-card .vliq-spotlight-results.vliq-spotlight-glass-results {
+    border-radius: 18px !important;
+}
