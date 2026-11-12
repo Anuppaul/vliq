@@ -25,7 +25,7 @@ assert.match(dark, /StLabel\.hint-text/);
 assert.match(dark, /vliq-spotlight-results\.vliq-spotlight-glass-results/);
 assert.doesNotMatch(dark, /#overviewGroup|\.vliq-search-surface/,
     'the standard GNOME App Grid search is not altered');
-assert.match(spotlight, /style_class: 'search-entry'/);
+assert.match(spotlight, /style_class: 'search-entry vliq-spotlight-glass-entry'/);
 assert.match(spotlight, /this\._onEntryKeyPress\(event\)/);
 
 function method(start, end, name, injected = {}) {
