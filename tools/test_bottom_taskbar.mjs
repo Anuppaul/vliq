@@ -349,6 +349,14 @@ assert.equal(betaBadge.reactive, false,
     'badge cannot intercept app-icon click/hover');
 assert.equal(betaBadge.x_align, Clutter.ActorAlign.END);
 assert.equal(betaBadge.y_align, Clutter.ActorAlign.START);
+assert.equal(betaBadge.width, 16, 'single-digit count uses a 16px circle');
+assert.equal(betaBadge.height, 16, 'badge width and height match');
+assert.equal(betaBadge.translation_x, 6,
+    'badge is shifted right of the icon, not centered');
+assert.equal(betaBadge.translation_y, -6,
+    'badge overlaps the icon top edge');
+assert.equal(betaBadge.get_parent().clip_to_allocation, false,
+    'top-right badge is not clipped by its 24px icon holder');
 assert.equal(betaBadge.get_parent().get_children()[0].get_parent(),
     betaBadge.get_parent(),
     'badge shares an icon overlay rather than a separate taskbar slot');
@@ -376,6 +384,28 @@ for (let expected = 1; expected <= 3; expected++) {
     assert.equal(runningDots[1].opacity, 255,
         'task completion cannot replace running indicator');
 }
+// Counts of different lengths must remain circles at the same corner.
+betaNotifications.notifications.push(...Array.from({length: 7},
+    () => new Actor({resident: false})));
+betaNotifications.emit('count-updated');
+assert.equal(betaBadge.text, '10');
+assert.equal(betaBadge.width, 21);
+assert.equal(betaBadge.height, 21);
+assert.equal(betaBadge.translation_x, 8);
+assert.equal(betaBadge.translation_y, -8);
+betaNotifications.notifications.push(...Array.from({length: 90},
+    () => new Actor({resident: false})));
+betaNotifications.emit('count-updated');
+assert.equal(betaBadge.text, '99+');
+assert.equal(betaBadge.width, 26);
+assert.equal(betaBadge.height, 26);
+assert.equal(betaBadge.translation_x, 11);
+assert.equal(betaBadge.translation_y, -11);
+betaNotifications.notifications.length = 3;
+betaNotifications.emit('count-updated');
+assert.equal(betaBadge.text, '3');
+assert.equal(betaBadge.width, 16);
+assert.equal(betaBadge.height, 16);
 const gammaNotifications = new Actor();
 gammaNotifications.appId = 'gamma.desktop';
 gammaNotifications.notifications = [new Actor({resident: false})];
@@ -737,8 +767,13 @@ assert.match(runningDotStyle, /border-radius:\s*999px\s*;/,
 const notificationBadgeStyle = runtimeCSS.match(
     /#panel\.vliq-bottom-taskbar \.vliq-taskbar-notification-badge\s*\{([^}]*)\}/
 )?.[1] ?? '';
-assert.match(notificationBadgeStyle, /border-radius:\s*999px\s*;/,
-    'top-right task notification count has rounded badge styling');
+assert.match(notificationBadgeStyle, /border-radius:\s*999px\s*!important\s*;/,
+    'top-right task notification count uses circular corners');
+assert.match(notificationBadgeStyle, /min-width:\s*16px\s*;/);
+assert.match(notificationBadgeStyle, /min-height:\s*16px\s*;/);
+assert.match(notificationBadgeStyle, /padding:\s*0\s*;/,
+    'badges do not become horizontal pills because of padding');
+assert.match(notificationBadgeStyle, /text-align:\s*center\s*;/);
 assert.match(notificationBadgeStyle, /font-size:\s*10px\s*;/);
 assert.match(notificationBadgeStyle, /color:\s*#ffffff\s*!important/);
 assert.ok(runtimeCSS.includes(
