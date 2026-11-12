@@ -36,6 +36,9 @@ TRANSIENT_KEYS = {
     "runtime-revision",
     "runtime-loaded-revision",
     "runtime-error",
+    # Retired Terminal Glass settings are no longer imported into VLIQ.
+    "terminal-backdrop-blur-enabled",
+    "terminal-backdrop-blur-radius",
     "terminal-backdrop-blur-status",
     "wallpaper-runtime-status",
     "dock-state-captured",

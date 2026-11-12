@@ -31,7 +31,7 @@ class VLIQBrandingTests(unittest.TestCase):
             'path="/org/gnome/shell/extensions/vliq/">', schema
         )
         for key in ("orb-enabled", "quick-brightness-enabled",
-                    "terminal-backdrop-blur-enabled"):
+                    "spotlight-enabled"):
             self.assertIn(f'name="{key}"', schema)
 
     def test_new_installer_and_automatic_reversible_migration(self):
@@ -59,7 +59,8 @@ class VLIQBrandingTests(unittest.TestCase):
         prefs = (EXT / "prefs.js").read_text()
         runtime = (EXT / "orbThemeRuntime.js").read_text()
         presets = (EXT / "wallpaperAtmosphereConfig.js").read_text()
-        self.assertIn("VLIQ Terminal Glass", prefs)
+        self.assertIn("Milky Glass", prefs)
+        self.assertNotIn("terminal-backdrop-blur", prefs)
         self.assertIn("VLIQ", runtime)
         for name in ("VLIQ Natural", "VLIQ Cinematic",
                      "VLIQ Atmosphere"):

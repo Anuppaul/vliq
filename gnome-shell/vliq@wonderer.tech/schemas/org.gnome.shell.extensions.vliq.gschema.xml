@@ -151,26 +151,6 @@
       <summary>Live Orb application preview size percentage</summary>
     </key>
 
-    <!-- Terminal Glass is opt-in because native BACKGROUND blur adds a
-         compositor GPU pass per visible Ptyxis window. Ptyxis supplies
-         alpha for its background; VLIQ never changes window text opacity. -->
-    <key name="terminal-backdrop-blur-enabled" type="b">
-      <default>false</default>
-      <summary>Enable real compositor background blur beneath native Ptyxis windows</summary>
-      <description>Off by default. GNOME Shell 50 adds a background-only GPU blur under matching Ptyxis surfaces. No other applications or text rendering are modified.</description>
-    </key>
-    <key name="terminal-backdrop-blur-radius" type="i">
-      <default>18</default>
-      <range min="4" max="36"/>
-      <summary>Ptyxis background blur strength (legacy sigma-equivalent)</summary>
-      <description>GNOME Shell 50 uses Shell.BlurEffect.radius, which is twice the stored legacy sigma-equivalent strength. Stronger values increase GPU cost per terminal window.</description>
-    </key>
-    <key name="terminal-backdrop-blur-status" type="s">
-      <default>'Off'</default>
-      <summary>Read-only VLIQ Terminal Glass compositor attachment status</summary>
-      <description>Written by the Shell runtime to report detected or attached Ptyxis windows. This is diagnostic text, not proof of visible blurred pixels.</description>
-    </key>
-
     <key name="spotlight-enabled" type="b">
       <default>true</default>
       <summary>Enable VLIQ Spotlight search</summary>
