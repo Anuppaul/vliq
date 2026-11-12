@@ -604,6 +604,20 @@ export class BottomTaskbar {
                 continue;
             }
             const label = count > 99 ? '99+' : String(count);
+            // Keep every notification count circular, including 10+ and 99+.
+            // Anchor the badge's CENTER near the icon's top-right corner,
+            // rather than letting a padded label cover the icon's middle.
+            const diameter = label.length === 1 ? 16 :
+                label.length === 2 ? 21 : 26;
+            const offset = Math.floor(diameter / 2) - 2;
+            if (badge.width !== diameter)
+                badge.width = diameter;
+            if (badge.height !== diameter)
+                badge.height = diameter;
+            if (badge.translation_x !== offset)
+                badge.translation_x = offset;
+            if (badge.translation_y !== -offset)
+                badge.translation_y = -offset;
             if (badge.text !== label)
                 badge.set_text?.(label);
             // The simple field assignment is also supported by St.Label.
@@ -719,6 +733,7 @@ export class BottomTaskbar {
                     reactive: false,
                     width: APP_ICON_SIZE,
                     height: APP_ICON_SIZE,
+                    clip_to_allocation: false,
                 });
                 iconHolder.add_child(icon);
                 const badge = new St.Label({
@@ -726,6 +741,10 @@ export class BottomTaskbar {
                     text: '',
                     x_align: Clutter.ActorAlign.END,
                     y_align: Clutter.ActorAlign.START,
+                    width: 16,
+                    height: 16,
+                    translation_x: 6,
+                    translation_y: -6,
                     reactive: false,
                 });
                 badge.hide();
