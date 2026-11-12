@@ -2428,3 +2428,48 @@
 .vliq-spotlight-card .vliq-spotlight-results.vliq-spotlight-glass-results {
     border-radius: 18px !important;
 }
+
+
+/* VLIQ Spotlight: the RESULTS list matches the globally dark search
+ * field. Scope all changes to VLIQ's own Spotlight card, never the GNOME
+ * Overview/App Grid search. No additional glass shader or overlay actor. */
+.vliq-spotlight-card .vliq-spotlight-results,
+.vliq-spotlight-card .vliq-spotlight-results.vliq-spotlight-glass-results,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results.vliq-spotlight-glass-results {
+    background-color: rgba(28, 30, 35, 0.98) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.055) !important;
+    color: rgba(246, 248, 252, 0.96) !important;
+}
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result,
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result-content,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results .list-search-result {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: rgba(246, 248, 252, 0.96) !important;
+}
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result-title,
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result-title StLabel,
+.vliq-spotlight-card .vliq-spotlight-results .vliq-spotlight-empty,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results .list-search-result-title {
+    color: rgba(246, 248, 252, 0.96) !important;
+}
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result-description,
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result-description StLabel,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results .list-search-result-description {
+    color: rgba(199, 204, 215, 0.82) !important;
+}
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result:hover,
+.vliq-spotlight-card .vliq-spotlight-results .list-search-result:focus,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results .list-search-result:hover,
+.vliq-global-milky .vliq-spotlight-card .vliq-spotlight-results .list-search-result:focus {
+    background-color: rgba(255, 255, 255, 0.10) !important;
+    border-radius: 10px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
