@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  Liquid Glass, Frosted Crystal, cinematic wallpaper treatment, a radial Orb launcher, and Spotlight search—integrated into GNOME’s existing desktop, not stacked over it.
+  Liquid Glass, Frosted Crystal, adjustable Milky Glass, an elegant dark Spotlight, a native Bottom Taskbar, and atmospheric wallpaper effects—without replacing GNOME's interactions.
 </p>
 
 <p align="center">
@@ -68,12 +68,12 @@ It does not place a second Dock over Ubuntu Dock, recreate Quick Settings, dupli
 
 | | |
 | --- | --- |
-| **Two live-switchable materials** | Liquid Glass v10 preserves glossy refraction and highlights. Frosted Crystal adds stronger native backdrop diffusion, matte color, fine static grain and a softer illuminated crystal rim. Both now have a subtle adaptive icy-blue edge, readable over dark and light wallpaper. |
+| **Three live-switchable materials** | **Liquid Glass** retains refractive optics, **Frosted Crystal** diffuses the backdrop with static grain, and **Milky Glass** paints a lightweight cool gray-white native card with adjustable density, edge highlight and white shade. Glass modes retain the adaptive icy-blue contour. |
 | **VLIQ Atmosphere** | Five wallpaper styles including Original, Natural, Cinematic, Atmosphere and Custom. GPU-native filmic grading, vignette, subtle ambient color, static grain and adaptive contrast, applied to actual wallpaper sources—not browser windows. |
 | **VLIQ Orb** | Draggable, multi-monitor radial launcher with Dock Apps, Custom Apps and All Apps sources, paging, previews, tooltips and running indicators. |
-| **VLIQ Spotlight** | Centered `Super+Space` application search with adaptive glass and native-style result presentation. |
+| **VLIQ Spotlight** | `Super+Space` opens a centered **deep-charcoal search bar and matching results list**, both with **16px rounded-rectangle corners**, white text and subtle focus/selection feedback in every VLIQ material mode. |
 | **Ubuntu Dock integration & settings** | Restyles the existing Ubuntu Dock and lets you manage its native autohide, intellihide, pressure, delays, position, panel mode, icons, application list and click actions inside VLIQ Preferences. |
-| **Three desktop layouts** | Switch live between 3-Part Header, Full Header and a centered Windows-style Bottom Taskbar. The bottom layout keeps native GNOME Activities/workspace controls, Date and Quick Settings, with one borderless Liquid Glass strip and running-app dots. |
+| **Three desktop layouts** | **3-Part Header**, **Full Header**, and a centered **Bottom Taskbar**. The split islands follow Liquid/Frosted/Milky; Bottom Taskbar uses native GNOME controls, 5px white running dots, live app-window previews and per-app unread/task-completion notification badges. GNOME's own Quick Settings Dark Style darkens only the Bottom Taskbar when that layout is active. |
 | **Native Shell surfaces** | Shared glass treatment for Quick Settings, Date/Calendar, notifications, panel/status popups and supported Shell-owned cards. |
 | **Brightness directly below Sound** | GNOME's original brightness QuickSlider on supported hardware; a matching software-dimming slider (30–100%) on desktop monitors without a native backlight. Original image at 100% costs no extra GPU effect. |
 | **Monitor-safe launcher geometry** | Orbit, Star, Molecule, Spiral and Petal layouts with fit-first placement and paging near monitor edges/corners. |
@@ -135,18 +135,19 @@ Liquid/Frosted glass controls and native popup scene selection are untouched.
 
 ## Choose a Glass Material
 
-Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Material** and select **Liquid Glass** or **Frosted Crystal**. The mode switches live; it stays selected after logout or restart.
+Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Material** and select **Liquid Glass**, **Frosted Crystal**, or **Milky Glass**. The mode changes live and persists after logout or restart. These are VLIQ material selections, not changes to GNOME's system color scheme.
 
 | Material | Appearance | Adjustable controls |
 | --- | --- | --- |
 | **Liquid Glass** (default) | Original v10 refractive lens, chromatic highlights and glossy edge lighting, now with **strong Frosted-like backdrop blur** | Existing Blur slider still controls the stored base radius; tint and Advanced optics remain untouched. |
-| **Frosted Crystal** | Dense pearl-white satin diffusion, strongly softened backdrop, subtle 4px micro-etched crystal texture, near-zero rainbow fringe and broad ice-blue edge glow | Frost Density, Micro-grain and Crystal Edge Glow |
+| **Frosted Crystal** | Dense satin-matte diffusion, softly blurred backdrop, spatially stable crystal grain and restrained ice-blue rim | Frost Density, Micro-grain and Crystal Edge Glow |
+| **Milky Glass** | Lightweight translucent gray-white CSS card without refraction or an additional glass shader | **Milky Density** (0–100%), **Edge Highlight** (0–100%), and **White Shade** (0–100%); defaults 24%, 20%, 0% |
 
 At the default Frost Density, the frosted material now masks most fine wallpaper detail instead of resembling a lightly tinted Liquid surface. Its diffuse crystal texture is spatially stable rather than animated. Selecting Liquid restores the original sharp refractive lens and chromatic optics without resetting any Advanced settings. Increasing Frost Density increases matte coverage; lowering it lets more wallpaper detail through.
 
 Switching back to Liquid Glass restores the saved v10 lens, tint and Advanced optics, together with the **new stronger Liquid backdrop blur**. At the default Frost Density (88%), the two modes have comparable background diffusion; Liquid still bends the image at the edges, while Frosted stays matte and nearly achromatic. The original blur slider value is never rewritten. Setting Blur to **0** disables blur in both modes; other slider values are applied through the shared existing blur pipeline with a material-specific boost. Frosted controls are saved separately; neither mode introduces a second overlay or noise texture. Stronger blur can cost more GPU work in **either** mode, so no performance claim is made without a compositor trace.
 
-The material picker applies across supported VLIQ-owned and vendor-native shell surfaces, including the Orb, Spotlight, Dock and top panel glass surfaces, window previews, calendar, Quick Settings and supported popups. Individual native surfaces that intentionally remain non-glass in certain modes (such as Ubuntu Dock's plain panel fallback) keep their established behavior.
+The material picker applies to supported VLIQ-owned shell surfaces, including Orb, Dock material, the 3-Part Header, panel backgrounds, supported window-preview cards, Calendar, Quick Settings and popups. **Spotlight is intentionally different:** its search field and results list stay deep charcoal, with matching rounded corners and no entry/results LiquidEffect, regardless of VLIQ material or GNOME's system light/dark selection. Certain native surfaces intentionally keep their own fallback styling.
 
 ### Adaptive icy-blue edges
 
@@ -179,7 +180,16 @@ The original Liquid Glass refraction and Frosted Crystal matte finish still diff
   <img src="docs/screenshots/vliq-spotlight-results.png" alt="VLIQ Spotlight application search" width="100%">
 </p>
 
-<p align="center"><sub><code>Super+Space</code> opens VLIQ Spotlight without replacing GNOME Overview.</sub></p>
+<p align="center"><sub><code>Super+Space</code> opens VLIQ Spotlight without replacing GNOME Overview. The existing screenshot is illustrative; the current search field and results list use a matching dark charcoal material.</sub></p>
+
+The Spotlight **input and results list both use** a near-opaque charcoal
+`rgba(28,30,35,0.98)` fill, a fine light border and **16px rounded-rectangle**
+corners. Titles and search icons stay bright; descriptions are subdued,
+and hover/keyboard selection has a restrained highlight. Spotlight's two
+surfaces now use **native CSS paint rather than individual glass-effect
+regions**, avoiding unnecessary GPU scene captures while preserving normal
+search results, keyboard navigation and application launch behavior.
+GNOME's original Overview/App Grid search field is not changed.
 
 ### System surfaces
 
@@ -211,7 +221,7 @@ The original Liquid Glass refraction and Frosted Crystal matte finish still diff
 | Surface | GNOME keeps | VLIQ changes |
 | --- | --- | --- |
 | Ubuntu Dock / Dash-to-Dock | icons, hit targets, autohide/intellihide, app behavior | supported background/material in header modes; temporarily concealed in Bottom Taskbar mode |
-| GNOME panel / Bottom Taskbar | native Activities/workspace toggle, Date/Quick Settings and their menu input | relocated native panel, centered launcher/app shortcuts and glass material in Bottom mode |
+| GNOME panel / Bottom Taskbar | native Activities/workspace toggle, Date/Quick Settings and their menu input | three independent rounded header islands or one Bottom Taskbar; centered launcher, per-app notification counts, white running dots and native GNOME Dark Style synchronization in Bottom mode |
 | App Grid / Overview | application view, interaction, layout | supported backdrop/material |
 | Quick Settings | controls, geometry, interaction | supported Shell material |
 | Date / Calendar | calendar, controls, animation | glass material underneath |
@@ -249,13 +259,13 @@ Open **GNOME Extensions → VLIQ → Preferences → Desktop Layout → Desktop 
 
 | Mode | Layout |
 | --- | --- |
-| **3-Part Header** (default) | Three separate rounded Liquid Glass islands across the top: Activities, Date and Quick Settings. |
+| **3-Part Header** (default) | Three separate **rounded** Activities, Date and Quick Settings islands; **Liquid, Frosted and Milky** each use their corresponding selected material. |
 | **Full Header** | GNOME's original full-width top panel with a square Liquid Glass backdrop. |
-| **Bottom Taskbar** | Moves the **existing GNOME panel** to the bottom of the primary monitor, with workspace/Activities at the left, **centered VLIQ Start + pinned/running apps**, and Quick Settings + Date/Clock at the right. |
+| **Bottom Taskbar** | Moves the **existing GNOME panel** to the primary monitor's bottom: workspace/Activities left, **centered Start + pinned/running apps**, Quick Settings + Date/Clock right. GNOME's **native Dark Style** changes the taskbar background to charcoal when enabled. |
 
-The Bottom Taskbar preserves the native GNOME controls and popup owners instead of drawing a second panel over them. The Start button opens VLIQ's application view. Clicking a pinned app launches it; clicking a running app focuses/restores it, or minimizes a focused window on the next click. **Hover a running app icon for a live native window preview**: individual window thumbnails appear above the taskbar, with click-to-focus and close controls, and a short pointer-leave grace period to prevent flicker while moving the cursor into the preview. The popover is created on demand using native window-actor clones, with no permanent preview render loop. Each running app has a centered **5 px round dot** underneath its icon; a stopped pinned app has no visible dot.
+The Bottom Taskbar preserves the native GNOME controls and popup owners instead of drawing a second panel over them. The Start button opens VLIQ's application view. Clicking a pinned app launches it; clicking a running app focuses/restores it, or minimizes a focused window on the next click. **Hover a running app icon for a live native window preview**: individual window thumbnails appear above the taskbar, with click-to-focus and close controls, and a short pointer-leave grace period to prevent flicker while moving the cursor into the preview. The popover is created on demand using native window-actor clones, with no permanent preview render loop. Each running app has a centered **5 px cool-white dot** underneath its icon; a stopped pinned app has no visible dot. **Unread/task-completion notification badges** appear on the app icon for GNOME MessageTray sources associated with that app (for example, Terminal task-completion notifications when the source exposes the app identity). The badge can show **1, 2, 3…** and disappears when the app's notifications are cleared; it is **not a count of open windows**. The badge does not create extra app slots or move the white running dot.
 
-**Bottom-only appearance:** one edge-to-edge, borderless Liquid Glass strip. There is no bottom optical rim, dark outline or drop shadow. App hover/pressed states highlight each icon separately; the Date/Clock text is fixed white in this mode. The original Ubuntu Dock (including its background and reactive chrome) is temporarily concealed to prevent a second dark capsule or overlapping click targets. Switching back to either header mode restores the Dock and native panel positions.
+**Bottom-only appearance:** one edge-to-edge, borderless strip with the selected Liquid/Frosted/Milky material. When GNOME **Quick Settings → Dark Style** is ON, **only an active Bottom Taskbar** receives a charcoal background, with no new VLIQ Dark preset and no modification to GNOME's system-wide setting. Turning Dark Style off restores the selected material. App icons use the accepted individual milky hover/pressed cards and white running indicators; Date/Clock text stays white. The original Ubuntu Dock (including background and reactive chrome) is concealed only in Bottom mode to prevent overlapping surfaces or input. Switching to 3-Part or Full Header restores the Dock and native panel.
 
 **Rendering / lifecycle:** GNOME Shell 50's own `LayoutManager.panelBox` remains the input owner. VLIQ restores bottom placement after native monitor relayout, follows native fullscreen visibility and retains the same `St.Button`/icon actor across app-state changes to avoid click flicker. Dock ancestry is cached for normal frames, while a cheap per-frame visibility guard prevents stale Dock paint; menu arrows use event-driven updates and a bounded fallback. All added actors, signal handlers and temporary settings-side changes are cleaned up on mode exit.
 
@@ -417,31 +427,6 @@ Restoring the original GNOME layout removes all VLIQ-owned dimming effects.
 No external ddcutil, daemon, or extension is required. See
 [Quick Settings Brightness guide](docs/QUICK_BRIGHTNESS.md).
 
-### Terminal Glass — native Ptyxis GPU backdrop blur (experimental)
-
-VLIQ now provides **two independent, opt-in layers** for Ptyxis:
-
-- **Native translucency:** the developer-side
-  [Ptyxis profile utility](docs/TERMINAL_GLASS.md) backs up and sets only
-  background opacity, preserving sharp text.
-- **Real compositor background blur:** VLIQ Preferences → **Terminal** →
-  **Real backdrop blur**, OFF by default. It uses GNOME's native
-  `Shell.BlurEffect(BACKGROUND)` beneath the original Ptyxis surface,
-  not a global GTK theme or an additional installed extension.
-
-**Not the full Liquid Glass v10 refractive shader.** Terminal blur
-now uses a GNOME 50-native frame rectangle and an original rounded GPU
-*output* mask. This specifically targets the blur escaping the window
-reported after PR #76, but remains experimental until confirmed on the
-GNOME 50.1 desktop. On missing/mismatched geometry or an unavailable
-mask shader, it fails closed to the already-working native transparency.
-No extra package, GTK global theme or other application is modified. See
-the [Terminal Glass guide](docs/TERMINAL_GLASS.md).
-
-```bash
-python3 tools/vliq_terminal_glass.py status
-```
-
 ## GNOME Extensions Store submission
 
 VLIQ is preparing a first submission to
@@ -475,19 +460,19 @@ Official references:
 
 VLIQ is a **Shell material extension**, not a replacement desktop environment.
 
-The integration model is intentionally small:
+The integration model is intentionally small. The experimental Terminal Glass/Ptyxis integration has been retired; VLIQ no longer adds a Terminal Preferences page, GSettings keys, background-blur manager, or a terminal profile utility:
 
 ```text
 runtime.js
 ├── orbThemeRuntime.js
-├── spotlightSearch.js
+├── spotlightSearch.js         # native charcoal search and results
 ├── popupGlass.js
 ├── notificationGlass.js
 ├── shellCards.js
 ├── appGridBackdrop.js
 └── liquidGlassDock.js
     ├── topBarIslands.js        # 3-Part / Full / Bottom layout lifecycle
-    │   └── bottomTaskbar.js    # GNOME panel movement + app buttons
+    │   └── bottomTaskbar.js    # GNOME panel, app buttons, notification badges
     ├── panelGlass.js          # bounded panel-height glass surfaces
     └── vendor/liquid-glass/
 ```
@@ -532,8 +517,9 @@ VLIQ's runtime is designed around a few constraints:
 - Overview window captions reuse sampled geometry and skip unchanged color writes; empty close-button glass regions clear just once
 - native Overview actor add/remove events invalidate the window-chrome registry; quiet frames skip full-tree scans with a conservative fallback reconciliation
 - Ubuntu Dock Panel Mode uses its own strictly **panel-sized LiquidEffect** (VLIQ refraction, micro-grain and 15% milky-white body shade) behind native DockDash icons; 0px square corners and a native fallback remain, without DashManager's full-screen FBO.
-- Bottom Taskbar reuses one bounded native-panel glass surface: unchanged app-state signals update existing buttons/dots without recreating icon textures or reordering actors; steady frames skip unnecessary child-order queries.
+- Bottom Taskbar reuses one bounded native-panel glass surface: app-state and GNOME notification signals update existing buttons, 5px white dots and numeric task-completion badges without recreating icon textures; steady frames skip unnecessary child-order queries.
 - Bottom Taskbar caches the native Dock chrome root, hides any reappearing Dock paint/input on the same compositor frame, and reconciles newly added menu arrows by signals plus a bounded 350 ms fallback rather than a full scan every paint.
+- Spotlight's search field and results now use native dark CSS cards rather than keeping a dedicated GPU glass region alive; normal Overview search remains independent.
 - native GNOME animation remains responsible for transforms
 
 Performance-sensitive changes should include reproducible before/after evidence where practical.
