@@ -39,6 +39,8 @@ class VLIQMigrationTests(unittest.TestCase):
             "dock-extension-state-captured=true\n"
             "quick-soft-brightness=62\n"
             "terminal-backdrop-blur-enabled=true\n"
+            "terminal-backdrop-blur-radius=18\n"
+            "terminal-backdrop-blur-status='Attached'\n"
             "runtime-revision='abc'\n"
             "runtime-loaded-revision='abc'\n"
             "runtime-error='old error'\n"
@@ -47,12 +49,15 @@ class VLIQMigrationTests(unittest.TestCase):
         )
         clean = migration.filter_user_settings(old)
         for key in ("orb-enabled=false", "quick-soft-brightness=62",
-                    "terminal-backdrop-blur-enabled=true", "app-preview-size=110"):
+                    "app-preview-size=110"):
             self.assertIn(key, clean)
         for key in ("dock-original-", "dock-state-captured",
                     "dock-extension-state-captured", "runtime-revision",
                     "runtime-loaded-revision", "runtime-error",
-                    "wallpaper-runtime-status"):
+                    "wallpaper-runtime-status",
+                    "terminal-backdrop-blur-enabled",
+                    "terminal-backdrop-blur-radius",
+                    "terminal-backdrop-blur-status"):
             self.assertNotIn(key, clean)
 
     def test_prepare_creates_private_backup_and_migrates_once(self):

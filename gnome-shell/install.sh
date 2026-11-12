@@ -47,8 +47,6 @@ RUNTIME_FILES=(
     "spotlightGlass.js"
     "spotlightSearch.js"
     "quickBrightness.js"
-    "terminalBackdropBlur.js"
-    "terminalBlurMask.js"
     "sharedAdaptiveText.js"
     "orbGlass.js"
     "panelGlass.js"
@@ -71,7 +69,8 @@ fail() {
 # The built-in GNOME top-bar clock and Date Menu are not affected.
 remove_retired_widgets_in_dir() {
     local root="$1"
-    rm -f "${root}/desktopClockWidget.js" "${root}/desktopCalendarWidget.js"
+    rm -f "${root}/desktopClockWidget.js" "${root}/desktopCalendarWidget.js" \
+        "${root}/terminalBackdropBlur.js" "${root}/terminalBlurMask.js"
 }
 
 refresh_prefs_process() {
@@ -82,7 +81,9 @@ refresh_prefs_process() {
     cmp -s "${SOURCE_DIR}/prefs.js" "${TARGET_DIR}/prefs.js" ||
         fail "Installed preferences differ from the requested checkout."
     if grep -Fq "'Widgets'," "${TARGET_DIR}/prefs.js" ||
-       grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml"; then
+       grep -Fq "clock-widget-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml" ||
+       grep -Fq "'Terminal'," "${TARGET_DIR}/prefs.js" ||
+       grep -Fq "terminal-backdrop-blur-enabled" "${TARGET_DIR}/schemas/org.gnome.shell.extensions.vliq.gschema.xml"; then
         fail "Retired desktop widgets were left in installed VLIQ."
     fi
     # A previous VLIQ Preferences bug rejected index 2 with selected < 2,
@@ -98,7 +99,7 @@ refresh_prefs_process() {
     if command -v gapplication >/dev/null 2>&1; then
         gapplication quit org.gnome.Extensions >/dev/null 2>&1 || true
     fi
-    echo "Verified: desktop widget controls and schema keys are retired."
+    echo "Verified: retired widget and Terminal Glass settings are absent."
     echo "Open settings with: gnome-extensions prefs ${UUID}"
 }
 
@@ -701,8 +702,6 @@ if command -v unzip >/dev/null 2>&1; then
         "runtime.js"
         "orbThemeRuntime.js"
         "quickBrightness.js"
-        "terminalBackdropBlur.js"
-        "terminalBlurMask.js"
         "runtime.css"
         "apps.js"
         "geometry.js"
@@ -771,7 +770,7 @@ refresh_prefs_process
 
 for installed_file in \
     metadata.json extension.js topBarIslands.js bottomTaskbar.js bottomTaskbarPreview.js prefs.js nativeDockPreferences.js wallpaperAtmospherePreferences.js wallpaperAtmosphereConfig.js stylesheet.css \
-    runtime.js orbThemeRuntime.js terminalBackdropBlur.js runtime.css apps.js geometry.js \
+    runtime.js orbThemeRuntime.js runtime.css apps.js geometry.js \
     liquidGlassDock.js notificationGlass.js popupGlass.js shellCards.js; do
     [[ -f "${TARGET_DIR}/${installed_file}" ]] ||
         fail "Installed extension is incomplete: ${installed_file} is missing."

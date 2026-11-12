@@ -13,7 +13,6 @@ import {BottomTaskbarPreview} from './bottomTaskbarPreview.js';
 import {LiquidGlassIntegration} from './liquidGlassDock.js';
 import {SearchSurfaceManager} from './searchSurface.js';
 import {SpotlightSearchController} from './spotlightSearch.js';
-import {TerminalBackdropBlurManager} from './terminalBackdropBlur.js';
 import {QuickBrightnessManager} from './quickBrightness.js';
 import {
     allocateAcrossRings,
@@ -268,7 +267,6 @@ export default class VLIQRuntime extends Extension {
         this._liquidGlassIntegration = null;
         this._searchSurfaceManager = null;
         this._spotlightSearch = null;
-        this._terminalBackdropBlurManager = null;
         this._quickBrightnessManager = null;
         this._orbPageIndex = 0;
         this._orbPageCount = 1;
@@ -347,18 +345,6 @@ export default class VLIQRuntime extends Extension {
             console.warn('[VLIQ][Brightness] setup skipped: ' + error);
         }
 
-        // Independent, opt-in compositor-native Ptyxis window blur. Does
-        // not depend on Liquid Glass startup and does not modify text alpha.
-        try {
-            this._terminalBackdropBlurManager =
-                new TerminalBackdropBlurManager(this._settings);
-            this._terminalBackdropBlurManager.setup();
-        } catch (error) {
-            try { this._terminalBackdropBlurManager?.cleanup(); } catch {}
-            this._terminalBackdropBlurManager = null;
-            console.warn('[VLIQ][TerminalBlur] unavailable: ' + error);
-        }
-
         this._setOrbEnabled(
             this._settings.get_boolean('orb-enabled')
         );
@@ -397,8 +383,6 @@ export default class VLIQRuntime extends Extension {
         this._globalPreviewAnchor = null;
         this._quickBrightnessManager?.cleanup();
         this._quickBrightnessManager = null;
-        this._terminalBackdropBlurManager?.cleanup();
-        this._terminalBackdropBlurManager = null;
         this._spotlightSearch?.destroy?.();
         this._spotlightSearch = null;
         this._searchSurfaceManager?.cleanup?.();

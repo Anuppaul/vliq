@@ -43,8 +43,6 @@ jobs:
           node tools/test_quick_premium_spacing.mjs
           node tools/test_quick_brightness.mjs
           node tools/test_fullscreen_panel_guard.mjs
-          node tools/test_terminal_backdrop_blur.mjs
-          node tools/test_terminal_blur_mask.mjs
           node tools/test_wallpaper_atmosphere.mjs
           node tools/test_wallpaper_atmosphere_ui.mjs
           node tools/test_wallpaper_atmosphere_visual_strength.mjs

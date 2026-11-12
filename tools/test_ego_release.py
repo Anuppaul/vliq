@@ -50,6 +50,18 @@ class EGOReleaseArchiveTests(unittest.TestCase):
         self.assertNotIn("desktopCalendarWidget",
                          self.package["orbThemeRuntime.js"].decode("utf-8"))
 
+    def test_retired_terminal_glass_is_not_packaged(self):
+        for old_module in ("terminalBackdropBlur.js", "terminalBlurMask.js"):
+            self.assertNotIn(old_module, self.package)
+            self.assertNotIn(old_module,
+                             self.package["orbThemeRuntime.js"].decode("utf-8"))
+        canonical = self.package[
+            "schemas/org.gnome.shell.extensions.vliq.gschema.xml"
+        ].decode("utf-8")
+        self.assertNotIn("terminal-backdrop-blur-", canonical)
+        self.assertNotIn("VLIQ Terminal Glass",
+                         self.package["prefs.js"].decode("utf-8"))
+
     def test_two_schemas_are_in_top_level_standard_directory(self):
         schemas = {
             k for k in self.package
