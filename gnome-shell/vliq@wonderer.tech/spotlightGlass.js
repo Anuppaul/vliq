@@ -14,9 +14,10 @@ export const SPOTLIGHT_GLASS_RESULTS_CLASS =
     'vliq-spotlight-glass-results';
 
 const PAD = 20;
-// Entry height is 68px; 34px keeps the search bar fully pill-shaped while
-// giving the taller results panel a premium but controlled corner radius.
-const SHARED_RADIUS = 34;
+// The search field is a native dark rounded rectangle, not a shader pill.
+// The optical material remains only behind the independently rendered
+// results panel, whose corners are a restrained rounded rectangle.
+const SHARED_RADIUS = 18;
 // Covers the shader's 96px edge-lens reach plus blur/filter sampling slack.
 // The scene clone cull must be larger than the visible pill or the refraction
 // samples the clipped edge and recreates the horizontal streak we removed.
@@ -341,6 +342,18 @@ export class SpotlightGlassManager {
             return; // Native Spotlight input/results paint Milky directly.
         }
 
+        // Empty query: native search entry is the ONLY visible surface.
+        // No unnecessary frame callback, full-stage capture or cached
+        // previous results shader may be painted behind the dark bar.
+        if (this._regions().length === 0) {
+            this._stopStageLoop();
+            this._root?.hide?.();
+            this._lastRegionKey = '';
+            this._lastSceneSyncUs = 0;
+            this._lastCullKey = '';
+            return;
+        }
+
         this._placeBelowHost();
         this._syncActors();
         this._syncEffectRegion();
@@ -460,25 +473,12 @@ export class SpotlightGlassManager {
     }
 
     _regions() {
-        const regions = [];
-
-        const entryRegion =
-            this._regionFor(
-                this._target,
-                true
-            );
-        if (entryRegion)
-            regions.push(entryRegion);
-
-        const resultsRegion =
-            this._regionFor(
-                this._resultsTarget,
-                false
-            );
-        if (resultsRegion)
-            regions.push(resultsRegion);
-
-        return regions;
+        // Spotlight's search field is permanently dark native CSS in ALL
+        // Appearance modes. Rendering a LiquidEffect under it makes the
+        // background brighten/refract and can recreate a pill silhouette.
+        // Keep the existing live shader only for visible search results.
+        const resultsRegion = this._regionFor(this._resultsTarget, false);
+        return resultsRegion ? [resultsRegion] : [];
     }
 
     _syncEffectRegion() {
