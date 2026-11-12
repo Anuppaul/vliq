@@ -342,9 +342,8 @@ export class SpotlightGlassManager {
             return; // Native Spotlight input/results paint Milky directly.
         }
 
-        // Empty query: native search entry is the ONLY visible surface.
-        // No unnecessary frame callback, full-stage capture or cached
-        // previous results shader may be painted behind the dark bar.
+        // Search and results are both native dark cards. Never keep the
+        // old shader active, even after a query produces matches.
         if (this._regions().length === 0) {
             this._stopStageLoop();
             this._root?.hide?.();
@@ -473,12 +472,10 @@ export class SpotlightGlassManager {
     }
 
     _regions() {
-        // Spotlight's search field is permanently dark native CSS in ALL
-        // Appearance modes. Rendering a LiquidEffect under it makes the
-        // background brighten/refract and can recreate a pill silhouette.
-        // Keep the existing live shader only for visible search results.
-        const resultsRegion = this._regionFor(this._resultsTarget, false);
-        return resultsRegion ? [resultsRegion] : [];
+        // Search field AND result list are now native dark charcoal cards.
+        // Do not sample/render a refractive scene behind either one, even
+        // after results appear; only their original native actors own paint.
+        return [];
     }
 
     _syncEffectRegion() {
