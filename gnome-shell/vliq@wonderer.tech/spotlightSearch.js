@@ -565,7 +565,9 @@ export class SpotlightSearchController {
         this._card.set_pivot_point?.(0.5, 0.5);
 
         this._entry = new St.Entry({
-            style_class: 'search-entry',
+            // Paint the dark rounded search field independently of whether
+            // optional SpotlightGlassManager attaches successfully.
+            style_class: 'search-entry vliq-spotlight-glass-entry',
             hint_text: 'Type to search',
             track_hover: true,
             can_focus: true,
