@@ -54,6 +54,7 @@ jobs:
           node tools/test_bottom_taskbar.mjs
           node tools/test_bottom_taskbar_preview.mjs
           node tools/test_global_preview_router.mjs
+          node tools/test_spotlight_dark_search.mjs
           node tools/test_global_icon_paint.mjs
           node tools/test_bottom_taskbar_borderless.mjs
           node tools/test_bottom_taskbar_date_contrast.mjs
