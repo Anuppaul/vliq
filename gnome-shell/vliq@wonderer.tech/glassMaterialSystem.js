@@ -102,7 +102,10 @@ export const VLIQ_GLASS_ADAPTERS = Object.freeze({
         shaderPadding: 20,
         adaptiveText: true,
         adaptiveSampleDelayMs: 520,
-        adaptiveResampleMs: 3200,
+        // Keep the first popup contrast sample prompt, but avoid repeated
+        // GPU-to-CPU readbacks every 3.2s while Calendar is left open.
+        // Periodic refresh remains for animated / changing backdrops.
+        adaptiveResampleMs: 12000,
     }),
     quickMenu: Object.freeze({
         edgePadding: 20,
