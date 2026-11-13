@@ -197,9 +197,11 @@ export class TopBarIslands {
             // The native panel moves during Overview/fullscreen and can
             // receive late system indicators. Derive glass rectangles from
             // transformed native allocations, not saved/stale coordinates.
-            this._stageSignal = global.stage.connect(
-                'before-update', () => this._syncStageFrame()
-            );
+            if (!this._forceCssOnly) {
+                this._stageSignal = global.stage.connect(
+                    'before-update', () => this._syncStageFrame()
+                );
+            }
             // A selected layout can be committed by a separate
             // Preferences process even while Shell is idle and does not
             // paint a frame. Reconcile once/second to recover missed
