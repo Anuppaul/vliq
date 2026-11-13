@@ -79,6 +79,18 @@ It does not place a second Dock over Ubuntu Dock, recreate Quick Settings, dupli
 | **Monitor-safe launcher geometry** | Orbit, Star, Molecule, Spiral and Petal layouts with fit-first placement and paging near monitor edges/corners. |
 | **Adaptive text** | Light/dark foreground treatment where VLIQ owns the visual layer, without replacing semantic GNOME states. |
 | **Low-overhead design** | Shared sources, compositor-native actors/effects, cached/downscaled blur and event-driven updates instead of permanent JS polling. |
+| **GPU-optional native CSS backend** | **Performance → Rendering backend:** Auto retains Liquid/Frosted effects when supported, with a native CSS fallback on startup/shader failure. **Native CSS** deliberately skips VLIQ shader/scene capture even on software-rendered or older integrated-GPU systems; the selected material preference is preserved. |
+
+## Renderer compatibility: dedicated GPU not required
+
+GNOME itself still needs a functioning graphical renderer (hardware-accelerated integrated GPU or a software rasterizer such as Mesa llvmpipe). VLIQ does **not** magically render GLSL without a rendering backend.
+
+Choose **GNOME Extensions → VLIQ → Preferences → Performance → Rendering backend**:
+
+- **Auto (default)** attempts the existing Liquid/Frosted GPU pipeline. If vendor initialization or a confirmed shader/Cogl failure occurs, VLIQ switches to a native CSS card renderer while keeping GNOME's original panel controls, Quick Settings, Calendar, notifications, Orb and supported desktop layouts. The stored Liquid/Frosted/Milky choice is not changed.
+- **Native CSS** skips the VLIQ shader and window-capture pipeline intentionally. This is the recommended setting when the desktop uses slow CPU-based software rendering or a weak GPU. The result uses GNOME native paint and **does not reproduce optical refraction or blur**. Spotlight keeps its separate dark CSS styling.
+
+The **Active backend** diagnostic row shows which mode is running. You can switch back to Auto at any time. VLIQ cannot automatically diagnose whether an iGPU is fast enough; a renderer may initialize correctly but still have low FPS. Choose Native CSS in that case. Real GNOME 50 compositor testing is required for software-renderer compatibility and performance claims.
 
 ## VLIQ Atmosphere — Premium Wallpaper
 
