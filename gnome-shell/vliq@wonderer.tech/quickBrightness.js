@@ -431,6 +431,15 @@ export class QuickBrightnessManager {
         if (this._effect && this._effectHost !== host)
             this._removeEffect();
 
+        // Reject collisions BEFORE disabling direct scanout. Another
+        // extension may own a shader with our name; a rejected attachment
+        // must never keep a compositor inhibition lease alive.
+        if (!this._effect && host.get_effect?.(SOFTWARE_EFFECT_NAME)) {
+            this._removeEffect();
+            this._publishStatus('Unavailable: existing brightness effect');
+            return false;
+        }
+
         // Acquire BEFORE adding the scene brightness shader: a fullscreen
         // video may already be scanned out directly when the slider moves.
         // Holding the lease across subsequent slider updates prevents
@@ -442,8 +451,10 @@ export class QuickBrightnessManager {
 
         if (!this._effect) {
             try {
-                // Avoid assuming ownership of another extension's effect.
+                // Recheck after acquisition in case another extension raced
+                // us between the initial lookup and shader attachment.
                 if (host.get_effect?.(SOFTWARE_EFFECT_NAME)) {
+                    this._removeEffect();
                     this._publishStatus('Unavailable: existing brightness effect');
                     return false;
                 }
