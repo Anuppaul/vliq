@@ -491,6 +491,30 @@ assert.match(failedSettings.get_string('quick-brightness-status'),
 failed.cleanup();
 uiGroup.add_effect_with_name = originalAddEffect;
 
+// A second extension may already own an effect under the same name.
+// Collision MUST fail before obtaining a fullscreen compositor lease.
+const foreignEffect = new BrightnessContrastEffect();
+uiGroup.add_effect_with_name('vliq-quick-brightness-software-dim',
+    foreignEffect);
+const conflictSettings = new Settings();
+conflictSettings.data.set('quick-soft-brightness', 65);
+const conflict = new api.QuickBrightnessManager(conflictSettings);
+const disableBeforeConflict = compositor.disableCalls;
+conflict.setup();
+flushIdle();
+assert.equal(conflict._effect, null);
+assert.equal(conflict._unredirectHeld, false);
+assert.equal(compositor.disableCalls, disableBeforeConflict,
+    'foreign effect must be detected before acquiring a compositor lease');
+assert.equal(compositor.inhibitCount, 0);
+assert.equal(uiGroup.get_effect('vliq-quick-brightness-software-dim'),
+    foreignEffect, 'never remove another extension effect');
+assert.match(conflictSettings.get_string('quick-brightness-status'),
+    /Unavailable: existing brightness effect/);
+conflict.cleanup();
+assert.equal(compositor.inhibitCount, 0);
+uiGroup.remove_effect(foreignEffect);
+
 // Mutter's counter is shared with OSK/OSD and other extensions.
 // Releasing VLIQ's ONE lease must not release another owner's hold.
 compositor.disable_unredirect(); // Native OSD-like external owner
