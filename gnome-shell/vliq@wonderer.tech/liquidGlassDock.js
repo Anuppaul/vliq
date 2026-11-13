@@ -550,6 +550,10 @@ export async function loadLiquidGlassVendorModules(vliqSettings) {
 export class LiquidGlassIntegration {
     constructor(params) {
         this._vliqSettings = params.vliqSettings;
+        this._onRendererFailure = params.onRendererFailure ?? null;
+        this._shaderHealthWatchId = 0;
+        this._shaderHealthChecks = 0;
+        this._shaderHealthReported = false;
         this._vendor = null;
         this._settings = null;
         this._logger = null;
@@ -605,6 +609,66 @@ export class LiquidGlassIntegration {
         this._enabled = false;
         this._externalGlobalStack = false;
         this._managerHealth = {};
+    }
+
+    _stopShaderHealthWatch() {
+        if (!this._shaderHealthWatchId)
+            return;
+        try { GLib.source_remove(this._shaderHealthWatchId); } catch {}
+        this._shaderHealthWatchId = 0;
+    }
+
+    _watchShaderHealth() {
+        if (!this._enabled || this._shaderHealthWatchId ||
+            this._shaderHealthReported || !this._onRendererFailure)
+            return;
+        // Pure Milky already renders with native CSS. Start observing when
+        // the user selects Liquid/Frosted instead.
+        if (this._vliqSettings?.get_string?.('glass-style') === 'milky')
+            return;
+
+        this._shaderHealthChecks = 0;
+        this._shaderHealthWatchId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT_IDLE, 500, () => {
+                if (!this._enabled) {
+                    this._shaderHealthWatchId = 0;
+                    return GLib.SOURCE_REMOVE;
+                }
+                const effect = this._topPanelIslands?._regions
+                    ?.map(region => region.surface?._effect)
+                    .find(Boolean) ??
+                    this._nativeDashEntries.find(
+                        entry => entry.manager?.effect
+                    )?.manager?.effect ?? null;
+
+                if (effect?._shadersFailed) {
+                    this._shaderHealthWatchId = 0;
+                    this._shaderHealthReported = true;
+                    try {
+                        this._onRendererFailure(
+                            'GLSL or Cogl pipeline initialization failed'
+                        );
+                    } catch (error) {
+                        console.warn('[VLIQ][Renderer] fallback callback: ' +
+                            error);
+                    }
+                    return GLib.SOURCE_REMOVE;
+                }
+                if (effect?._shadersLoaded &&
+                    effect?._pipelines?.composite &&
+                    (effect?._diagCompositedPaintCount ?? 0) > 0) {
+                    this._shaderHealthWatchId = 0;
+                    return GLib.SOURCE_REMOVE;
+                }
+                // Do not mistake an unmapped/fullscreen panel for a broken
+                // GPU. Only explicit shader failure is a fallback signal.
+                if (++this._shaderHealthChecks >= 30) {
+                    this._shaderHealthWatchId = 0;
+                    return GLib.SOURCE_REMOVE;
+                }
+                return GLib.SOURCE_CONTINUE;
+            }
+        );
     }
 
     refreshAdaptiveText() {
@@ -999,6 +1063,7 @@ export class LiquidGlassIntegration {
         );
 
         this._installDebugState();
+        this._watchShaderHealth();
     }
 
     _ensureFullGlassOpticsProfile() {
@@ -1828,6 +1893,8 @@ export class LiquidGlassIntegration {
 
         // CSS-only Milky must work even with a cached legacy vendor module.
         this._syncMilkyAppearanceClass(state.milky === true);
+        if (state.milky !== true)
+            this._watchShaderHealth();
         this._popupGlassManager?.updateAppearance(state);
         this._shellCardGlassManager?.updateAppearance(state);
         this._previewGlassManager?.updateAppearance(state);
@@ -5895,6 +5962,7 @@ export class LiquidGlassIntegration {
             return;
 
         this._enabled = false;
+        this._stopShaderHealthWatch();
 
         if (this._monitorsChangedId) {
             try {
