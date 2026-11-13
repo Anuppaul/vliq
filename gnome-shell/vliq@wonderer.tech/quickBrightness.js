@@ -434,10 +434,22 @@ export class QuickBrightnessManager {
         // Reject collisions BEFORE disabling direct scanout. Another
         // extension may own a shader with our name; a rejected attachment
         // must never keep a compositor inhibition lease alive.
-        if (!this._effect && host.get_effect?.(SOFTWARE_EFFECT_NAME)) {
-            this._removeEffect();
-            this._publishStatus('Unavailable: existing brightness effect');
-            return false;
+        if (!this._effect) {
+            let occupied = false;
+            try {
+                occupied = Boolean(host.get_effect?.(SOFTWARE_EFFECT_NAME));
+            } catch {
+                // A destroyed/replaced GNOME host must never leave behind
+                // a compositor-wide direct-scanout inhibition lease.
+                this._removeEffect();
+                this._publishStatus('Unavailable: brightness effect lookup failed');
+                return false;
+            }
+            if (occupied) {
+                this._removeEffect();
+                this._publishStatus('Unavailable: existing brightness effect');
+                return false;
+            }
         }
 
         // Acquire BEFORE adding the scene brightness shader: a fullscreen
