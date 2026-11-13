@@ -116,8 +116,11 @@ surface(false, {milky: false, systemDarkTaskbar: true}, false);
 surface(true, {milky: false, systemDarkTaskbar: false}, false);
 surface(true, {milky: true, systemDarkTaskbar: false}, true);
 
-const rule = css.slice(css.indexOf(
-    "/* Follow GNOME Quick Settings' native Dark Style ONLY"));
+const darkRuleStart = css.indexOf(
+    "/* Follow GNOME Quick Settings' native Dark Style ONLY");
+const nativeCssStart = css.indexOf('/* Shader-independent VLIQ fallback.');
+const rule = css.slice(darkRuleStart, nativeCssStart > darkRuleStart
+    ? nativeCssStart : undefined);
 assert.ok(rule.startsWith('/* Follow GNOME'));
 assert.match(rule, /#panel\.vliq-liquid-top-panel\.vliq-bottom-taskbar\.vliq-system-dark-taskbar/);
 assert.match(rule, /rgba\(29,31,35,0\.98\)/);
