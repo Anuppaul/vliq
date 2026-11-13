@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload actual EGO submission ZIP
         if: always() && hashFiles('dist/ego/vliq@wonderer.tech.shell-extension.zip') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vliq-gnome-store-upload-zip
           path: dist/ego/vliq@wonderer.tech.shell-extension.zip
@@ -88,7 +88,7 @@ jobs:
 
       - name: Upload manifest and static-review evidence
         if: always() && hashFiles('dist/ego/vliq-ego-manifest.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vliq-gnome-store-review-evidence
           path: |
