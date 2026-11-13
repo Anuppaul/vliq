@@ -223,6 +223,8 @@ export const LiquidEffect = GObject.registerClass({
   // actor. Diagnostics only; see GlassGeometry.compositeRect().
   declare private _compositeRect: number[] | null;
   declare private _shadersLoaded: boolean;
+  declare _shadersFailed: boolean;
+  declare private _pipelineFailures: number;
 
   // ── [DIAG] Black-background investigation ──
   // Tracks whether/how often vfunc_paint_target actually gets invoked by
@@ -336,6 +338,8 @@ export const LiquidEffect = GObject.registerClass({
     this._diagOwnerLabel = '';
 
     this._shadersLoaded = false;
+        this._shadersFailed = false;
+        this._pipelineFailures = 0;
     this._diagPaintCount = 0;
     this._diagLast = null;
     registerGlassEffect(this);
@@ -407,6 +411,7 @@ export const LiquidEffect = GObject.registerClass({
       actor?.queue_redraw();
       actor?.get_parent()?.queue_redraw();
     } catch (e) {
+      this._shadersFailed = true;
       this._logger?.error(`[Liquid Glass] Failed to load shaders asynchronously: ${e}`);
     }
   }
@@ -598,7 +603,12 @@ export const LiquidEffect = GObject.registerClass({
         if (!ctx) throw new Error('Could not obtain a Cogl context');
         this._pipelines.initialize(ctx);
         this._uniforms.attach(this._pipelines.composite);
+        this._pipelineFailures = 0;
       } catch (e) {
+        // Ignore transient first-paint failures during GNOME allocation.
+        // After repeated Cogl failures the native CSS backend can take over.
+        if (++this._pipelineFailures >= 3)
+          this._shadersFailed = true;
         this._logger?.error(`[Liquid Glass] Pipeline initialization failed: ${e}`);
         return false;
       }
