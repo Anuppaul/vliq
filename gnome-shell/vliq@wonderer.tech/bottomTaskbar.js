@@ -507,26 +507,53 @@ export class BottomTaskbar {
                     list.push({target, id});
             } catch {}
         };
+        const unwatchNotification = notification => {
+            const signals = entry.notifications.get(notification);
+            if (!signals)
+                return;
+            entry.notifications.delete(notification);
+            for (const {target, id} of signals)
+                safeDisconnect(target, id);
+        };
+        const pruneNotifications = () => {
+            // Some providers report only count-updated after clearing a
+            // notification; never retain a destroyed GObject until its
+            // entire MessageTray source is removed.
+            const live = new Set(source.notifications ?? []);
+            for (const notification of entry.notifications.keys()) {
+                if (!live.has(notification))
+                    unwatchNotification(notification);
+            }
+        };
         const watchNotification = notification => {
             if (!notification || entry.notifications.has(notification))
                 return;
             const list = [];
             entry.notifications.set(notification, list);
-            // A count-updated signal commonly follows notification removal;
-            // keep the destroy hook for GNOME providers without that signal.
-            connect(notification, 'destroy',
-                () => this._refreshNotificationBadges(), list);
+            connect(notification, 'destroy', () => {
+                unwatchNotification(notification);
+                this._refreshNotificationBadges();
+            }, list);
         };
         connect(source, 'notification-added', (_source, notification) => {
             watchNotification(notification);
             this._refreshNotificationBadges();
         });
-        connect(source, 'notify::count',
-            () => this._refreshNotificationBadges());
-        connect(source, 'count-updated',
-            () => this._refreshNotificationBadges());
-        connect(source, 'notification-removed',
-            () => this._refreshNotificationBadges());
+        connect(source, 'notify::count', () => {
+            pruneNotifications();
+            this._refreshNotificationBadges();
+        });
+        connect(source, 'count-updated', () => {
+            pruneNotifications();
+            this._refreshNotificationBadges();
+        });
+        connect(source, 'notification-removed', (_source, notification) => {
+            if (notification)
+                unwatchNotification(notification);
+            else
+                pruneNotifications();
+            this._refreshNotificationBadges();
+        });
         for (const notification of source.notifications ?? [])
             watchNotification(notification);
     }
