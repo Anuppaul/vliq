@@ -75,7 +75,7 @@ Nested PopupSubMenu content sits inside the parent glass and receives a light tr
 
 Notifications use the proven notificationGlass manager.
 
-ShellCardGlassManager recursively watches the Shell UI actor tree through child-added signals (no polling) and applies the same wallpaper-only material to non-PopupMenu Shell cards whose native paint owner is a known GNOME class:
+ShellCardGlassManager recursively watches the Shell UI actor tree through native child-added, child-removed and destroy signals (no polling) and applies the same wallpaper-only material to non-PopupMenu Shell cards whose native paint owner is a known GNOME class:
 
 - modal-dialog;
 - switcher-list (Alt-Tab);
@@ -96,7 +96,10 @@ Top panel, OSD and native Ubuntu Dock/Dash-to-Dock continue to use the vendored 
 - renderer downscale/cache settings remain available;
 - property writes are avoided when values have not changed;
 - popup material exists only after a PopupMenu is actually opened;
-- native GNOME animation owns transforms.
+- native GNOME animation owns transforms;
+- removed Shell actor subtrees are released after one idle turn, preserving synchronous native GNOME reparenting while disconnecting genuinely detached nodes;
+- taskbar notification handlers are released on destroy, removal or count reconciliation, rather than waiting for the entire notification source to disappear;
+- Calendar contrast analysis is separate from the GPU glass renderer: one bounded Shell.Screenshot CPU luminance sample on open (520ms delay) and, while the Date Menu stays open, a 12-second refresh for changing backdrops. Quick Settings remains sampled on open/expansion only. This is a deliberate readability/performance tradeoff, **not** evidence of measured FPS savings.
 
 ## Orb
 
