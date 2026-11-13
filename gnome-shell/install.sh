@@ -32,6 +32,7 @@ RUNTIME_FILES=(
     "apps.js"
     "geometry.js"
     "liquidGlassDock.js"
+    "nativeCssIntegration.js"
     "fullscreenPanelGuard.js"
     "glassMaterialSystem.js"
     "notificationGlass.js"
