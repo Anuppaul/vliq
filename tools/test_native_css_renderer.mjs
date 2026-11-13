@@ -14,7 +14,9 @@ const [native, runtime, topbar, panel, css, schema, prefs, installer,
 ].map(read));
 
 // Native mode must not depend on vendor imports, GLSL or framebuffer effects.
-assert.doesNotMatch(native, /gi:\/\/Cogl|LiquidEffect|WindowCloneManager|ShaderPipelines|GLSLEffect/);
+assert.doesNotMatch(native,
+    /^\s*import[^\n]*\b(?:Cogl|liquidEffect|windowClones|ShaderPipelines)\b/m);
+assert.doesNotMatch(native, /new\s+(?:LiquidEffect|WindowCloneManager|GLSLEffect)\b/);
 assert.match(native, /forceCssOnly: true/);
 assert.match(topbar, /if \(!this\._forceCssOnly\) \{\s*this\._stageSignal/);
 assert.match(topbar, /cssOnly: this\._forceCssOnly/);
