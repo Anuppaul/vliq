@@ -467,6 +467,38 @@ assert.equal(betaRegistry.notifications.size, 0,
 assert.equal(countOnly.handlers.size, 0);
 assert.equal(betaBadge.visible, false);
 
+// A single notification update should inspect each source once, regardless
+// of how many pinned/running app slots currently exist.
+const originalNotificationId = taskbar._sourceNotificationAppId;
+let sourceLookupCount = 0;
+taskbar._sourceNotificationAppId = function (source) {
+    sourceLookupCount++;
+    return originalNotificationId.call(this, source);
+};
+taskbar._refreshNotificationBadges();
+assert.equal(sourceLookupCount, taskbar._notificationSources.size,
+    'badge refresh must aggregate source counts in one pass');
+taskbar._sourceNotificationAppId = originalNotificationId;
+
+// Multiple GNOME notification sources for one application must still add up.
+const anotherBeta = new Actor();
+anotherBeta.appId = 'beta.desktop';
+anotherBeta.notifications = [
+    new Actor({resident: false}),
+    new Actor({resident: true}),
+    new Actor({resident: false}),
+];
+notificationTray.sources.push(anotherBeta);
+notificationTray.emit('source-added', anotherBeta);
+assert.equal(betaBadge.text, '2',
+    'multiple same-app sources aggregate nonresident counts');
+anotherBeta.notifications = [];
+anotherBeta.emit('count-updated');
+assert.equal(betaBadge.visible, false);
+notificationTray.sources = notificationTray.sources.filter(
+    source => source !== anotherBeta);
+notificationTray.emit('source-removed', anotherBeta);
+
 // An app becoming stopped must hide the dot; reopening must restore it.
 const originalBetaWindows = appBeta.get_windows;
 appBeta.get_windows = () => [];
@@ -624,6 +656,25 @@ assert.equal(dock.visible, false);
 assert.equal(dock.reactive, false, 'native Dock must not steal clicks');
 assert.ok(dockPanelSurface.hideCalls >= 2,
     'native Dock glass remains hidden across repeated compositor frames');
+
+// Dock may recreate its actors on a native settings change. Disposed
+// roots must not accumulate retained GObject references in VLIQ Maps.
+const dockWatchersBefore = taskbar._dockVisibilityWatchers.size;
+const dockPaintBefore = taskbar._dockPaint.size;
+for (let i = 0; i < 80; i++) {
+    const transient = new Actor({visible: true, opacity: 255});
+    taskbar._concealDockActor(transient);
+    assert.equal(taskbar._dockPaint.has(transient), true);
+    assert.equal(taskbar._dockVisibilityWatchers.has(transient), true);
+    transient.emit('destroy');
+    assert.equal(taskbar._dockPaint.has(transient), false);
+    assert.equal(taskbar._dockVisibilityWatchers.has(transient), false);
+    assert.equal(taskbar._dockConcealingActors.has(transient), false);
+}
+assert.equal(taskbar._dockPaint.size, dockPaintBefore,
+    'disposed Dock roots must not grow the restoration registry');
+assert.equal(taskbar._dockVisibilityWatchers.size, dockWatchersBefore,
+    'disposed Dock roots must not grow signal-handler registry');
 layout.primaryMonitor = {x: 1920, y: 0, width: 1280, height: 720};
 const previousRootCache = taskbar._dockRootCache;
 layout.emit('monitors-changed');
@@ -873,20 +924,24 @@ const drawNativeBackdrop = new Function('Main', 'global',
 )({layoutManager: nativeLayout}, {stage});
 let oldGlassDraws = 0;
 let oldGlassHides = 0;
+let oldGlassSyncs = 0;
 let nativeReady = false;
+let panelSourceX = 0;
+let panelOpacity = 255;
 const oldDockGlass = {
     ready: true,
     hide() {oldGlassHides++;},
     setBounds() {oldGlassDraws++;},
+    syncFrame() {oldGlassSyncs++;},
 };
 const nativeBackdropEntry = {
     panelLiquidSurface: oldDockGlass,
     panelBackdropSource: {
-        get_transformed_position: () => [0, 1044],
+        get_transformed_position: () => [panelSourceX, 1044],
         get_transformed_size: () => [1920, 36],
         get_stage: () => stage,
         mapped: true, visible: true,
-        get_paint_opacity: () => 255,
+        get_paint_opacity: () => panelOpacity,
     },
 };
 let isBottom = true;
@@ -912,6 +967,28 @@ assert.equal(oldGlassDraws, 1,
     'old Dock glass resumes normally when bottom mode is disabled');
 assert.equal(nativeReady, true,
     'returning to ordinary Ubuntu Dock restores native glass paint');
+for (let i = 0; i < 120; i++)
+    drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 1,
+    'stationary panel must not rewrite identical glass geometry every frame');
+assert.equal(oldGlassSyncs, 120,
+    'unchanged panel must retain bounded live scene refresh');
+panelSourceX = 3;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 2,
+    'panel movement triggers an immediate geometry update');
+panelOpacity = 180;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 3,
+    'native panel opacity changes must bypass the stable-geometry cache');
+isBottom = true;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(nativeBackdropEntry.panelBackdropLastBounds, null,
+    'bottom taskbar must invalidate hidden native-Dock glass geometry');
+isBottom = false;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 4,
+    'old Dock glass repaints immediately after Bottom mode exits');
 
 // The Ubuntu Dock panel-background style watcher must NOT resurrect
 // native paint while Bottom owns the panel, even if Ubuntu Panel Mode
