@@ -4588,6 +4588,7 @@ export class LiquidGlassIntegration {
         // callback would re-show the old glass immediately.
         if (this.ownsBottomTaskbarChrome()) {
             surface.hide();
+            entry.panelBackdropLastBounds = null;
             this._setPanelLiquidReady(entry, false);
             return;
         }
@@ -4618,6 +4619,7 @@ export class LiquidGlassIntegration {
                 );
             if (!valid) {
                 surface.hide();
+                entry.panelBackdropLastBounds = null;
                 this._setPanelLiquidReady(entry, false);
                 return;
             }
@@ -4629,6 +4631,7 @@ export class LiquidGlassIntegration {
             const width = right - left, height = bottom - top;
             if (width <= 1 || height <= 1) {
                 surface.hide();
+                entry.panelBackdropLastBounds = null;
                 this._setPanelLiquidReady(entry, false);
                 return;
             }
@@ -4638,12 +4641,28 @@ export class LiquidGlassIntegration {
                 [0, 0];
             const opacity = source.get_paint_opacity?.() ??
                 source.opacity ?? 255;
-            surface.setBounds(
-                left - uiX, top - uiY, width, height, opacity
+            const bounds = [
+                left - uiX, top - uiY, width, height, opacity,
+            ];
+            const previous = entry.panelBackdropLastBounds;
+            const changed = !previous || bounds.some((value, index) =>
+                index === 4
+                    ? value !== previous[index]
+                    : Math.abs(value - previous[index]) > 0.1
             );
+            if (changed) {
+                surface.setBounds(...bounds);
+                entry.panelBackdropLastBounds = bounds;
+            } else {
+                // A stationary native Dock still has live wallpaper/window
+                // clones. Only skip redundant setBounds/actor property probes;
+                // PanelGlassSurface keeps its own bounded scene-refresh clock.
+                surface.syncFrame?.();
+            }
             this._setPanelLiquidReady(entry, surface.ready);
         } catch {
             surface.hide();
+            entry.panelBackdropLastBounds = null;
             this._setPanelLiquidReady(entry, false);
         }
     }
@@ -4677,6 +4696,7 @@ export class LiquidGlassIntegration {
         entry.panelBackdropActor = null;
         entry.panelBackdropSource = null;
         entry.panelBackdropRoot = null;
+        entry.panelBackdropLastBounds = null;
     }
 
     _syncDockGlassBackgroundClass(entry, enabled) {
