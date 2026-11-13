@@ -712,6 +712,8 @@ export class ShellCardGlassManager {
         this._appearance = null;
         this._surfaces = new Map();
         this._watched = new Map();
+        this._pendingDetached = new Set();
+        this._detachedPruneId = 0;
         this._enabled = false;
         this._stageSyncId = 0;
     }
@@ -796,6 +798,70 @@ export class ShellCardGlassManager {
         this._stopStageSync();
     }
 
+    _isInShellTree(actor) {
+        // A removed actor may be reparented within uiGroup in the same
+        // event turn. Only release it after the final parent is known.
+        let cursor = actor;
+        for (let depth = 0; cursor && depth < 256; depth++) {
+            if (cursor === Main.uiGroup)
+                return true;
+            try {
+                cursor = cursor.get_parent?.() ?? null;
+            } catch {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    _releaseDetachedSubtree(actor) {
+        // Disconnect the entire detached tree, not just the removed root:
+        // both child-added subscriptions and card surfaces own references.
+        const pending = [actor];
+        for (let i = 0; i < pending.length; i++) {
+            const node = pending[i];
+            for (const child of node.get_children?.() ?? [])
+                pending.push(child);
+
+            const entry = this._watched.get(node);
+            if (!entry)
+                continue;
+            this._watched.delete(node);
+            for (const id of [
+                entry.childId, entry.childRemovedId, entry.destroyId,
+            ]) {
+                try {
+                    if (id)
+                        node.disconnect(id);
+                } catch {}
+            }
+            this._surfaces.get(node)?.destroy(true);
+        }
+    }
+
+    _queueDetachedPrune(actor) {
+        if (!this._enabled || !this._watched.has(actor))
+            return;
+        this._pendingDetached.add(actor);
+        if (this._detachedPruneId)
+            return;
+        this._detachedPruneId = GLib.idle_add(
+            GLib.PRIORITY_DEFAULT_IDLE,
+            () => {
+                this._detachedPruneId = 0;
+                const pending = [...this._pendingDetached];
+                this._pendingDetached.clear();
+                if (this._enabled) {
+                    for (const node of pending) {
+                        if (!this._isInShellTree(node))
+                            this._releaseDetachedSubtree(node);
+                    }
+                }
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
     _watchTree(actor) {
         if (
             !this._enabled ||
@@ -816,7 +882,7 @@ export class ShellCardGlassManager {
 
         this._maybeAttach(actor);
 
-        const entry = {childId: 0, destroyId: 0};
+        const entry = {childId: 0, childRemovedId: 0, destroyId: 0};
         try {
             entry.childId = actor.connect(
                 'child-added',
@@ -825,8 +891,16 @@ export class ShellCardGlassManager {
         } catch {}
 
         try {
+            entry.childRemovedId = actor.connect(
+                'child-removed', (_parent, child) =>
+                    this._queueDetachedPrune(child)
+            );
+        } catch {}
+
+        try {
             entry.destroyId = actor.connect('destroy', () => {
                 this._watched.delete(actor);
+                this._pendingDetached.delete(actor);
                 const surface = this._surfaces.get(actor);
                 surface?.destroy(false);
             });
@@ -895,6 +969,11 @@ export class ShellCardGlassManager {
         this._enabled = false;
 
         this._stopStageSync();
+        if (this._detachedPruneId) {
+            try { GLib.source_remove(this._detachedPruneId); } catch {}
+            this._detachedPruneId = 0;
+        }
+        this._pendingDetached.clear();
 
         for (const surface of [...this._surfaces.values()])
             surface.destroy(true);
@@ -904,6 +983,10 @@ export class ShellCardGlassManager {
             try {
                 if (entry.childId)
                     actor.disconnect(entry.childId);
+            } catch {}
+            try {
+                if (entry.childRemovedId)
+                    actor.disconnect(entry.childRemovedId);
             } catch {}
             try {
                 if (entry.destroyId)
