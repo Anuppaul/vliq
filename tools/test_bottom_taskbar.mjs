@@ -439,6 +439,34 @@ assert.equal(taskbar._appItems.get('gamma.desktop').badge.visible, false,
 assert.equal(gammaNotifications.handlers.size, 0,
     'removed Source signal subscriptions are released');
 
+// The source remains alive during a long Terminal session. Removed or
+// destroyed notifications must not accumulate in its tracking registry.
+const betaRegistry = taskbar._notificationSources.get(betaNotifications);
+assert.equal(betaRegistry.notifications.size, 0,
+    'clearing the tray removes all earlier notification references');
+for (let i = 0; i < 100; i++) {
+    const notification = new Actor({resident: false});
+    betaNotifications.notifications.push(notification);
+    betaNotifications.emit('notification-added', notification);
+    assert.equal(betaRegistry.notifications.size, 1);
+    betaNotifications.notifications.pop();
+    notification.emit('destroy');
+    betaNotifications.emit('notification-removed', notification);
+    assert.equal(notification.handlers.size, 0,
+        'destroy must disconnect the notification listener');
+    assert.equal(betaRegistry.notifications.size, 0,
+        'no cleared Terminal notification may be retained');
+}
+const countOnly = new Actor({resident: false});
+betaNotifications.notifications.push(countOnly);
+betaNotifications.emit('notification-added', countOnly);
+betaNotifications.notifications.pop();
+betaNotifications.emit('count-updated');
+assert.equal(betaRegistry.notifications.size, 0,
+    'providers without destroy/removal events are reconciled on count change');
+assert.equal(countOnly.handlers.size, 0);
+assert.equal(betaBadge.visible, false);
+
 // An app becoming stopped must hide the dot; reopening must restore it.
 const originalBetaWindows = appBeta.get_windows;
 appBeta.get_windows = () => [];
