@@ -67,6 +67,17 @@ assert.equal(newActors, 0,
 
 assert.ok(popup.includes('this._scanDateCardActors(false);'),
     'Date keeps adaptive card text scan even without nested shader');
+const material = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/glassMaterialSystem.js',
+    import.meta.url
+), 'utf8');
+const dateAdapter = material.match(/dateMenu: Object\.freeze\(\{([\s\S]*?)\}\)/)?.[1] ?? '';
+assert.match(dateAdapter, /adaptiveText:\s*true/,
+    'Date contrast sampling must remain enabled for live backdrop readability');
+assert.match(dateAdapter, /adaptiveSampleDelayMs:\s*520/,
+    'first-open readability remains responsive');
+assert.match(dateAdapter, /adaptiveResampleMs:\s*12000/,
+    'idle Date menu samples once every 12s instead of every 3.2s');
 
 const dateBlockStart = css.indexOf('/* Date Menu: restrained cool gray-white cards');
 const quickBlockStart = css.indexOf('/* Quick Settings ', dateBlockStart);
