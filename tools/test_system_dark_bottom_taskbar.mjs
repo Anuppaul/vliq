@@ -91,7 +91,7 @@ assert.ok(!classes.has('vliq-system-dark-taskbar'),
 assert.match(top, /this\._syncSystemDarkTaskbarStyle\(\)/);
 assert.match(top, /remove_style_class_name\?\.\('vliq-system-dark-taskbar'\)/);
 assert.match(top, /systemDarkTaskbar: mode === 'bottom'/);
-assert.match(top, /\{cornerRadius: RADIUS\}/);
+assert.match(top, /\{cornerRadius: RADIUS, cssOnly: this\._forceCssOnly\}/);
 
 // The actual bounded GPU actor is suppressed for Dark+Bottom, not for
 // Liquid/Frosted on any other native panel layout.
