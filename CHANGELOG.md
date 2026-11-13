@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Automatic GPU-renderer failure recovery and an explicit shader-independent Native CSS backend, selectable in Performance settings, with native Full/3-Part/Bottom layouts and per-session status reporting.
+- Native CSS backend preserves the selected material preference and cleans up its GNOME actors/signals when switching back to GPU rendering.
 - Contributor guide, contributor map and local development guide.
 - Community hub, contributor recognition guide and Code of Conduct.
 - Structured bug, feature, contributor and idea templates.
