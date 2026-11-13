@@ -599,32 +599,36 @@ export class BottomTaskbar {
         this._refreshNotificationBadges();
     }
 
-    _notificationCountForApp(app) {
-        const id = this._notificationAppId(app);
-        if (!id)
-            return 0;
-        let count = 0;
+    _notificationCountsByApp() {
+        // One MessageTray walk for all taskbar icons. Previously every
+        // icon independently rescanned every source and its notifications,
+        // multiplying work on busy desks (up to 11 app slots).
+        const counts = new Map();
         for (const source of this._notificationSources.keys()) {
-            if (this._sourceNotificationAppId(source) !== id)
+            const id = this._sourceNotificationAppId(source);
+            if (!id)
                 continue;
-            // Ubuntu Dock's familiar numbers count uncleared notifications,
-            // not running windows; resident/media entries are excluded.
-            const notifications = source.notifications ?? [];
-            for (const notification of notifications)
+            let count = 0;
+            // These are uncleared notifications, never open-window counts.
+            for (const notification of source.notifications ?? []) {
                 if (notification && notification.resident !== true)
                     count++;
+            }
+            if (count > 0)
+                counts.set(id, (counts.get(id) ?? 0) + count);
         }
-        return count;
+        return counts;
     }
 
     _refreshNotificationBadges() {
-        if (!this._enabled)
+        if (!this._enabled || this._appItems.size === 0)
             return;
+        const counts = this._notificationCountsByApp();
         for (const item of this._appItems.values()) {
             const badge = item.badge;
             if (!badge)
                 continue;
-            const count = this._notificationCountForApp(item.app);
+            const count = counts.get(this._notificationAppId(item.app)) ?? 0;
             if (!count) {
                 if (badge.visible)
                     badge.hide?.();
@@ -955,6 +959,18 @@ export class BottomTaskbar {
                             ids.push(id);
                     } catch {}
                 }
+                // Native Ubuntu Dock can recreate its chrome when settings,
+                // monitors or extensions change. Do not retain disposed
+                // actors in these otherwise long-lived tracking Maps.
+                try {
+                    const id = actor.connect?.('destroy', () => {
+                        this._dockPaint.delete(actor);
+                        this._dockVisibilityWatchers.delete(actor);
+                        this._dockConcealingActors.delete(actor);
+                    });
+                    if (id)
+                        ids.push(id);
+                } catch {}
                 this._dockVisibilityWatchers.set(actor, ids);
             }
             if (actor.visible !== false)
