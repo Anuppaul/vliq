@@ -515,6 +515,23 @@ conflict.cleanup();
 assert.equal(compositor.inhibitCount, 0);
 uiGroup.remove_effect(foreignEffect);
 
+// GNOME can invalidate a host between frame changes. A failed effect
+// lookup must not acquire a lease or crash the entire slider controller.
+const originalGetEffect = uiGroup.get_effect;
+uiGroup.get_effect = () => {throw new Error('effect host disposed');};
+const lookupSettings = new Settings();
+lookupSettings.data.set('quick-soft-brightness', 65);
+const invalidLookup = new api.QuickBrightnessManager(lookupSettings);
+invalidLookup.setup();
+flushIdle();
+assert.equal(invalidLookup._effect, null);
+assert.equal(invalidLookup._unredirectHeld, false);
+assert.equal(compositor.inhibitCount, 0);
+assert.match(lookupSettings.get_string('quick-brightness-status'),
+    /Unavailable: brightness effect lookup failed/);
+invalidLookup.cleanup();
+uiGroup.get_effect = originalGetEffect;
+
 // Mutter's counter is shared with OSK/OSD and other extensions.
 // Releasing VLIQ's ONE lease must not release another owner's hold.
 compositor.disable_unredirect(); // Native OSD-like external owner
