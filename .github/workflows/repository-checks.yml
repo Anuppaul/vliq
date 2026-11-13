@@ -42,6 +42,7 @@ jobs:
           node tools/test_three_part_main_card.mjs
           node tools/test_quick_premium_spacing.mjs
           node tools/test_quick_brightness.mjs
+          node tools/test_native_css_renderer.mjs
           node tools/test_fullscreen_panel_guard.mjs
           node tools/test_wallpaper_atmosphere.mjs
           node tools/test_wallpaper_atmosphere_ui.mjs

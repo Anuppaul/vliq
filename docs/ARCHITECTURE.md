@@ -15,6 +15,12 @@ For every supported Shell surface VLIQ preserves:
 
 VLIQ changes the painted material underneath that content.
 
+## Rendering backends
+
+VLIQ has two independently selected render paths. **Auto** attempts the vendored compositor/GPU renderer. If startup or a confirmed shader/COGL compilation fails, the runtime retires that backend and enables **NativeCssIntegration** without replacing or rewriting the selected Liquid/Frosted/Milky preference. The explicit **Native CSS** setting skips importing the vendored shader modules. NativeCssIntegration reuses TopBarIslands in `forceCssOnly` mode; it doesn't instantiate a LiquidEffect, WindowCloneManager, capture texture or shader-specific stage callback. Native GNOME Shell still needs a functioning compositor, which can be a software renderer. It does not claim to recreate optical refraction in CSS.
+
+Backend switch and disable clean up fullscreen guards, panel/taskbar actors, CSS classes, GSettings subscriptions and any staged shader health observer. Native popups are painted through GNOME CSS selectors without changing their content/interaction ownership. The CSS-only Bottom Taskbar still has its native anti-flicker/position guard. The automatic failure monitor acts only on explicit shader-load errors or repeated Cogl initialization failures; it does not infer GPU speed from missing paint samples.
+
 ## Renderer
 
 The vendored production renderer provides:

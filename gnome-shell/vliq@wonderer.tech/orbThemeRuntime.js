@@ -11,6 +11,7 @@ import {ControlsState} from 'resource:///org/gnome/shell/ui/overviewControls.js'
 import {collectOrbApps} from './apps.js';
 import {BottomTaskbarPreview} from './bottomTaskbarPreview.js';
 import {LiquidGlassIntegration} from './liquidGlassDock.js';
+import {NativeCssIntegration} from './nativeCssIntegration.js';
 import {SearchSurfaceManager} from './searchSurface.js';
 import {SpotlightSearchController} from './spotlightSearch.js';
 import {QuickBrightnessManager} from './quickBrightness.js';
@@ -265,6 +266,9 @@ export default class VLIQRuntime extends Extension {
         this._dragPointerOrigin = null;
         this._dragGrab = null;
         this._liquidGlassIntegration = null;
+        this._rendererGeneration = 0;
+        this._rendererSwitchPromise = Promise.resolve();
+        this._rendererFailureReason = '';
         this._searchSurfaceManager = null;
         this._spotlightSearch = null;
         this._quickBrightnessManager = null;
@@ -284,24 +288,10 @@ export default class VLIQRuntime extends Extension {
             new SearchSurfaceManager();
         this._searchSurfaceManager.setup();
 
-        this._liquidGlassIntegration = new LiquidGlassIntegration({
-            vliqSettings: this._settings,
-        });
-
-        try {
-            await this._liquidGlassIntegration.enable();
-        } catch (error) {
-            logError(
-                error,
-                'VLIQ: Liquid Glass startup failed; keeping full Orb active'
-            );
-            try {
-                this._liquidGlassIntegration.disable();
-            } catch {
-                // Best-effort rollback of a partial material startup.
-            }
-            this._liquidGlassIntegration = null;
-        }
+        // A CSS-only backend is a first-class option, not a last-resort
+        // broken-theme state. Auto chooses optics when initialization works,
+        // but leaves ALL GNOME layouts usable when vendor startup fails.
+        await this._switchRendererBackend();
 
         this._spotlightSearch =
             new SpotlightSearchController({
@@ -363,11 +353,95 @@ export default class VLIQRuntime extends Extension {
         );
     }
 
+    _publishRendererStatus(value) {
+        try {
+            if (this._settings?.get_string('renderer-runtime-status') !== value)
+                this._settings?.set_string('renderer-runtime-status', value);
+        } catch {}
+    }
+
+    _switchRendererBackend(reason = '') {
+        if (reason)
+            this._rendererFailureReason = reason;
+        const generation = ++this._rendererGeneration;
+        const switchBackend = async () => {
+            if (this._disabled || generation !== this._rendererGeneration)
+                return;
+
+            const old = this._liquidGlassIntegration;
+            this._liquidGlassIntegration = null;
+            try { old?.disable(); } catch (error) {
+                console.warn('[VLIQ][Renderer] old backend cleanup: ' + error);
+            }
+
+            const requested = this._settings?.get_string?.(
+                'renderer-backend') ?? 'auto';
+            const cssOnly = requested === 'native-css' ||
+                Boolean(this._rendererFailureReason);
+            let backend = cssOnly
+                ? new NativeCssIntegration({vliqSettings: this._settings})
+                : new LiquidGlassIntegration({
+                    vliqSettings: this._settings,
+                    onRendererFailure: error => {
+                        // Defer replacement: never destroy a paint actor
+                        // synchronously from its compositor callback.
+                        if (!this._disabled &&
+                            this._liquidGlassIntegration === backend)
+                            void this._switchRendererBackend(String(error));
+                    },
+                });
+            let status = cssOnly
+                ? (requested === 'native-css'
+                    ? 'Native CSS (selected; no VLIQ shaders)'
+                    : 'Native CSS (shader unavailable: ' +
+                        this._rendererFailureReason + ')')
+                : 'Auto: Liquid/Frosted GPU renderer';
+
+            try {
+                await backend.enable();
+            } catch (error) {
+                try { backend.disable(); } catch {}
+                console.warn('[VLIQ][Renderer] startup: ' + error);
+                if (cssOnly) {
+                    backend = null;
+                    status = 'Native CSS unavailable: ' + String(error);
+                } else {
+                    backend = new NativeCssIntegration({
+                        vliqSettings: this._settings,
+                    });
+                    try {
+                        backend.enable();
+                        status = 'Native CSS (GPU renderer startup failed)';
+                    } catch (fallbackError) {
+                        try { backend.disable(); } catch {}
+                        backend = null;
+                        status = 'Renderer unavailable: ' +
+                            String(fallbackError);
+                    }
+                }
+            }
+
+            if (this._disabled || generation !== this._rendererGeneration) {
+                try { backend?.disable(); } catch {}
+                return;
+            }
+            this._liquidGlassIntegration = backend;
+            backend?.setBottomTaskbarLauncher?.(() => this._showAllApps());
+            this._publishRendererStatus(status);
+            this._syncOrbTaskbarMode();
+        };
+
+        this._rendererSwitchPromise =
+            this._rendererSwitchPromise.then(switchBackend, switchBackend);
+        return this._rendererSwitchPromise;
+    }
+
     disable() {
         if (this._disabled)
             return;
 
         this._disabled = true;
+        this._rendererGeneration++;
 
         if (globalThis[RUNTIME_SINGLETON_KEY] === this)
             delete globalThis[RUNTIME_SINGLETON_KEY];
@@ -774,6 +848,11 @@ export default class VLIQRuntime extends Extension {
 
     _connectSignals() {
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
+            if (key === 'renderer-backend') {
+                this._rendererFailureReason = '';
+                void this._switchRendererBackend();
+                return;
+            }
             if (key === 'top-header-layout' ||
                 key === 'top-header-runtime-status') {
                 // The active native layout may change one second after a

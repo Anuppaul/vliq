@@ -114,6 +114,8 @@ class MockPanelGlassSurface {
         glassSurfaces.push(this);
     }
     attach(host, root) {
+        if (this.options?.cssOnly)
+            return true; // Native CSS owns no GPU actor or scene capture.
         if (failNextGlassAttach) {
             failNextGlassAttach = false;
             return false;
@@ -762,6 +764,76 @@ assert.equal(startupAttempts.length, 2,
 recovering.cleanup();
 assert.equal(layoutTimers.size, 0);
 assert.equal(panelBox.y, 0);
+layoutSettings.mode = 'split';
+
+// The shader-independent path must retain every real GNOME layout, but
+// MUST NOT allocate shader actors or run the 24fps glass stage callback.
+const beforeCssControls = [panel._leftBox.children.slice(),
+    panel._centerBox.children.slice(), panel._rightBox.children.slice()];
+const cssOnly = new TopBarIslands({
+    vendor: null, settings: null, forceCssOnly: true,
+    layoutSettings, readAppearance: () => ({milky: false}),
+    panel, layout, display,
+});
+const shaderActorsBefore = uiGroup.children.length;
+assert.equal(cssOnly.setup(), true);
+assert.equal(stageSignals.size, 0,
+    'CSS-only 3-Part layout installs no compositor glass frame loop');
+assert.equal(uiGroup.children.length, shaderActorsBefore,
+    'CSS-only 3-Part layout allocates no offscreen actor');
+assert.ok(cssOnly._regions.every(region =>
+    region.cssOnly && region.surface.options.cssOnly));
+assert.ok(cssOnly._regions.every(region => !region.ready));
+for (const region of cssOnly._regions)
+    assert.ok(region.actor.classes.has('vliq-panel-island-css-fallback'));
+cssOnly.cleanup();
+assert.equal(stageSignals.size, 0);
+assert.equal(layoutTimers.size, 0);
+assert.deepEqual([panel._leftBox.children, panel._centerBox.children,
+    panel._rightBox.children], beforeCssControls,
+    'CSS renderer does not change native GNOME controls from their prior state');
+
+// Full Header in CSS-only mode must also retain a visible CSS backplate;
+// previously full-header fallback could fail or become transparent.
+layoutSettings.mode = 'full';
+const nativeFull = new TopBarIslands({
+    vendor: null, settings: null, forceCssOnly: true,
+    layoutSettings, readAppearance: () => ({milky: false}),
+    panel, layout, display,
+});
+assert.equal(nativeFull.setup(), true);
+assert.equal(nativeFull._regions.length, 1);
+assert.equal(nativeFull._regions[0].cssOnly, true);
+assert.equal(panel.classes.has('vliq-top-header-ready'), false,
+    'shader-ready class cannot suppress native CSS full-header paint');
+assert.equal(stageSignals.size, 0);
+nativeFull.cleanup();
+
+// Bottom Taskbar keeps native GNOME app control wiring and CSS paint.
+layoutSettings.mode = 'bottom';
+const nativeBottom = new TopBarIslands({
+    vendor: null, settings: null, forceCssOnly: true,
+    layoutSettings, readAppearance: () => ({milky: false}),
+    panel, layout, display,
+    bottomTaskbarFactory() {
+        return {
+            setup() {panelBox.y = monitor.height - panelBox.height;return true;},
+            cleanup() {panelBox.y = 0;},
+            isActive() {return true;},
+            ownsChrome() {return true;},
+        };
+    },
+});
+assert.equal(nativeBottom.setup(), true);
+assert.equal(nativeBottom.isBottomTaskbarActive(), true);
+assert.match(layoutSettings.status, /CSS fallback/);
+assert.equal(stageSignals.size, 0,
+    'Bottom uses its native taskbar guards, not an extra shader frame hook');
+assert.equal(panel.classes.has('vliq-bottom-taskbar-css-fallback'), true);
+assert.equal(panel.classes.has('vliq-bottom-taskbar-glass-attached'), false);
+nativeBottom.cleanup();
+assert.equal(panel.classes.has('vliq-bottom-taskbar-css-fallback'), false);
+assert.equal(layoutTimers.size, 0);
 layoutSettings.mode = 'split';
 
 const css = await readFile(new URL(

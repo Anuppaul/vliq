@@ -1085,6 +1085,44 @@ export default class VLIQPreferences extends ExtensionPreferences {
         });
         performancePage.add(renderer);
 
+        const backendValues = ['auto', 'native-css'];
+        const backendRow = new Adw.ComboRow({
+            title: 'Rendering backend',
+            subtitle: 'Auto uses GPU effects when available. Native CSS skips VLIQ shaders, including on software-rendered GNOME.',
+            model: Gtk.StringList.new([
+                'Auto (GPU with fallback)',
+                'Native CSS (no VLIQ shaders)',
+            ]),
+        });
+        let syncingBackend = false;
+        const syncBackend = () => {
+            syncingBackend = true;
+            backendRow.selected = Math.max(0, backendValues.indexOf(
+                settings.get_string('renderer-backend')));
+            syncingBackend = false;
+        };
+        syncBackend();
+        backendRow.connect('notify::selected', () => {
+            if (!syncingBackend &&
+                backendRow.selected < backendValues.length)
+                settings.set_string('renderer-backend',
+                    backendValues[backendRow.selected]);
+        });
+        settings.connect('changed::renderer-backend', syncBackend);
+        renderer.add(backendRow);
+
+        const backendStatus = new Adw.ActionRow({
+            title: 'Active backend',
+        });
+        const syncBackendStatus = () => {
+            backendStatus.subtitle = settings.get_string(
+                'renderer-runtime-status') || 'Not active';
+        };
+        syncBackendStatus();
+        settings.connect('changed::renderer-runtime-status',
+            syncBackendStatus);
+        renderer.add(backendStatus);
+
         addIntSpin(
             renderer,
             settings,

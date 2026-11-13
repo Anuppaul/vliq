@@ -271,6 +271,22 @@
     <!-- VLIQ material picker. Liquid remains the installed default. The
          Frosted Crystal controls are independent: switching must not rewrite
          the user's existing liquid optics, tint or blur preferences. -->
+    <!-- GPU-optional backend. Never overwrite the user-selected glass
+         material when automatic fallback becomes necessary. -->
+    <key name="renderer-backend" type="s">
+      <default>'auto'</default>
+      <choices>
+        <choice value="auto"/>
+        <choice value="native-css"/>
+      </choices>
+      <summary>Renderer backend preference</summary>
+      <description>Auto tries Liquid Glass GPU effects with automatic CSS fallback when shader loading fails. Native CSS bypasses VLIQ shaders, suitable for software rendering and low-power systems.</description>
+    </key>
+    <key name="renderer-runtime-status" type="s">
+      <default>''</default>
+      <summary>Active VLIQ renderer diagnostic status</summary>
+      <description>Reports the currently active rendering backend without modifying the selected material.</description>
+    </key>
     <key name="glass-style" type="s">
       <default>'liquid'</default>
       <choices>
