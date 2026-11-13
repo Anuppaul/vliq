@@ -2474,3 +2474,68 @@
     border: 0 !important;
     box-shadow: none !important;
 }
+
+
+/* Shader-independent VLIQ fallback. Scope every rule to the real GNOME
+ * uiGroup class: no fullscreen effects, clone actors, overlays or input
+ * replacements. The native actors retain popup geometry and accessibility. */
+.vliq-native-css #panel.vliq-three-islands #panelLeft.vliq-panel-island,
+.vliq-native-css #panel.vliq-three-islands #panelCenter.vliq-panel-island,
+.vliq-native-css #panel.vliq-three-islands #panelRight.vliq-panel-island,
+.vliq-native-css #panel.vliq-liquid-top-panel.vliq-full-header,
+.vliq-native-css #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-native-css .popup-menu-content,
+.vliq-native-css .datemenu-popover,
+.vliq-native-css .quick-settings,
+.vliq-native-css .modal-dialog,
+.vliq-native-css .message-banner {
+    background-color: rgba(230, 234, 241, 0.96) !important;
+    background-image: none !important;
+    border-color: rgba(80, 90, 104, 0.18) !important;
+    color: #20252e !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.32) !important;
+}
+.vliq-native-css #panel.vliq-three-islands .vliq-panel-island.vliq-panel-island-inactive {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+.vliq-native-css #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-native-css #panel.vliq-liquid-top-panel.vliq-full-header {
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+.vliq-native-css .popup-menu-content StLabel,
+.vliq-native-css .quick-settings StLabel,
+.vliq-native-css .datemenu-popover StLabel,
+.vliq-native-css .modal-dialog StLabel {
+    color: #20252e !important;
+}
+/* Respect GNOME's Dark Style without introducing an extra VLIQ dark preset. */
+.vliq-native-css.vliq-native-css-dark #panel.vliq-three-islands #panelLeft.vliq-panel-island,
+.vliq-native-css.vliq-native-css-dark #panel.vliq-three-islands #panelCenter.vliq-panel-island,
+.vliq-native-css.vliq-native-css-dark #panel.vliq-three-islands #panelRight.vliq-panel-island,
+.vliq-native-css.vliq-native-css-dark #panel.vliq-liquid-top-panel.vliq-full-header,
+.vliq-native-css.vliq-native-css-dark #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
+.vliq-native-css.vliq-native-css-dark .popup-menu-content,
+.vliq-native-css.vliq-native-css-dark .datemenu-popover,
+.vliq-native-css.vliq-native-css-dark .quick-settings,
+.vliq-native-css.vliq-native-css-dark .modal-dialog,
+.vliq-native-css.vliq-native-css-dark .message-banner {
+    background-color: rgba(29, 31, 35, 0.97) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f5f7fb !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+.vliq-native-css.vliq-native-css-dark .popup-menu-content StLabel,
+.vliq-native-css.vliq-native-css-dark .quick-settings StLabel,
+.vliq-native-css.vliq-native-css-dark .datemenu-popover StLabel,
+.vliq-native-css.vliq-native-css-dark .modal-dialog StLabel {
+    color: #f5f7fb !important;
+}
+/* The native GNOME panel's existing indicators are always click targets.
+ * In Bottom mode the taskbar is already the one full-width panel owner. */
+.vliq-native-css #panel.vliq-bottom-taskbar.vliq-system-dark-taskbar {
+    background-color: rgba(29, 31, 35, 0.98) !important;
+    border: 0 !important;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.13) !important;
+}
