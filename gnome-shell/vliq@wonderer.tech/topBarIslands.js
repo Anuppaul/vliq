@@ -36,11 +36,13 @@ function clamp(value, minimum, maximum) {
 export class TopBarIslands {
     constructor({vendor, settings, readAppearance, layoutSettings = null,
         bottomTaskbarFactory = null, getDockEntries = null,
+        forceCssOnly = false,
         onLauncherClick = null, onLayoutChanged = null,
         panel = Main.panel,
         layout = Main.layoutManager, display = global.display}) {
         this._vendor = vendor;
         this._settings = settings;
+        this._forceCssOnly = forceCssOnly === true;
         // VLIQ's canonical schema controls the layout. The renderer's
         // separate settings still control LiquidEffect optics.
         this._layoutSettings = layoutSettings;
@@ -112,7 +114,7 @@ export class TopBarIslands {
     _activeStatus() {
         if (this._layoutMode === 'bottom')
             return this.isBottomTaskbarActive()
-                ? (this._regions.length
+                ? (!this._forceCssOnly && this._regions.length
                     ? 'Bottom Taskbar active (Liquid Glass)'
                     : 'Bottom Taskbar active (CSS fallback)')
                 : 'Bottom Taskbar unavailable';
@@ -301,6 +303,7 @@ export class TopBarIslands {
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar');
         this._panel?.remove_style_class_name?.('vliq-system-dark-taskbar');
         this._panel?.remove_style_class_name?.('vliq-bottom-taskbar-glass-attached');
+        this._panel?.remove_style_class_name?.('vliq-bottom-taskbar-css-fallback');
         this._panel?.remove_style_class_name?.('vliq-three-islands');
         this._panel?.remove_style_class_name?.('vliq-full-header');
         this._panel?.remove_style_class_name?.('vliq-top-header-ready');
@@ -339,7 +342,8 @@ export class TopBarIslands {
             const surface = new PanelGlassSurface(
                 this._vendor, this._settings, this._readAppearance,
                 {cornerRadius: 0, borderless: mode === 'bottom',
-                    systemDarkTaskbar: mode === 'bottom'}
+                    systemDarkTaskbar: mode === 'bottom',
+                    cssOnly: this._forceCssOnly}
             );
             if (!surface.attach(this._host, this._panelRoot)) {
                 surface.destroy();
@@ -358,15 +362,18 @@ export class TopBarIslands {
                 return;
             }
             panel.add_style_class_name('vliq-full-header');
-            if (mode === 'bottom') {
+            if (mode === 'bottom' && !this._forceCssOnly) {
                 // One paint owner from the moment the GPU material is
                 // attached. Native CSS must not draw a second 13% veil
                 // underneath the same liquid shader during first paint.
                 panel.add_style_class_name(
                     'vliq-bottom-taskbar-glass-attached');
             }
+            if (mode === 'bottom' && this._forceCssOnly)
+                panel.add_style_class_name('vliq-bottom-taskbar-css-fallback');
             this._regions.push({
-                role: 'full', actor: panel, surface, ready: false,
+                role: 'full', actor: panel, surface, cssOnly: this._forceCssOnly,
+                ready: false,
                 inactive: false, lastBounds: null, notReadyFrames: 0,
             });
         } else {
@@ -379,9 +386,9 @@ export class TopBarIslands {
                 // A shader failure must never break GNOME's panel controls.
                 let surface = new PanelGlassSurface(
                     this._vendor, this._settings, this._readAppearance,
-                    {cornerRadius: RADIUS}
+                    {cornerRadius: RADIUS, cssOnly: this._forceCssOnly}
                 );
-                let cssFallback = false;
+                let cssFallback = this._forceCssOnly;
                 if (!surface.attach(this._host, this._panelRoot)) {
                     surface.destroy();
                     console.warn('[VLIQ][TopBar] ' + role +
@@ -399,8 +406,8 @@ export class TopBarIslands {
                 actor.add_style_class_name('vliq-panel-island');
                 actor.add_style_class_name('vliq-panel-island-' + role);
                 this._regions.push({
-                    role, actor, surface, ready: false,
-                    inactive: false, lastBounds: null,
+                    role, actor, surface, cssOnly: cssFallback,
+                    ready: false, inactive: false, lastBounds: null,
                 });
             }
         }
@@ -716,7 +723,7 @@ export class TopBarIslands {
             } else {
                 region.surface.syncFrame?.();
             }
-            const ready = region.surface.ready;
+            const ready = region.cssOnly ? false : region.surface.ready;
             if (ready !== region.ready) {
                 region.ready = ready;
                 if (ready)
@@ -802,6 +809,10 @@ export class TopBarIslands {
             // there is no concurrent GPU material at all.
             // Paint ownership remains attached until _disposeLayout().
         }
+        // A CSS-only header is itself the visible material. Marking it
+        // shader-ready would suppress its fallback background entirely.
+        if (region.cssOnly)
+            ready = false;
         if (ready !== region.ready) {
             region.ready = ready;
             if (ready)
