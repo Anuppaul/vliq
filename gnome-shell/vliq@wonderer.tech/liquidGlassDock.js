@@ -641,12 +641,19 @@ export class LiquidGlassIntegration {
                         entry => entry.manager?.effect
                     )?.manager?.effect ?? null;
 
-                if (effect?._shadersFailed) {
+                const panelRegions = this._topPanelIslands?._regions;
+                const panelAttachFailed = Boolean(
+                    panelRegions?.some(region => region.cssOnly) ||
+                    (this._topPanelIslands?._layoutMode === 'bottom' &&
+                        panelRegions?.length === 0)
+                );
+                if (effect?._shadersFailed || panelAttachFailed) {
                     this._shaderHealthWatchId = 0;
                     this._shaderHealthReported = true;
                     try {
-                        this._onRendererFailure(
-                            'GLSL or Cogl pipeline initialization failed'
+                        this._onRendererFailure(panelAttachFailed
+                            ? 'GNOME panel shader attachment failed'
+                            : 'GLSL or Cogl pipeline initialization failed'
                         );
                     } catch (error) {
                         console.warn('[VLIQ][Renderer] fallback callback: ' +
