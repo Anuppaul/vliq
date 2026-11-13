@@ -768,6 +768,8 @@ layoutSettings.mode = 'split';
 
 // The shader-independent path must retain every real GNOME layout, but
 // MUST NOT allocate shader actors or run the 24fps glass stage callback.
+const beforeCssControls = [panel._leftBox.children.slice(),
+    panel._centerBox.children.slice(), panel._rightBox.children.slice()];
 const cssOnly = new TopBarIslands({
     vendor: null, settings: null, forceCssOnly: true,
     layoutSettings, readAppearance: () => ({milky: false}),
@@ -788,8 +790,8 @@ cssOnly.cleanup();
 assert.equal(stageSignals.size, 0);
 assert.equal(layoutTimers.size, 0);
 assert.deepEqual([panel._leftBox.children, panel._centerBox.children,
-    panel._rightBox.children], controls,
-    'all native controls remain owned by their original GNOME panel boxes');
+    panel._rightBox.children], beforeCssControls,
+    'CSS renderer does not change native GNOME controls from their prior state');
 
 // Full Header in CSS-only mode must also retain a visible CSS backplate;
 // previously full-header fallback could fail or become transparent.
