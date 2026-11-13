@@ -52,10 +52,13 @@ class Actor {
     get_paint_opacity() {return this.opacity;}
     set_opacity(value) {this.opacity = value;}
     add_child(child) {child.parent?.remove_child(child); child.parent = this;
-        this._children.push(child);}
+        this._children.push(child); this.emit('child-added', child);}
     remove_child(child) {
         this._children = this._children.filter(item => item !== child);
-        if (child.parent === this) child.parent = null;
+        if (child.parent === this) {
+            child.parent = null;
+            this.emit('child-removed', child);
+        }
     }
     insert_child_below(child, target) {
         child.parent?.remove_child(child);
@@ -81,9 +84,9 @@ class Actor {
         return id;
     }
     disconnect(id) {this._signals.delete(id);}
-    emit(signal) {
+    emit(signal, ...args) {
         for (const {signal: registered, callback} of [...this._signals.values()])
-            if (registered === signal) callback(this);
+            if (registered === signal) callback(this, ...args);
     }
     destroy() {
         this.emit('destroy');
@@ -135,6 +138,25 @@ const vendor = {
     },
 };
 let sceneUs = 1000000;
+const idleSources = new Map();
+let nextIdleSource = 1;
+const glib = {
+    SOURCE_REMOVE: false,
+    PRIORITY_DEFAULT_IDLE: 200,
+    get_monotonic_time: () => sceneUs,
+    idle_add(_priority, callback) {
+        const id = nextIdleSource++;
+        idleSources.set(id, callback);
+        return id;
+    },
+    source_remove(id) {idleSources.delete(id);},
+};
+function flushIdle() {
+    for (const [id, callback] of [...idleSources]) {
+        idleSources.delete(id);
+        callback();
+    }
+}
 const stage = {
     width: 1920,
     height: 1080,
@@ -160,7 +182,7 @@ const Manager = new Function(
     shellSource + '\nreturn ShellCardGlassManager;'
 )(
     {BinLayout: class {}},
-    {get_monotonic_time: () => sceneUs},
+    glib,
     {Widget: Actor, Bin: class {}, Corner: {
         TOPLEFT: 0, TOPRIGHT: 1, BOTTOMRIGHT: 2, BOTTOMLEFT: 3,
     }},
@@ -258,6 +280,51 @@ manager.cleanup();
 assert.equal(manager._surfaces.size, 0);
 assert.equal(stage._signals.size, 0);
 assert.equal(manager._watched.size, 0);
+
+// In normal Shell mode, removed (not destroyed) actors must be released,
+// while GNOME's synchronous reparenting must preserve the SAME listeners.
+const tracked = new Actor({name: 'tracked'});
+const leaf = new Actor({name: 'leaf'});
+tracked.add_child(leaf);
+uiGroup.add_child(tracked);
+const registry = new Manager({
+    vendor, settings: {get_double: () => 1},
+    readAppearance: () => ({blur: 7}), manualOnly: false,
+});
+registry.setup();
+assert.equal(registry._watched.has(tracked), true);
+assert.equal(registry._watched.has(leaf), true);
+const host = new Actor({name: 'new-host'});
+uiGroup.add_child(host);
+host.add_child(tracked);
+assert.equal(idleSources.size, 1,
+    'reparenting is coalesced into one deferred reconciliation');
+flushIdle();
+assert.equal(registry._watched.has(tracked), true,
+    'reparenting within GNOME must preserve existing actor listeners');
+assert.equal(registry._watched.has(leaf), true);
+const trackedHandlerCount = tracked._signals.size;
+host.remove_child(tracked);
+assert.equal(registry._watched.has(tracked), true,
+    'do not tear down inside the native child-removed signal');
+flushIdle();
+assert.equal(registry._watched.has(tracked), false,
+    'detached subtree root must be released after the event turn');
+assert.equal(registry._watched.has(leaf), false,
+    'detached descendants must release their signal handlers');
+assert.equal(tracked._signals.size, 0);
+assert.equal(leaf._signals.size, 0);
+assert.ok(trackedHandlerCount > 0);
+host.add_child(tracked);
+assert.equal(registry._watched.has(tracked), true,
+    'reattaching a former subtree must install fresh listeners');
+host.remove_child(tracked);
+assert.equal(idleSources.size, 1);
+registry.cleanup();
+assert.equal(idleSources.size, 0,
+    'disable must cancel pending detached-tree reconciliation');
+assert.equal(registry._watched.size, 0);
+assert.equal(host._signals.size, 0);
 
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
