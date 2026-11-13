@@ -133,7 +133,8 @@ class FakeNative {
     setBottomTaskbarLauncher(callback) {this.launcher = callback;}
 }
 const methods = new Function('LiquidGlassIntegration', 'NativeCssIntegration',
-    'console', 'return ({' + runtime.slice(begin, end) + '});')(
+    'console', 'return ({' + runtime.slice(begin, end).replace(
+        /}\s*(_switchRendererBackend\()/, '}, $1') + '});')(
     FakeGpu, FakeNative, {warn() {}}
 );
 function makeRuntime(selected = 'auto') {
