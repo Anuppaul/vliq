@@ -87,8 +87,7 @@ export class NativeCssIntegration {
         return {
             milky,
             milkyOpacity: clamp(getInt('milky-opacity', 24), 0, 100) / 100,
-            milkyWhiteness:
-                clamp(getInt('milky-whiteness', 0), -100, 100) / 100,
+            milkyBlack: this._settings?.get_boolean?.('milky-black') === true,
             milkyBorder: clamp(getInt('milky-border', 20), 0, 100) / 100,
             milkyGrain: clamp(getInt('milky-grain', 28), 0, 100) / 100,
             systemDarkTaskbar:
@@ -133,8 +132,8 @@ export class NativeCssIntegration {
             'background-color: ' + tokens.fill + ' !important;' +
             image + 'border: 0 !important;' +
             'box-shadow: ' + tokens.rim + ' !important;}\n' +
-            // Preserve GNOME Quick Settings' Dark Style in native CSS mode,
-            // and keep Bottom Taskbar charcoal even when white balance=100.
+            // Keep GNOME's Bottom-only Dark Style independent of the
+            // user's Milky White / Black color toggle.
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
             '.popup-menu-content {' +
             'background-color: rgba(29,31,35,0.97) !important;' +
@@ -152,7 +151,7 @@ export class NativeCssIntegration {
             : [];
         this._milkyActorPainter.sync(actors, state);
         const marker = state?.milky
-            ? [state.milkyOpacity, state.milkyWhiteness,
+            ? [state.milkyOpacity, state.milkyBlack ? 'black' : 'white',
                 state.milkyBorder, state.milkyGrain].join('/')
             : 'off';
         if (marker !== this._milkyPaintStatus) {
@@ -180,8 +179,7 @@ export class NativeCssIntegration {
             this._cleanupMilkyStylesheet();
             return;
         }
-        const grainStrength = state.milkyWhiteness >= 1
-            ? 0 : Math.round(state.milkyGrain * 100);
+        const grainStrength = Math.round(state.milkyGrain * 100);
         const dir = GLib.build_filenamev([
             GLib.get_user_cache_dir(), 'vliq@wonderer.tech',
             'native-card-appearance',
@@ -293,7 +291,7 @@ export class NativeCssIntegration {
             this._milkySettingsSignal = this._settings?.connect?.(
                 'changed', (_settings, key) => {
                     if ([
-                        'glass-style', 'milky-opacity', 'milky-whiteness',
+                        'glass-style', 'milky-opacity', 'milky-black',
                         'milky-border', 'milky-grain',
                     ].includes(key))
                         this._refreshMilkyAppearance();
