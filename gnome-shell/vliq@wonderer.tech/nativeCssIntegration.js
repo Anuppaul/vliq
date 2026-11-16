@@ -170,6 +170,7 @@ export class NativeCssIntegration {
             grainStrength === this._milkyGrainStrength
             ? this._milkyGrainFile : null;
         let newGrain = false;
+        let createdGrainFile = null;
         if (grainStrength > 0 && !grain) {
             try {
                 GLib.mkdir_with_parents(dir, 0o755);
@@ -180,6 +181,7 @@ export class NativeCssIntegration {
                     buildMilkyGrainSvg(grainStrength / 100));
                 grain = Gio.File.new_for_path(path);
                 newGrain = true;
+                createdGrainFile = grain;
             } catch (error) {
                 console.warn('[VLIQ][NativeCSS] grain disabled: ' + error);
                 grain = null;
@@ -213,12 +215,14 @@ export class NativeCssIntegration {
                 this._theme().load_stylesheet(file);
                 console.warn('[VLIQ][NativeCSS] grain image unsupported; ' +
                     'using plain Milky CSS');
+                try { createdGrainFile?.delete?.(null); } catch {}
+                createdGrainFile = null;
                 grain = null;
             }
         } catch (error) {
             try { file?.delete?.(null); } catch {}
             if (newGrain)
-                try { grain?.delete?.(null); } catch {}
+                try { createdGrainFile?.delete?.(null); } catch {}
             console.warn('[VLIQ][NativeCSS] material update failed: ' +
                 error);
             return;
