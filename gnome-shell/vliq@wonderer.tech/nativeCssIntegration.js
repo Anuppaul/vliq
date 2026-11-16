@@ -136,8 +136,9 @@ export class NativeCssIntegration {
             // user's Milky White / Black color toggle.
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
             '.popup-menu-content {' +
-            'background-color: rgba(29,31,35,0.97) !important;' +
-            'background-image: none !important;}\n' +
+            'background-color: ' + tokens.fill + ' !important;' +
+            image + 'border: 0 !important;' +
+            'box-shadow: ' + tokens.rim + ' !important;}\n' +
             '.vliq-native-css.vliq-global-milky ' +
             '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.' +
             'vliq-system-dark-taskbar {' +
