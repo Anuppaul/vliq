@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const root = new URL('../gnome-shell/vliq@wonderer.tech/', import.meta.url);
-const read = filename => readFile(new URL(filename, root), 'utf8');
+const read = file => readFile(new URL(file, root), 'utf8');
 const [dock, prefs, schema, paint] = await Promise.all([
     'liquidGlassDock.js', 'prefs.js',
     'schemas/org.gnome.shell.extensions.vliq.gschema.xml',
@@ -10,189 +10,136 @@ const [dock, prefs, schema, paint] = await Promise.all([
 ].map(read));
 
 assert.match(schema, /name="milky-grain" type="i">[\s\S]*?<default>28<\/default>/);
-assert.match(schema, /name="milky-whiteness" type="i">[\s\S]*?<range min="-100" max="100"\/>/);
+assert.match(schema, /name="milky-black" type="b">[\s\S]*?<default>false<\/default>/);
 assert.match(prefs, /settings, 'milky-grain',[\s\S]*?'Micro-grain'/);
-assert.match(prefs, /settings, 'milky-whiteness',[\s\S]*?'White Balance'/);
-assert.match(prefs, /-100, 100, 1\);/);
-assert.match(dock, /'milky-grain',[\s\S]*?'frost-density'/,
-    'grain changes must trigger live appearance refresh');
-
+assert.match(prefs, /addSwitch\(milky, settings, 'milky-black'/);
+assert.doesNotMatch(prefs, /addIntSpin\(milky, settings, 'milky-whiteness'/);
+assert.match(dock, /'milky-black',[\s\S]*?'frost-density'/,
+    'color toggle must trigger live appearance refresh');
 assert.match(dock, /from '\.\/milkyPaint\.js'/,
-    'GPU manager must use same native Milky appearance module');
+    'GPU Auto renderer must use the canonical material helper');
+
 const f = new Function(paint.replace(/^export /gm, '') +
     '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg};')();
-const original = f.milkyPaintTokens({
-    milkyOpacity: 0.24, milkyWhiteness: 0, milkyBorder: 0.20,
-});
-assert.equal(original.fill, 'rgba(245,249,255,0.240)');
-assert.equal(f.milkyPaintTokens({milkyWhiteness: 1}).fill,
-    'rgba(255,255,255,1.000)',
-    '+100 must produce fully opaque white even when base opacity is 24%');
-assert.equal(f.milkyPaintTokens({
-    milkyWhiteness: 1, milkyOpacity: 0,
-}).fill, 'rgba(255,255,255,1.000)',
-'white +100 is not defeated by stored opacity 0');
-assert.equal(f.milkyPaintTokens({
-    milkyWhiteness: 0.5, milkyOpacity: 0.24,
-}).fill, 'rgba(250,252,255,0.620)',
-'positive white balance ramps opacity continuously rather than jumping at +100');
-assert.equal(f.milkyPaintTokens({
-    milkyWhiteness: 0, milkyOpacity: 0.24,
-}).fill, 'rgba(245,249,255,0.240)',
-'white balance zero retains the original 24%-alpha Milky body');
-assert.equal(f.milkyPaintTokens({milkyWhiteness: -1}).fill,
-    'rgba(200,205,213,0.240)');
-assert.equal(f.milkyPaintTokens({milkyWhiteness: -2}).fill,
-    'rgba(200,205,213,0.240)', 'white balance is clamped');
-assert.equal(f.milkyPaintTokens({milkyWhiteness: -1, milkyOpacity: 0.6}).fill,
-    'rgba(200,205,213,0.600)', 'density is independent of white balance');
-const svgLow = f.buildMilkyGrainSvg(0);
-const svgHigh = f.buildMilkyGrainSvg(0.8);
-assert.match(svgHigh, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-assert.match(svgHigh, /width="48" height="48"/);
-assert.equal((svgHigh.match(/<circle /g) ?? []).length, 420);
-assert.equal(svgHigh, f.buildMilkyGrainSvg(0.8), 'grain is deterministic');
-assert.notEqual(svgLow, svgHigh, 'grain intensity controls transparency');
-const textured = f.buildMilkyAppearanceCss(
-    {milky: true, milkyWhiteness: -0.5}, 'file:///tmp/grain.svg');
-assert.match(textured, /background-image: url\("file:\/\/\/tmp\/grain.svg"\) !important/);
-assert.match(textured, /background-repeat: repeat !important/);
-assert.match(textured, /background-color: rgba\(223,227,234,0\.240\)/);
-const pureWhite = f.buildMilkyAppearanceCss({
-    milky: true, milkyWhiteness: 1, milkyOpacity: 0.24, milkyGrain: 1,
-}, 'file:///tmp/grain.svg');
-assert.match(pureWhite, /rgba\(255,255,255,1\.000\)/);
-assert.doesNotMatch(pureWhite, /file:\/\/\/tmp\/grain.svg/,
-    'grain overlay must not darken a fully white surface');
-assert.match(pureWhite, /background-image: none !important/,
-    'full-white endpoint disables CSS noise');
-for (const suffix of [
-    'vliq-full-header',
-    'vliq-full-header.vliq-top-header-ready',
-    'vliq-bottom-taskbar',
-    'vliq-bottom-taskbar.vliq-top-header-ready',
-    'vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached',
-]) assert.ok(pureWhite.includes(
-    '.vliq-global-milky #panel.vliq-liquid-top-panel.' + suffix
-), 'white-opacity override must beat shipped CSS on ' + suffix);
-assert.doesNotMatch(f.buildMilkyAppearanceCss({milky: false},
-    'file:///tmp/grain.svg'), /file:\/\/\/tmp/);
+assert.equal(f.milkyPaintTokens({milkyOpacity:.24,milkyBlack:false}).fill,
+    'rgba(255,255,255,0.240)');
+assert.equal(f.milkyPaintTokens({milkyOpacity:.24,milkyBlack:true}).fill,
+    'rgba(29,31,35,0.240)');
+assert.equal(f.milkyPaintTokens({milkyOpacity:0,milkyBlack:false}).fill,
+    'rgba(255,255,255,0.000)');
+assert.equal(f.milkyPaintTokens({milkyOpacity:1,milkyBlack:true}).fill,
+    'rgba(29,31,35,1.000)');
+const tile=f.buildMilkyGrainSvg(.8);
+assert.equal((tile.match(/<circle /g)??[]).length,420);
+assert.equal((tile.match(/fill="#000000"/g)??[]).length,420);
+assert.doesNotMatch(tile,/fill="#ffffff"/);
+assert.equal(tile,f.buildMilkyGrainSvg(.8),'static noise must be deterministic');
+const textured=f.buildMilkyAppearanceCss(
+    {milky:true,milkyBlack:true,milkyOpacity:.4},
+    'file:///tmp/grain.svg');
+assert.match(textured,/background-image: url\("file:\/\/\/tmp\/grain.svg"\)/);
+assert.match(textured,/rgba\(29,31,35,0\.400\)/);
+assert.match(f.buildMilkyAppearanceCss({
+    milky:true,milkyBlack:false,milkyOpacity:1,
+},'file:///tmp/grain.svg'), /background-image: url\(/,
+'opacity=100 does not silently disable the black grain');
+assert.equal(f.buildMilkyAppearanceCss({milky:false,milkyBlack:true}),'');
 
-const saved = new Map(), removed = [], loaded = [], unloaded = [];
+const written = new Map(), removed = [], loaded = [], unloaded = [];
+const GLib = {
+    build_filenamev: parts => parts.join('/'),
+    get_user_cache_dir: () => '/tmp/vliq-milky-test',
+    mkdir_with_parents() {},
+    file_set_contents(path,contents) {written.set(path,contents);},
+};
+const Gio = {File: {new_for_path(path) {
+    return {
+        path, get_uri() {return 'file://' + path;},
+        delete() {removed.push(path);written.delete(path);},
+    };
+}}};
 const theme = {
     rejectNext: false,
     load_stylesheet(file) {
         if (this.rejectNext) {
             this.rejectNext = false;
-            throw new Error('bad CSS');
+            throw Error('SVG CSS unsupported');
         }
         loaded.push(file.path);
     },
     unload_stylesheet(file) {unloaded.push(file.path);},
 };
-const GLib = {
-    build_filenamev: items => items.join('/'),
-    get_user_cache_dir: () => '/tmp/vliq-milky-test',
-    mkdir_with_parents() {},
-    file_set_contents(path, data) {saved.set(path, data);},
-};
-const Gio = {File: {new_for_path(path) {
-    return {
-        path, get_uri() {return 'file://' + path;},
-        delete() {removed.push(path);saved.delete(path);},
-    };
-}}};
-const Main = {messageTray: {_banner: {queue_redraw() {}}}};
-const methodsStart = dock.indexOf('    _unloadCardAppearanceStylesheet(preserveGrain = false) {');
-const applyStart = dock.indexOf('    _applyCardAppearanceStylesheet(', methodsStart);
-const methodsEnd = dock.indexOf('    isBottomTaskbarActive() {', applyStart);
-assert.ok(methodsStart >= 0 && applyStart > methodsStart &&
-    methodsEnd > applyStart);
-const methods = new Function('GLib', 'Gio', 'Main',
-    'buildMilkyAppearanceCss', 'buildMilkyGrainSvg', 'clampNumber',
-    'console', 'return ({' +
-    dock.slice(methodsStart, methodsEnd).replace(
-        /}\s*(_applyCardAppearanceStylesheet\()/, '}, $1') +
-    '\n});')(GLib, Gio, Main, f.buildMilkyAppearanceCss,
-    f.buildMilkyGrainSvg, (value, lo, hi) =>
-        Math.min(hi, Math.max(lo, value)), {warn() {}});
+const Main = {messageTray:{_banner:{queue_redraw(){}}}};
+const a=dock.indexOf('    _unloadCardAppearanceStylesheet(preserveGrain = false) {');
+const b=dock.indexOf('    isBottomTaskbarActive() {',a);
+assert.ok(a>=0&&b>a);
+const methods = new Function('GLib','Gio','Main',
+    'buildMilkyAppearanceCss','buildMilkyGrainSvg','clampNumber','console',
+    'return ({' + dock.slice(a,b).replace(
+        /}\s*(_applyCardAppearanceStylesheet\()/,'}, $1') + '\n});')(
+    GLib,Gio,Main,f.buildMilkyAppearanceCss,f.buildMilkyGrainSvg,
+    (v,lo,hi)=>Math.max(lo,Math.min(hi,v)),{warn(){}}
+);
 const state = {
-    milky: true, milkyOpacity: 0.24, milkyBorder: 0.20,
-    milkyWhiteness: 0, milkyGrain: 0.28, filterOpacity: 0.05,
+    milky:true,milkyOpacity:.24,milkyBorder:.20,
+    milkyBlack:false,milkyGrain:.28,filterOpacity:.05,
 };
 const host = {
-    _cardCssFile: null, _cardGrainFile: null,
-    _cardGrainStrength: -1, _cardCssSignature: '',
-    _cardCssCounter: 0,
-    _getShellTheme: () => theme,
-    _readSystemAccentColor: () => ({color: '#4285f4'}),
-    _readSharedCardAppearance: () => state,
-    _unloadCardAppearanceStylesheet:
-        methods._unloadCardAppearanceStylesheet,
+    _cardCssFile:null,_cardGrainFile:null,_cardGrainStrength:-1,
+    _cardCssSignature:'',_cardCssCounter:0,
+    _getShellTheme:()=>theme,
+    _readSystemAccentColor:()=>({color:'#4285f4'}),
+    _readSharedCardAppearance:()=>state,
+    _unloadCardAppearanceStylesheet:methods._unloadCardAppearanceStylesheet,
 };
-const apply = () => methods._applyCardAppearanceStylesheet.call(host, state);
+const apply=()=>methods._applyCardAppearanceStylesheet.call(host,state);
+const svgWrites=()=>[...written.keys()].filter(x=>x.endsWith('.svg'));
 apply();
-assert.equal(host._cardGrainStrength, 28);
-const originalGrain = host._cardGrainFile;
-const firstCss = host._cardCssSignature;
-assert.match(firstCss, /background-repeat: repeat !important/);
-assert.ok(saved.get(originalGrain.path)?.includes('<circle'));
-const svgWrites = () => [...saved.keys()].filter(path => path.endsWith('.svg'));
-assert.equal(svgWrites().length, 1);
-state.milkyWhiteness = -0.8;
+assert.equal(host._cardGrainStrength,28);
+const firstTile=host._cardGrainFile;
+assert.equal(svgWrites().length,1);
+assert.match(host._cardCssSignature,/rgba\(255,255,255,0\.240\)/);
+
+state.milkyBlack=true;
 apply();
-assert.ok(host._cardCssSignature.includes('rgba(209,214,221,0.240)'));
-assert.equal(host._cardGrainFile, originalGrain,
-    'white balance must reuse cached grain without regeneration');
-assert.equal(svgWrites().length, 1);
-state.milkyGrain = 0.66;
+assert.match(host._cardCssSignature,/rgba\(29,31,35,0\.240\)/);
+assert.equal(host._cardGrainFile,firstTile,
+    'switching White/Black reuses the existing black grain texture');
+assert.equal(svgWrites().length,1);
+state.milkyOpacity=.72;
 apply();
-assert.equal(host._cardGrainStrength, 66);
-assert.notEqual(host._cardGrainFile, originalGrain);
-assert.ok(removed.includes(originalGrain.path),
-    'old grain texture must be released after successful CSS swap');
-const liveGrain = host._cardGrainFile;
-const liveCss = host._cardCssSignature;
-theme.rejectNext = true;
-state.milkyGrain = 0.95;
+assert.match(host._cardCssSignature,/rgba\(29,31,35,0\.720\)/);
+assert.equal(host._cardGrainFile,firstTile,
+    'opacity changes reuse the grain tile');
+
+state.milkyGrain=.66;
 apply();
-assert.equal(host._cardGrainFile, null,
-    'on optional SVG rejection native color/opacity/edge CSS must survive');
-assert.notEqual(host._cardCssSignature, liveCss,
-    'grain load failure must not roll back the new Milky appearance');
-assert.match(host._cardCssSignature,
-    /background-image: none !important/,
-    'GNOME fallback removes only optional noise texture');
-assert.equal(svgWrites().length, 0,
-    'rejected new and old grain textures must be released');
-assert.ok(removed.includes(liveGrain.path),
-    'old grain texture must be released when fallback drops grain');
-state.milkyGrain = 0;
+const secondTile=host._cardGrainFile;
+assert.notEqual(secondTile,firstTile);
+assert.equal(host._cardGrainStrength,66);
+assert.ok(removed.includes(firstTile.path));
+theme.rejectNext=true;
+state.milkyGrain=.95;
 apply();
-assert.equal(host._cardGrainFile, null);
-assert.ok(removed.includes(liveGrain.path));
-assert.match(host._cardCssSignature, /background-image: none !important/);
-state.milkyGrain = 0.44;
+assert.equal(host._cardGrainFile,null,
+    'unsupported grain must fall back to plain material CSS');
+assert.match(host._cardCssSignature,/rgba\(29,31,35,0\.720\)/);
+assert.match(host._cardCssSignature,/background-image: none !important/);
+assert.equal(svgWrites().length,0);
+assert.ok(removed.includes(secondTile.path));
+
+state.milkyGrain=0;
 apply();
-assert.equal(host._cardGrainStrength, 44);
-state.milkyWhiteness = 1;
+assert.equal(host._cardGrainStrength,0);
+state.milkyGrain=.44;
 apply();
-assert.equal(host._cardGrainStrength, 0,
-    'white +100 must suppress generated noise, irrespective of grain slider');
-assert.equal(host._cardGrainFile, null);
-assert.match(host._cardCssSignature, /rgba\(255,255,255,1\.000\)/);
-assert.ok(!host._cardCssSignature.includes('grain-'),
-    'no grain URL should remain in the fully white CSS');
-state.milkyWhiteness = 0;
+assert.equal(host._cardGrainStrength,44);
+state.milky=false;
 apply();
-assert.equal(host._cardGrainStrength, 44,
-    'moving White Balance off max restores the saved grain strength');
-state.milky = false;
-apply();
-assert.equal(host._cardGrainFile, null);
-assert.ok(!host._cardCssSignature.includes('file:///tmp/vliq-milky-test/'));
+assert.equal(host._cardGrainFile,null);
+assert.doesNotMatch(host._cardCssSignature,/file:\/\/\/tmp\/vliq-milky-test/);
 methods._unloadCardAppearanceStylesheet.call(host);
-assert.equal(host._cardCssFile, null);
-assert.equal(host._cardGrainFile, null);
-assert.ok(unloaded.length > 0 && loaded.length > 0);
-console.log('Milky grain and white balance: deterministic tile, live CSS, cache reuse, rollback and cleanup PASS.');
+assert.equal(host._cardCssFile,null);
+assert.equal(host._cardGrainFile,null);
+assert.ok(loaded.length>0&&unloaded.length>0);
+console.log('Milky black grain: color switch, independent opacity, tile reuse, SVG failure recovery and cleanup PASS.');
