@@ -23,7 +23,7 @@ assert.match(popup, /this\._menu\?\.actor\?\.add_style_class_name\?\.\(/);
 assert.match(popup, /this\._menu\?\._overlay/);
 const expanded = '.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu';
 function body(source, selector) {
-    const start = source.lastIndexOf(selector);
+    const start = source.indexOf(selector);
     assert.ok(start >= 0, 'missing selector: ' + selector);
     const open = source.indexOf('{', start);
     const close = source.indexOf('}', open);
