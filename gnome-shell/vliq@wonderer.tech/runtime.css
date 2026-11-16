@@ -2491,7 +2491,7 @@
     box-shadow: inset 0 1px rgba(255, 255, 255, 0.13) !important;
 }
 
-/* Fixed charcoal headers need readable native panel labels. */
+/* Fixed black Milky headers need readable native panel labels. */
 .vliq-global-milky #panel .panel-button,
 .vliq-global-milky #panel .panel-button StLabel,
 .vliq-global-milky #panel .clock {
