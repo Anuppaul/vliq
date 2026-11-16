@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.webp" alt="VLIQ Windows-style Bottom Taskbar on GNOME Shell 50, showing native Calendar, notifications and centered app icons" width="100%">
+  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.png" alt="VLIQ Windows-style Bottom Taskbar on GNOME Shell 50, showing native Calendar, notifications and centered app icons" width="100%">
 </p>
 
 <p align="center">
@@ -176,7 +176,7 @@ The original Liquid Glass refraction and Frosted Crystal matte finish still diff
 ### Windows-style Bottom Taskbar
 
 <p align="center">
-  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.webp" alt="Windows-style Bottom Taskbar in VLIQ, with native GNOME Calendar and notifications" width="100%">
+  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.png" alt="Windows-style Bottom Taskbar in VLIQ, with native GNOME Calendar and notifications" width="100%">
 </p>
 
 <p align="center"><sub>GNOME 50's original panel moved to the bottom; native Calendar and notifications remain functional. VLIQ adds centered application controls, running indicators and custom material styling.</sub></p>
@@ -294,7 +294,7 @@ Open **GNOME Extensions → VLIQ → Preferences → Desktop Layout → Desktop 
 | **Windows-style Bottom Taskbar** | Moves the **existing GNOME panel** to the primary monitor's bottom: workspace/Activities left, **centered Start + pinned/running apps**, Quick Settings + Date/Clock right. GNOME's **native Dark Style** changes the taskbar background to charcoal when enabled. |
 
 <p align="center">
-  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.webp" alt="VLIQ Windows-style Bottom Taskbar with native GNOME Calendar popup" width="100%">
+  <img src="docs/screenshots/vliq-windows-style-bottom-taskbar.png" alt="VLIQ Windows-style Bottom Taskbar with native GNOME Calendar popup" width="100%">
 </p>
 
 The Bottom Taskbar preserves the native GNOME controls and popup owners instead of drawing a second panel over them. The Start button opens VLIQ's application view. Clicking a pinned app launches it; clicking a running app focuses/restores it, or minimizes a focused window on the next click. **Hover a running app icon for a live native window preview**: individual window thumbnails appear above the taskbar, with click-to-focus and close controls, and a short pointer-leave grace period to prevent flicker while moving the cursor into the preview. The popover is created on demand using native window-actor clones, with no permanent preview render loop. Each running app has a centered **5 px cool-white dot** underneath its icon; a stopped pinned app has no visible dot. **Unread/task-completion notification badges** appear on the app icon for GNOME MessageTray sources associated with that app (for example, Terminal task-completion notifications when the source exposes the app identity). The badge can show **1, 2, 3…** and disappears when the app's notifications are cleared; it is **not a count of open windows**. The badge does not create extra app slots or move the white running dot.
