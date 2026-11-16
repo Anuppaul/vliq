@@ -88,11 +88,11 @@ const DOCK_PANEL_GLASS_STYLE =
 // An explicit inline native Dock fallback is needed even when the GNOME
 // theme has a higher-priority rule for the sibling .dash-background.
 const DOCK_PANEL_MILKY_STYLE =
-    'background-color: rgba(245,249,255,0.920); ' +
+    'background-color: ' + milkyPaintTokens('popup').fill + '; ' +
     'background-image: none; ' +
     'border-color: transparent; ' +
     'border-radius: 0px; ' +
-    'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20);';
+    'box-shadow: ' + milkyPaintTokens('popup').rim + ';';
 const DOCK_PANEL_BACKDROP_NAME = 'vliq-dock-panel-local-backdrop';
 // Panel-local frosted glass: the blur effect is applied to Ubuntu Dock's
 // native .dash-background only, never to the whole monitor. A thin highlight
