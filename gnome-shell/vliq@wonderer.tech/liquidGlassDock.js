@@ -2255,24 +2255,53 @@ export class LiquidGlassIntegration {
         // the last successfully loaded Appearance stylesheet. A theme
         // swap occurs within one Shell event turn, so no extra paint frame.
         const file = Gio.File.new_for_path(path);
+        let appliedCss = css;
         try {
             this._getShellTheme().load_stylesheet(file);
         } catch (error) {
-            try { file.delete(null); } catch {}
+            // Some GNOME themes reject local SVG URL backgrounds. Grain is
+            // optional; never leave ALL Milky sliders stuck because an
+            // optional texture failed to load. Retry with plain native CSS.
+            let fallbackLoaded = false;
+            if (grainUri) {
+                try {
+                    appliedCss = css.replaceAll(
+                        'background-image: url("' + grainUri +
+                            '") !important;',
+                        'background-image: none !important;'
+                    ).replaceAll(
+                        'background-repeat: repeat !important;', ''
+                    );
+                    GLib.file_set_contents(path, appliedCss);
+                    this._getShellTheme().load_stylesheet(file);
+                    fallbackLoaded = true;
+                    console.warn('[VLIQ][Milky] grain CSS unsupported; ' +
+                        'using native color/opacity/edge paint');
+                } catch (fallbackError) {
+                    console.warn('[VLIQ][Milky] color fallback failed: ' +
+                        fallbackError);
+                }
+            }
+            if (!fallbackLoaded) {
+                try { file.delete(null); } catch {}
+                if (newGrainCreated)
+                    try { grainFile?.delete?.(null); } catch {}
+                console.warn(
+                    '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
+                );
+                return;
+            }
             if (newGrainCreated)
                 try { grainFile?.delete?.(null); } catch {}
-            console.warn(
-                '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
-            );
-            return;
+            grainFile = null;
         }
         // Preserve the tile when only density/white balance changed.
         this._unloadCardAppearanceStylesheet(
             grainFile !== null && grainFile === this._cardGrainFile);
         this._cardCssFile = file;
         this._cardGrainFile = grainFile;
-        this._cardGrainStrength = grainStrength;
-        this._cardCssSignature = css;
+        this._cardGrainStrength = grainFile ? grainStrength : 0;
+        this._cardCssSignature = appliedCss;
 
         Main.messageTray?._banner?.queue_redraw?.();
     }
