@@ -1,7 +1,7 @@
 // Fixed Milky material, intentionally independent of legacy GSettings:
 // native Bottom/Full/3-Part header = black 60%, Date/Quick Settings = white.
 // No grain, image URLs, shader or per-frame work.
-const HEADER_FILL='rgba(29,31,35,0.600)';
+const HEADER_FILL='rgba(0,0,0,0.600)';
 const POPUP_FILL='rgba(245,249,255,0.920)';
 const POPUP_RIM='inset 0 0 0 1px rgba(255,255,255,0.200)';
 
