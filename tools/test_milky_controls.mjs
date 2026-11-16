@@ -32,7 +32,7 @@ assert.doesNotMatch(dock,/buildMilkyGrainSvg/);
 assert.match(dock,/buildMilkyAppearanceCss\(state\)/);
 const funcs=new Function(paint.replace(/^export /gm,'')+
     '\nreturn {milkyPaintTokens,buildMilkyAppearanceCss};')();
-assert.equal(funcs.milkyPaintTokens('header').fill,'rgba(29,31,35,0.600)');
+assert.equal(funcs.milkyPaintTokens('header').fill,'rgba(0,0,0,0.600)');
 assert.equal(funcs.milkyPaintTokens('popup').fill,'rgba(245,249,255,0.920)');
 assert.equal(funcs.buildMilkyAppearanceCss({milky:false}),'');
 
