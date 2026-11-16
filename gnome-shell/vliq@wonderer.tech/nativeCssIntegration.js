@@ -130,12 +130,15 @@ export class NativeCssIntegration {
             'background-color: ' + tokens.fill + ' !important;' +
             image + 'border: 0 !important;' +
             'box-shadow: ' + tokens.rim + ' !important;}\n' +
-            // Preserve GNOME Quick Settings' Dark Style in native CSS mode,
-            // and keep Bottom Taskbar charcoal even when white balance=100.
+            // GNOME Dark Style darkens only the selected Bottom Taskbar,
+            // not the user's Milky popup material. This higher-specificity
+            // rule must retain the user-controlled opacity/white/grain/rim
+            // even when the system's native Dark Style is enabled.
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
             '.popup-menu-content {' +
-            'background-color: rgba(29,31,35,0.97) !important;' +
-            'background-image: none !important;}\n' +
+            'background-color: ' + tokens.fill + ' !important;' +
+            image + 'border: 0 !important;' +
+            'box-shadow: ' + tokens.rim + ' !important;}\n' +
             '.vliq-native-css.vliq-global-milky ' +
             '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.' +
             'vliq-system-dark-taskbar {' +
