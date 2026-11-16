@@ -91,7 +91,7 @@ popup._effect._diagCompositedPaintCount = 0;
 popup._milky = true;
 refresh.call(popup);
 assert.equal(classes.size, 0, 'Milky uses its ordinary CSS body only');
-assert.match(source, /syncFrame\(\) \{[\s\S]*?this\._syncQuickFirstPaintFallback\(\);/);
+assert.match(source, /syncFrame\(\) \{[\s\S]*?this\._syncQuickFirstPaintFallback\?\.\(\);/);
 assert.match(source, /remove_style_class_name\?\.\('vliq-quick-first-paint'\)/);
 const firstFrame = css.match(
     /\.vliq-liquid-popup-content\.quick-settings\.vliq-quick-first-paint\s*\{([^}]*)\}/
