@@ -6,6 +6,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {milkyInlineStyle} from './milkyPaint.js';
 
 import {
     VLIQ_GLASS_ADAPTERS,
@@ -168,12 +169,44 @@ export class NotificationGlassManager {
     updateAppearance(state = this._readAppearance()) {
         this._appearance = state;
         for (const material of this._materials.values()) {
+            this._syncMilkyBannerPaint(material, state);
             if (state?.milky)
                 material.root?.hide?.();
             else
                 this._applyAppearance(material, state);
             this._queueSync(material);
         }
+    }
+
+    _syncMilkyBannerPaint(material, state) {
+        const actor = material?.actor;
+        if (!actor)
+            return;
+
+        // This actor has a higher-priority inline transparent style in
+        // Liquid mode. A stylesheet alone CANNOT recolor it in Milky.
+        // Keep the saved native style for exact restore on mode exit.
+        const prefix = material.originalInlineStyle?.trim() ?? '';
+        const base = prefix ? prefix + ' ' : '';
+        const next = state?.milky
+            ? base + milkyInlineStyle(state, 'popup') +
+                ' border-color: transparent !important;'
+            : material.neutralInlineStyle;
+        if (actor.get_style?.() !== next)
+            actor.set_style?.(next);
+
+        if (state?.milky) {
+            this._cancelTextSample(material);
+            this._applyTextPolarity(material, true);
+        } else if (material.wasMilky) {
+            // Restore adaptive text for Liquid and Frosted without keeping
+            // the dark-foreground selection from the white Milky card.
+            actor.remove_style_class_name?.(TEXT_LIGHT_CLASS);
+            actor.remove_style_class_name?.(TEXT_DARK_CLASS);
+            material.useDarkText = null;
+            this._scheduleTextSample(material, 80);
+        }
+        material.wasMilky = state?.milky === true;
     }
 
     _readCornerRadius(actor) {
@@ -230,11 +263,10 @@ export class NotificationGlassManager {
             'background-image: none !important; ' +
             'border-color: transparent !important; ' +
             'box-shadow: none !important;';
-        actor.set_style?.(
-            originalInlineStyle
-                ? originalInlineStyle + ' ' + transparentStyle
-                : transparentStyle
-        );
+        const neutralInlineStyle = originalInlineStyle
+            ? originalInlineStyle + ' ' + transparentStyle
+            : transparentStyle;
+        actor.set_style?.(neutralInlineStyle);
 
         const bannerRoot = this._resolveBannerRoot(actor);
 
@@ -326,6 +358,8 @@ export class NotificationGlassManager {
             effect,
             radius,
             originalInlineStyle,
+            neutralInlineStyle,
+            wasMilky: false,
             signals: [],
             laterId: 0,
             lastShaderX: null,
@@ -347,6 +381,8 @@ export class NotificationGlassManager {
             material,
             this._appearance ?? this._readAppearance()
         );
+        this._syncMilkyBannerPaint(
+            material, this._appearance ?? this._readAppearance());
 
         effect.setLiveGeometryHook?.(() => {
             if (
@@ -463,6 +499,8 @@ export class NotificationGlassManager {
     }
 
     _scheduleTextSample(material, delayMs = 220) {
+        if (this._appearance?.milky)
+            return;
         if (
             !this._enabled ||
             !material ||
@@ -723,6 +761,8 @@ export class NotificationGlassManager {
         material,
         generation
     ) {
+        if (this._appearance?.milky)
+            return;
         if (
             !this._enabled ||
             !material ||

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed the earlier Milky surface-scope regression: all existing Liquid Glass surfaces now receive the same hardcoded 92% Milky White (notifications dropping from the top, app/status menus, Shell dialogs, Alt+Tab, previews, Orb, Dock, Spotlight, OSD and Overview controls). Only the Full/3-Part/Bottom Header remains pure black at 60%. No Milky controls, grain, or new effect actors.
+- Notification banner's old transparent inline style no longer overrides white Milky paint; text becomes dark and native adaptive-text behavior returns on Liquid/Frosted. Native CSS fallback now styles untargeted GNOME classes and emits valid stylesheet newlines.
+
 ### Changed
 
 - Simplified **Milky Glass** into a fixed surface-scoped material: Full/3-Part/Bottom Headers are black at 60% opacity; Calendar and Quick Settings are hardcoded milky white at 92% opacity. All Milky-specific Preferences controls and Grain rendering are retired. Legacy GSettings keys remain only for profile compatibility.

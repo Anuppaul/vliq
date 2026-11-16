@@ -47,11 +47,30 @@ export function buildMilkyAppearanceCss(state = {}) {
         '.vliq-global-milky .quick-toggle-menu',
         '.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu',
     ];
+    const otherLiquidSurfaces=[
+        // Reuse the real Liquid Glass actor classes, not generic windows.
+        // All non-header VLIQ glass surfaces share the fixed white 92%.
+        '.vliq-global-milky .vliq-liquid-popup-content',
+        '.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content',
+        '.vliq-global-milky .vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card',
+        '.vliq-global-milky .vliq-native-notification-glass',
+        '.vliq-global-milky .vliq-milky-osd',
+        '.vliq-global-milky .vliq-orb-face-v2',
+        '.vliq-global-milky .vliq-app-button',
+        '.vliq-global-milky .vliq-spotlight-glass-entry',
+        '.vliq-global-milky .vliq-spotlight-glass-results',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background',
+        '.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background',
+        '.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass',
+        '.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass',
+    ];
     const inactive=['panelLeft','panelCenter','panelRight'].map(id =>
         '.vliq-global-milky #panel.vliq-three-islands #' + id +
         '.vliq-panel-island.vliq-panel-island-inactive');
     return fixedSurfaceCss(headers,milkyPaintTokens('header')) +
-        fixedSurfaceCss(popups,milkyPaintTokens('popup')) +
+        fixedSurfaceCss([...popups,...otherLiquidSurfaces],
+            milkyPaintTokens('popup')) +
         fixedSurfaceCss(inactive,{
             fill:'transparent',rim:'none',
         });

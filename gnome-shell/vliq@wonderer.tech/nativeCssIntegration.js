@@ -95,24 +95,48 @@ export class NativeCssIntegration {
     }
 
     _milkyCss(state) {
-        // Only real GNOME headers and the native Calendar/Quick Settings
-        // menu content receive fixed Milky paint. Do not style generic
-        // PopupMenus, notifications, Orb, preview cards, or Ubuntu Dock.
+        // All Liquid-backed GNOME surfaces receive fixed Milky White, except
+        // for the native GNOME header/taskbar's fixed black 60% material.
         const shared = buildMilkyAppearanceCss(state)
             .replaceAll('.vliq-global-milky ',
                 '.vliq-native-css.vliq-global-milky ');
         const white = milkyPaintTokens('popup');
         const darkPopup =
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
-            '.popup-menu-content.quick-settings,\\n' +
+            '.popup-menu-content.quick-settings,\n' +
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
-            '.popup-menu-content.datemenu-popover {\\n' +
-            '  background-color: ' + white.fill + ' !important;\\n' +
-            '  background-image: none !important;\\n' +
-            '  border: 0 !important;\\n' +
-            '  box-shadow: ' + white.rim + ' !important;\\n' +
-            '}\\n';
-        return shared + darkPopup;
+            '.popup-menu-content.datemenu-popover {\n' +
+            '  background-color: ' + white.fill + ' !important;\n' +
+            '  background-image: none !important;\n' +
+            '  border: 0 !important;\n' +
+            '  box-shadow: ' + white.rim + ' !important;\n' +
+            '}\n';
+        // This backend deliberately does not instantiate the GPU managers
+        // that normally tag Liquid targets. Reuse GNOME's native paint
+        // classes for the same menu/banner/dialog/OSD/preview surfaces.
+        // Header selectors stay separate and continue to win as black 60%.
+        const nativeLiquidTargets = [
+            '.vliq-native-css.vliq-global-milky .popup-menu-content',
+            '.vliq-native-css.vliq-global-milky .notification-banner',
+            '.vliq-native-css.vliq-global-milky .message.notification-banner',
+            '.vliq-native-css.vliq-global-milky .switcher-list',
+            '.vliq-native-css.vliq-global-milky .modal-dialog',
+            '.vliq-native-css.vliq-global-milky .workspace-switcher',
+            '.vliq-native-css.vliq-global-milky .resize-popup',
+            '.vliq-native-css.vliq-global-milky .osd-window',
+            '.vliq-native-css.vliq-global-milky .vliq-app-preview-card',
+            '.vliq-native-css.vliq-global-milky .vliq-spotlight-card',
+            '.vliq-native-css.vliq-global-milky .vliq-orb-face-v2',
+            '.vliq-native-css.vliq-global-milky .dash-background',
+        ];
+        const nativeWhite = nativeLiquidTargets.join(',\n') +
+            ' {\n' +
+            '  background-color: ' + white.fill + ' !important;\n' +
+            '  background-image: none !important;\n' +
+            '  border: 0 !important;\n' +
+            '  box-shadow: ' + white.rim + ' !important;\n' +
+            '}\n';
+        return shared + nativeWhite + darkPopup;
     }
 
     _syncMilkyNativeActors(state) {
