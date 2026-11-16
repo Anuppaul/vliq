@@ -73,7 +73,7 @@ assert.equal(buildMilkyAppearanceCss({milky: false}), '',
     'Milky CSS must never override Liquid or Frosted');
 assert.equal(milkyPaintTokens({milkyOpacity: -1}).fill,
     'rgba(245,249,255,0.000)');
-assert.match(dock, /buildMilkyAppearanceCss\(state\)/);
+assert.match(dock, /buildMilkyAppearanceCss\(state,\s*grainUri\)/);
 
 // Execute actual canonical-to-vendor bridge using new slider values.
 const a = dock.indexOf('    _applyFrostedCrystalSettings() {');
