@@ -64,30 +64,30 @@ const host = {
 };
 const state = {
     milky: true, milkyOpacity: 0.24, milkyBorder: 0.20,
-    milkyWhiteness: 0, filterOpacity: 0.05,
+    milkyBlack: false, filterOpacity: 0.05,
 };
 apply.call(host, state);
 const first = host._cardCssSignature;
-assert.ok(first.includes('rgba(245,249,255,0.240)'));
+assert.ok(first.includes('rgba(255,255,255,0.240)'));
 assert.doesNotMatch(first, /:not\(/,
     'St.Theme does not support browser-only negation selectors');
 assert.ok(first.includes('.vliq-panel-island.vliq-panel-island-inactive'));
 const previousPath = host._cardCssFile.path;
 state.milkyOpacity = 0.74;
 state.milkyBorder = 0.5;
-state.milkyWhiteness = 0.8;
+state.milkyBlack = true;
 apply.call(host, state);
-assert.ok(host._cardCssSignature.includes('rgba(253,254,255,0.948)'),
-    'white +80 increases white coverage above the selected 74% opacity');
+assert.ok(host._cardCssSignature.includes('rgba(29,31,35,0.740)'),
+    'Black color switch changes RGB without altering selected 74% opacity');
 assert.ok(host._cardCssSignature.includes('rgba(255,255,255,0.500)'));
 assert.notEqual(host._cardCssSignature, first,
     'changes in the 3 sliders must reload the actual stylesheet');
 assert.ok(events.includes('unload:' + previousPath),
     'old CSS must be unloaded only after replacement loads');
-state.milkyWhiteness = 1;
+state.milkyBlack = false;
 apply.call(host, state);
-assert.ok(host._cardCssSignature.includes('rgba(255,255,255,1.000)'),
-    'live +100 must render an opaque white card, not a translucent tint');
+assert.ok(host._cardCssSignature.includes('rgba(255,255,255,0.740)'),
+    'White toggle restores pure white while preserving 74% opacity');
 assert.notEqual(host._cardCssSignature, first);
 const preserved = host._cardCssFile;
 const preservedCss = host._cardCssSignature;
@@ -95,7 +95,7 @@ theme.rejectNext = true;
 // Force a *different generated CSS*. With +95 white and 99% opacity the
 // rounded RGB/alpha can equal +100 white exactly, so no load is attempted
 // and the one-shot injected error wrongly lands on the next mode switch.
-state.milkyWhiteness = 0.20;
+state.milkyBlack = true;
 state.milkyOpacity = 0.50;
 apply.call(host, state);
 assert.equal(host._cardCssFile, preserved,

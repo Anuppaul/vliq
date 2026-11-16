@@ -9,7 +9,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Adjustable Milky Glass Micro-grain using a static, repeatable native CSS noise tile (no added shader, animation or frame loop).
-- Independent Milky White Balance slider from −100 (cool light gray) through 0 (original white) to +100 (pure white); density and Frosted/Liquid optics remain independent.
 - Automatic GPU-renderer failure recovery and an explicit shader-independent Native CSS backend, selectable in Performance settings, with native Full/3-Part/Bottom layouts and per-session status reporting.
 - Native CSS backend preserves the selected material preference and cleans up its GNOME actors/signals when switching back to GPU rendering.
 - Contributor guide, contributor map and local development guide.
@@ -24,6 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Milky Glass replaces the old White Balance slider with a persistent White/Black color switch. Its opacity remains independent (0–100) and its deterministic grain uses **black particles only** in both color modes. No additional shader or animation.
+
 - README contributor entry points now link to the full community and development resources.
 - Reduced recurring Calendar text-contrast screenshot sampling from 3.2 seconds to 12 seconds while preserving the first-open sample and dynamic-backdrop contrast updates.
 
@@ -31,8 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Milky Glass now updates real GNOME native `St.Widget` inline materials (Bottom/Full Header, active 3-Part islands, Calendar and Quick Settings), independent of dynamic stylesheet reload ordering. Preserve original inline styles and restore them on renderer/material/layout changes; keep GNOME Dark Style's Bottom Taskbar behavior unchanged.
 
-- Native CSS renderer now observes Milky appearance GSettings, regenerates scoped native card styling on changes to Opacity, White Balance, Edge Highlight and Micro-grain, and cleans up its theme handlers/resources on exit. The GPU-backed renderer uses the same pure paint helpers. A failed optional grain image no longer blocks all color controls.
-- Milky Glass now displays the existing `milky-opacity` setting as **Milky Opacity**. Positive White Balance smoothly increases white coverage; +100 produces truly opaque #FFFFFF (and suppresses grain), rather than translucent white over the wallpaper.
+- Native CSS renderer now observes Milky appearance GSettings, regenerates scoped native card styling on changes to Opacity, White/Black color, Edge Highlight and Micro-grain, and cleans up its theme handlers/resources on exit. The GPU-backed renderer uses the same pure paint helpers. A failed optional grain image no longer blocks all color controls.
+- Milky Glass now displays the existing `milky-opacity` setting as **Milky Opacity**. White/Black color changes now preserve user-controlled opacity, including at 100%, and black-only grain is not disabled by color selection.
 - Dynamic Milky header selectors now match the runtime stylesheet's specificity so Full Header and Bottom Taskbar honor the live white-balance/opacity values.
 
 

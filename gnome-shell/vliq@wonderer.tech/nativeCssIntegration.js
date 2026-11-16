@@ -87,8 +87,7 @@ export class NativeCssIntegration {
         return {
             milky,
             milkyOpacity: clamp(getInt('milky-opacity', 24), 0, 100) / 100,
-            milkyWhiteness:
-                clamp(getInt('milky-whiteness', 0), -100, 100) / 100,
+            milkyBlack: this._settings?.get_boolean?.('milky-black') === true,
             milkyBorder: clamp(getInt('milky-border', 20), 0, 100) / 100,
             milkyGrain: clamp(getInt('milky-grain', 28), 0, 100) / 100,
             systemDarkTaskbar:
@@ -133,12 +132,13 @@ export class NativeCssIntegration {
             'background-color: ' + tokens.fill + ' !important;' +
             image + 'border: 0 !important;' +
             'box-shadow: ' + tokens.rim + ' !important;}\n' +
-            // Preserve GNOME Quick Settings' Dark Style in native CSS mode,
-            // and keep Bottom Taskbar charcoal even when white balance=100.
+            // Keep GNOME's Bottom-only Dark Style independent of the
+            // user's Milky White / Black color toggle.
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
             '.popup-menu-content {' +
-            'background-color: rgba(29,31,35,0.97) !important;' +
-            'background-image: none !important;}\n' +
+            'background-color: ' + tokens.fill + ' !important;' +
+            image + 'border: 0 !important;' +
+            'box-shadow: ' + tokens.rim + ' !important;}\n' +
             '.vliq-native-css.vliq-global-milky ' +
             '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.' +
             'vliq-system-dark-taskbar {' +
@@ -152,7 +152,7 @@ export class NativeCssIntegration {
             : [];
         this._milkyActorPainter.sync(actors, state);
         const marker = state?.milky
-            ? [state.milkyOpacity, state.milkyWhiteness,
+            ? [state.milkyOpacity, state.milkyBlack ? 'black' : 'white',
                 state.milkyBorder, state.milkyGrain].join('/')
             : 'off';
         if (marker !== this._milkyPaintStatus) {
@@ -171,6 +171,10 @@ export class NativeCssIntegration {
             this._host?.add_style_class_name?.('vliq-global-milky');
         else
             this._host?.remove_style_class_name?.('vliq-global-milky');
+        if (state.milky && state.milkyBlack)
+            this._host?.add_style_class_name?.('vliq-milky-black');
+        else
+            this._host?.remove_style_class_name?.('vliq-milky-black');
         // Direct St.Widget styling remains functional even if an optional
         // theme stylesheet or grain image fails to load.
         this._syncMilkyNativeActors(state);
@@ -180,8 +184,7 @@ export class NativeCssIntegration {
             this._cleanupMilkyStylesheet();
             return;
         }
-        const grainStrength = state.milkyWhiteness >= 1
-            ? 0 : Math.round(state.milkyGrain * 100);
+        const grainStrength = Math.round(state.milkyGrain * 100);
         const dir = GLib.build_filenamev([
             GLib.get_user_cache_dir(), 'vliq@wonderer.tech',
             'native-card-appearance',
@@ -293,7 +296,7 @@ export class NativeCssIntegration {
             this._milkySettingsSignal = this._settings?.connect?.(
                 'changed', (_settings, key) => {
                     if ([
-                        'glass-style', 'milky-opacity', 'milky-whiteness',
+                        'glass-style', 'milky-opacity', 'milky-black',
                         'milky-border', 'milky-grain',
                     ].includes(key))
                         this._refreshMilkyAppearance();
@@ -382,6 +385,7 @@ export class NativeCssIntegration {
         this._milkyActorPainter.clear();
         this._cleanupMilkyStylesheet();
         this._host?.remove_style_class_name?.('vliq-global-milky');
+        this._host?.remove_style_class_name?.('vliq-milky-black');
         this._host?.remove_style_class_name?.('vliq-native-css-dark');
         this._host?.remove_style_class_name?.('vliq-native-css');
         this._host = null;

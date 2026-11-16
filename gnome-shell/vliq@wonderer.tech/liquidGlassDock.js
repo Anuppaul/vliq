@@ -684,7 +684,9 @@ export class LiquidGlassIntegration {
                 ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
                 ['vliq-milky-opacity', fraction('milky-opacity')],
                 ['vliq-milky-border', fraction('milky-border')],
-                ['vliq-milky-whiteness', fraction('milky-whiteness')],
+                // Old vendor uniform remains neutral. The selected color
+                // is applied to real GNOME St actors through milkyPaint.js.
+                ['vliq-milky-whiteness', 0],
             ]) {
                 // Old cached schemas lack this optional key. Keep the native
                 // Milky renderer functional and retain all Liquid settings.
@@ -1613,7 +1615,7 @@ export class LiquidGlassIntegration {
                 systemDarkTaskbar: false,
                 milkyOpacity: 0.24,
                 milkyBorder: 0.20,
-                milkyWhiteness: 0,
+                milkyBlack: false,
                 milkyGrain: 0,
                 opacity: 0,
                 tint: '#ffffff',
@@ -1696,7 +1698,16 @@ export class LiquidGlassIntegration {
                 'color-scheme') === 'prefer-dark',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
-            milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), -100, 100) / 100,
+            // Hot-loaded older GSettings schema snapshots may not yet
+            // expose the newly added switch. Default safely to White until
+            // the compiled schema refresh becomes available.
+            milkyBlack: (() => {
+                try {
+                    return this._vliqSettings.get_boolean('milky-black');
+                } catch {
+                    return false;
+                }
+            })(),
             milkyGrain: clampNumber(this._vliqSettings.get_int('milky-grain'), 0, 100) / 100,
             opacity,
             tint,
@@ -1836,12 +1847,17 @@ export class LiquidGlassIntegration {
     }
 
     _syncMilkyNativeActors(state) {
+        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
+        if (state?.milky && state.milkyBlack)
+            uiGroup?.add_style_class_name?.('vliq-milky-black');
+        else
+            uiGroup?.remove_style_class_name?.('vliq-milky-black');
         const actors = state?.milky
             ? milkyCardActors(Main.panel, this._topPanelIslands, state)
             : [];
         this._milkyActorPainter?.sync(actors, state);
         const marker = state?.milky
-            ? [state.milkyOpacity, state.milkyWhiteness,
+            ? [state.milkyOpacity, state.milkyBlack ? 'black' : 'white',
                 state.milkyBorder, state.milkyGrain].join('/')
             : 'off';
         if (this._milkyPaintStatus !== marker) {
@@ -1993,7 +2009,7 @@ export class LiquidGlassIntegration {
                             'glass-style',
                             'milky-opacity',
                             'milky-border',
-                            'milky-whiteness',
+                            'milky-black',
                             'milky-grain',
                             'frost-density',
                             'frost-grain',
@@ -2003,7 +2019,7 @@ export class LiquidGlassIntegration {
                                 'glass-style',
                                 'milky-opacity',
                                 'milky-border',
-                                'milky-whiteness',
+                                'milky-black',
                                 'milky-grain',
                                 'frost-density',
                                 'frost-grain',
@@ -2020,6 +2036,8 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
+        (Main.layoutManager?.uiGroup ?? Main.uiGroup)
+            ?.remove_style_class_name?.('vliq-milky-black');
         this._milkyActorPainter?.clear();
         this._syncMilkyAppearanceClass(false);
         if (
@@ -2130,8 +2148,7 @@ export class LiquidGlassIntegration {
             'vliq@wonderer.tech',
             'card-appearance',
         ]);
-        const grainStrength = state.milky &&
-            clampNumber(state.milkyWhiteness ?? 0, -1, 1) < 1
+        const grainStrength = state.milky
             ? Math.round(clampNumber(state.milkyGrain ?? 0, 0, 1) * 100)
             : 0;
         let grainFile = grainStrength > 0 &&
@@ -2316,7 +2333,7 @@ export class LiquidGlassIntegration {
                 try { grainFile?.delete?.(null); } catch {}
             grainFile = null;
         }
-        // Preserve the tile when only density/white balance changed.
+        // Preserve the tile when opacity, color or rim changes.
         this._unloadCardAppearanceStylesheet(
             grainFile !== null && grainFile === this._cardGrainFile);
         this._cardCssFile = file;

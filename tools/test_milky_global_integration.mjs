@@ -22,6 +22,7 @@ function method(source, start, end, name, imports = {}) {
 let selected = 'milky';
 const settings = {
     get_int() {return 4;},
+    get_boolean(key) {return key === 'milky-black' ? false : false;},
     get_string(k) {return k === 'glass-style' ? selected : '#ffffff';},
 };
 const readAppearance = method(dock, '_readSharedCardAppearance() {',
@@ -50,7 +51,7 @@ syncClass.call(classHost, true);
 assert.ok(classes.has('vliq-global-milky'));
 syncClass.call(classHost, false);
 assert.ok(!classes.has('vliq-global-milky'));
-assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._milkyActorPainter\?\.clear\(\);\s*this\._syncMilkyAppearanceClass\(false\)/,
+assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{[\s\S]{0,190}this\._milkyActorPainter\?\.clear\(\);\s*this\._syncMilkyAppearanceClass\(false\)/,
     'Milky inline styles must be restored before releasing the global material class');
 
 // Header panels must hide their shader actor and restore the actual

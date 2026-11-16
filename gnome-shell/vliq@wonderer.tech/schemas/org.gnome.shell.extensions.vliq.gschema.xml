@@ -307,10 +307,17 @@
       <range min="0" max="100"/>
       <summary>Milky Glass inner rim strength percentage</summary>
     </key>
+    <!-- Former 'milky-whiteness' remains for legacy settings migration,
+         but is no longer consumed by either VLIQ rendering backend. -->
     <key name="milky-whiteness" type="i">
       <default>0</default>
       <range min="-100" max="100"/>
-      <summary>Milky Glass white balance, gray to original to fully opaque white</summary>
+      <summary>Legacy Milky white balance (unused)</summary>
+    </key>
+    <key name="milky-black" type="b">
+      <default>false</default>
+      <summary>Milky Glass color (false = white, true = charcoal black)</summary>
+      <description>Choose a White or Black Milky card; Milky Opacity independently controls both colors.</description>
     </key>
     <key name="milky-grain" type="i">
       <default>28</default>
