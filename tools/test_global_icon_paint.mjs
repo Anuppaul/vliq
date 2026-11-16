@@ -65,8 +65,10 @@ for (const selector of [
     assert.ok(shared.includes(selector),
         'global native hover state missing: ' + selector);
 }
-assert.doesNotMatch(shared, /\.vliq-global-milky \.vliq-app-button/,
-    'fixed Milky must not recolor Orb hover cards');
+assert.match(css, /\.vliq-global-milky \.vliq-app-button/,
+    'Milky White must match the existing Liquid Orb target');
+assert.match(css, /\.vliq-global-milky \.vliq-app-button[\s\S]*?rgba\(245,249,255,0\.920\)/,
+    'Orb Milky paint preserves fixed 92% opacity');
 for (const selector of [
     '#dashtodockDashContainer .app-well-app-running-dot',
     '#dashtodockDashContainer .app-grid-running-dot',
