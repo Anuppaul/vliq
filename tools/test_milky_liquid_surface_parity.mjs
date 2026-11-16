@@ -56,7 +56,7 @@ assert.match(notifications, /this\._syncMilkyBannerPaint\(material, state\)/,
     'notification style must be applied during material updates');
 assert.match(notifications, /_applyTextPolarity\(material, true\)/,
     'white notification card must always use readable dark foreground');
-assert.match(notifications, /this\._syncMilkyBannerPaint\(material,\s*this\._appearance/,
+assert.match(notifications, /this\._syncMilkyBannerPaint\(\s*material,\s*this\._appearance/,
     'new banner in already-selected Milky must be white immediately');
 assert.match(cards,/const CARD_CLASS = 'vliq-liquid-shell-card'/);
 assert.match(popups,/const GLASS_CLASS = 'vliq-liquid-popup-content'/);
