@@ -295,17 +295,17 @@
         <choice value="milky"/>
       </choices>
       <summary>VLIQ glass material style</summary>
-      <description>Liquid preserves v10 refraction, Frosted uses matte grain and edge light, Milky renders flat gray-white cards without lens effects.</description>
+      <description>Liquid preserves refraction, Frosted uses matte grain, Milky paints headers and Bottom Taskbar black at 60 percent opacity and GNOME Calendar/Quick Settings milky white; no user Milky controls or grain.</description>
     </key>
     <key name="milky-opacity" type="i">
       <default>24</default>
       <range min="0" max="100"/>
-      <summary>Milky Glass body opacity percentage</summary>
+      <summary>Legacy Milky opacity (unused; retained for settings compatibility)</summary>
     </key>
     <key name="milky-border" type="i">
       <default>20</default>
       <range min="0" max="100"/>
-      <summary>Milky Glass inner rim strength percentage</summary>
+      <summary>Legacy Milky rim strength (unused)</summary>
     </key>
     <!-- Former 'milky-whiteness' remains for legacy settings migration,
          but is no longer consumed by either VLIQ rendering backend. -->
@@ -316,14 +316,14 @@
     </key>
     <key name="milky-black" type="b">
       <default>false</default>
-      <summary>Milky Glass color (false = white, true = charcoal black)</summary>
-      <description>Choose a White or Black Milky card; Milky Opacity independently controls both colors.</description>
+      <summary>Legacy Milky color switch (unused)</summary>
+      <description>Milky now uses fixed colors for panel headers and menus.</description>
     </key>
     <key name="milky-grain" type="i">
       <default>28</default>
       <range min="0" max="100"/>
-      <summary>Milky Glass static micro-grain intensity</summary>
-      <description>0 disables the repeating texture, 100 shows strongest fine grain. Uses native GNOME CSS without another compositor shader.</description>
+      <summary>Legacy Milky micro-grain intensity (unused)</summary>
+      <description>Grain has been retired; this key remains only for existing profiles.</description>
     </key>
     <key name="frost-density" type="i">
       <default>88</default>
