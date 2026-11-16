@@ -155,7 +155,9 @@ const setup = method(dock, '_setupSharedCardAppearanceSync() {',
         DESKTOP_INTERFACE_SCHEMA: 'org.gnome.desktop.interface',
     });
 const cleanup = method(dock, '_cleanupSharedCardAppearanceSync() {',
-    '_getShellTheme() {', '_cleanupSharedCardAppearanceSync');
+    '_getShellTheme() {', '_cleanupSharedCardAppearanceSync', {
+        Main: {layoutManager: {uiGroup: {remove_style_class_name() {}}}},
+    });
 const owner = {
     _desktopInterfaceSettings: null,
     _desktopAccentChangedId: 0, _desktopColorSchemeChangedId: 0,
