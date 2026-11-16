@@ -157,7 +157,7 @@ Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Materi
 | --- | --- | --- |
 | **Liquid Glass** (default) | Original v10 refractive lens, chromatic highlights and glossy edge lighting, now with **strong Frosted-like backdrop blur** | Existing Blur slider still controls the stored base radius; tint and Advanced optics remain untouched. |
 | **Frosted Crystal** | Dense satin-matte diffusion, softly blurred backdrop, spatially stable crystal grain and restrained ice-blue rim | Frost Density, Micro-grain and Crystal Edge Glow |
-| **Milky Glass** | **Fixed** black `rgba(29,31,35,0.60)` on Full Header, 3-Part Header islands and Windows-style Bottom Taskbar; **fixed milky white** `rgba(245,249,255,0.92)` on the native Calendar and Quick Settings popups | **No Milky-specific settings or grain.** Liquid and Frosted controls remain separate. |
+| **Milky Glass** | **Fixed** black `rgba(0,0,0,0.60)` on Full Header, 3-Part Header islands and Windows-style Bottom Taskbar; **fixed milky white** `rgba(245,249,255,0.92)` on the native Calendar and Quick Settings popups | **No Milky-specific settings or grain.** Liquid and Frosted controls remain separate. |
 
 At the default Frost Density, the frosted material now masks most fine wallpaper detail instead of resembling a lightly tinted Liquid surface. Its diffuse crystal texture is spatially stable rather than animated. Selecting Liquid restores the original sharp refractive lens and chromatic optics without resetting any Advanced settings. Increasing Frost Density increases matte coverage; lowering it lets more wallpaper detail through.
 
