@@ -48,8 +48,8 @@ assert.ok(actual.includes('background-color: '+black),
     'header/taskbar must remain black 60%');
 assert.match(gpu, /this\._syncMilkyOsdMaterial\(enabled\)/,
     'OSD native material should be enabled in Milky mode');
-assert.match(gpu, /milkyPaintTokens\('popup'\)/,
-    'Ubuntu Dock inline material should use the same white paint');
+assert.match(gpu, /const DOCK_PANEL_MILKY_STYLE =\s*'background-color: rgba\(245,249,255,0\.920\)/,
+    'Ubuntu Dock native material must use the same fixed 92% white');
 assert.match(notifications, /_syncMilkyBannerPaint\(material, state\)/,
     'notification manager must update real GNOME actor inline style');
 assert.match(notifications, /this\._syncMilkyBannerPaint\(material, state\)/,
