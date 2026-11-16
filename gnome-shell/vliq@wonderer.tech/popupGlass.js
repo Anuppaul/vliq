@@ -672,7 +672,7 @@ class PopupGlassSurface {
         this._lastOverviewSceneGeometryKey = '';
         this._filterLayer = filterLayer;
         this._effect = effect;
-        this._syncQuickFirstPaintFallback();
+        this._syncQuickFirstPaintFallback?.();
         this._dateInnerRoot = dateInnerRoot;
         this._dateInnerLiquidBox = dateInnerLiquidBox;
         this._dateInnerClone = dateInnerClone;
@@ -1937,7 +1937,7 @@ class PopupGlassSurface {
         // visible would put Liquid Glass underneath the new native card.
         const wasMilky = this._milky === true;
         this._milky = state.milky === true;
-        this._syncQuickFirstPaintFallback();
+        this._syncQuickFirstPaintFallback?.();
         if (this._milky) {
             this._root?.hide?.();
             this._dateInnerRoot?.hide?.();
@@ -2264,7 +2264,7 @@ class PopupGlassSurface {
     syncFrame() {
         if (this._destroyed)
             return;
-        this._syncQuickFirstPaintFallback();
+        this._syncQuickFirstPaintFallback?.();
         if (this._milky)
             return; // No shader frame or backdrop clones for native Milky.
 
