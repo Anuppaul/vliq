@@ -6,13 +6,12 @@ import {readFile} from 'node:fs/promises';
 const source = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/liquidGlassDock.js',
     import.meta.url), 'utf8');
-const start = source.indexOf('function milkyPaintTokens(');
-const end = source.indexOf('function canonicalExtensionRoot(', start);
-assert.ok(start >= 0 && end > start);
+const paint = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/milkyPaint.js',
+    import.meta.url), 'utf8');
 const clampNumber = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const build = new Function('clampNumber',
-    source.slice(start, end) + '\nreturn buildMilkyAppearanceCss;')(
-    clampNumber);
+const build = new Function(paint.replace(/^export /gm, '') +
+    '\nreturn buildMilkyAppearanceCss;')();
 
 const begin = source.indexOf('    _applyCardAppearanceStylesheet(');
 const finish = source.indexOf('    isBottomTaskbarActive() {', begin);
@@ -93,6 +92,7 @@ assert.notEqual(host._cardCssSignature, first);
 const preserved = host._cardCssFile;
 const preservedCss = host._cardCssSignature;
 theme.rejectNext = true;
+state.milkyWhiteness = 0.95;
 state.milkyOpacity = 0.99;
 apply.call(host, state);
 assert.equal(host._cardCssFile, preserved,
