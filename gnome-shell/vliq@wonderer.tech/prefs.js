@@ -304,8 +304,12 @@ export default class VLIQPreferences extends ExtensionPreferences {
             'Strength of the thin white inner rim (0 = none).',
             0, 100, 1);
         addIntSpin(milky, settings, 'milky-whiteness',
-            'White shade',
-            'Brighten the cool gray-white body toward pure white.',
+            'White balance',
+            '-100 = light gray, 0 = original cool white, +100 = pure white. Independent of Milky density.',
+            -100, 100, 1);
+        addIntSpin(milky, settings, 'milky-grain',
+            'Micro-grain',
+            'Subtle static fine-grain texture (0 = off). No added shader or animation.',
             0, 100, 1);
         const syncMilkyControls = () =>
             milky.set_sensitive(settings.get_string('glass-style') === 'milky');

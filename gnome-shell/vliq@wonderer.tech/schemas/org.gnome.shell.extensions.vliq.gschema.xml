@@ -309,8 +309,14 @@
     </key>
     <key name="milky-whiteness" type="i">
       <default>0</default>
+      <range min="-100" max="100"/>
+      <summary>Milky Glass white balance, gray to original to pure white</summary>
+    </key>
+    <key name="milky-grain" type="i">
+      <default>28</default>
       <range min="0" max="100"/>
-      <summary>Milky Glass bright-white shade blend percentage</summary>
+      <summary>Milky Glass static micro-grain intensity</summary>
+      <description>0 disables the repeating texture, 100 shows strongest fine grain. Uses native GNOME CSS without another compositor shader.</description>
     </key>
     <key name="frost-density" type="i">
       <default>88</default>
