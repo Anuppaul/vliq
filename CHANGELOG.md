@@ -6,9 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Simplified **Milky Glass** into a fixed surface-scoped material: Full/3-Part/Bottom Headers are black at 60% opacity; Calendar and Quick Settings are hardcoded milky white at 92% opacity. All Milky-specific Preferences controls and Grain rendering are retired. Legacy GSettings keys remain only for profile compatibility.
+- Removed Milky-only styling from Orb, notifications, overview buttons, preview cards, OSD and floating Ubuntu Dock; Liquid/Frosted materials remain independently configured. GNOME Dark Style does not alter Milky's 60% header opacity.
+
 ### Added
 
-- Adjustable Milky Glass Micro-grain using a static, repeatable native CSS noise tile (no added shader, animation or frame loop).
+- Earlier adjustable Milky micro-grain implementation (superseded by the fixed no-grain Milky preset).
 - Automatic GPU-renderer failure recovery and an explicit shader-independent Native CSS backend, selectable in Performance settings, with native Full/3-Part/Bottom layouts and per-session status reporting.
 - Native CSS backend preserves the selected material preference and cleans up its GNOME actors/signals when switching back to GPU rendering.
 - Contributor guide, contributor map and local development guide.
@@ -23,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Milky Glass replaces the old White Balance slider with a persistent White/Black color switch. Its opacity remains independent (0–100) and its deterministic grain uses **black particles only** in both color modes. No additional shader or animation.
+- Previous Milky White/Black switch and black-grain controls (now superseded by the fixed preset above).
 
 - README contributor entry points now link to the full community and development resources.
 - Reduced recurring Calendar text-contrast screenshot sampling from 3.2 seconds to 12 seconds while preserving the first-open sample and dynamic-backdrop contrast updates.
