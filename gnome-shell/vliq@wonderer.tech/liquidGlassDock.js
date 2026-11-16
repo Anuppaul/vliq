@@ -1698,7 +1698,16 @@ export class LiquidGlassIntegration {
                 'color-scheme') === 'prefer-dark',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
-            milkyBlack: this._vliqSettings.get_boolean('milky-black'),
+            // Hot-loaded older GSettings schema snapshots may not yet
+            // expose the newly added switch. Default safely to White until
+            // the compiled schema refresh becomes available.
+            milkyBlack: (() => {
+                try {
+                    return this._vliqSettings.get_boolean('milky-black');
+                } catch {
+                    return false;
+                }
+            })(),
             milkyGrain: clampNumber(this._vliqSettings.get_int('milky-grain'), 0, 100) / 100,
             opacity,
             tint,
