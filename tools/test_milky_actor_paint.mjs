@@ -44,16 +44,16 @@ const ctx = {panel: Object.assign(panel, {
         dateMenu: {menu: {box: date}}},
 })};
 const baseState = {milky: true, milkyOpacity: .72,
-    milkyWhiteness: .8, milkyBorder: .26, milkyGrain: .59,
+    milkyBlack: false, milkyBorder: .26, milkyGrain: .59,
     systemDarkTaskbar: false};
 const painter = new MilkyActorPainter();
 const mode = { _layoutMode: 'bottom' };
 const actors = milkyCardActors(ctx.panel, mode, baseState);
 painter.sync(actors, baseState);
-assert.match(panel.get_style(), /background-color:\s*rgba\(253,254,255,0\.944\)/);
+assert.match(panel.get_style(), /background-color:\s*rgba\(255,255,255,0\.720\)/);
 assert.match(panel.get_style(), /rgba\(255,255,255,0\.260\)/);
-assert.match(quick.get_style(), /rgba\(253,254,255,0\.944\)/);
-assert.match(date.get_style(), /rgba\(253,254,255,0\.944\)/);
+assert.match(quick.get_style(), /rgba\(255,255,255,0\.720\)/);
+assert.match(date.get_style(), /rgba\(255,255,255,0\.720\)/);
 assert.ok(panel.get_style().startsWith('height: 36px;'),
     'must retain pre-existing inline layout CSS');
 assert.ok(quick.get_style().startsWith('padding: 4px;'),
@@ -62,13 +62,13 @@ const oldWrites=panel.writes;
 painter.sync(milkyCardActors(ctx.panel,mode,baseState),baseState);
 assert.equal(panel.writes,oldWrites,
     'same saved values must not trigger redundant native style writes');
-const solid={...baseState,milkyWhiteness:1,milkyOpacity:0};
+const solid={...baseState,milkyBlack:false,milkyOpacity:1};
 painter.sync(milkyCardActors(ctx.panel,mode,solid),solid);
 assert.match(panel.get_style(), /background-color:\s*rgba\(255,255,255,1\.000\)/);
 assert.match(quick.get_style(), /rgba\(255,255,255,1\.000\)/);
-const transparent={...baseState,milkyWhiteness:0,milkyOpacity:0,milkyBorder:0};
+const transparent={...baseState,milkyBlack:false,milkyOpacity:0,milkyBorder:0};
 painter.sync(milkyCardActors(ctx.panel,mode,transparent),transparent);
-assert.match(panel.get_style(), /rgba\(245,249,255,0\.000\)/);
+assert.match(panel.get_style(), /rgba\(255,255,255,0\.000\)/);
 assert.match(panel.get_style(), /box-shadow:\s*none/);
 
 // When switching from Bottom to 3-Part the parent bar must become
@@ -76,8 +76,8 @@ assert.match(panel.get_style(), /box-shadow:\s*none/);
 mode._layoutMode='split';
 painter.sync(milkyCardActors(ctx.panel,mode,baseState),baseState);
 assert.equal(panel.get_style(),'height: 36px;');
-assert.match(left.get_style(), /rgba\(253,254,255,0\.944\)/);
-assert.match(right.get_style(), /rgba\(253,254,255,0\.944\)/);
+assert.match(left.get_style(), /rgba\(255,255,255,0\.720\)/);
+assert.match(right.get_style(), /rgba\(255,255,255,0\.720\)/);
 assert.equal(center.get_style(),'',
     'inactive island must not be revived by inline styling');
 
@@ -86,7 +86,7 @@ const nativeDark={...baseState,systemDarkTaskbar:true};
 painter.sync(milkyCardActors(ctx.panel,mode,nativeDark),nativeDark);
 assert.equal(panel.get_style(),'height: 36px;',
     'GNOME Dark Style continues to own the Bottom Taskbar');
-assert.match(quick.get_style(), /rgba\(253,254,255,0\.944\)/,
+assert.match(quick.get_style(), /rgba\(255,255,255,0\.720\)/,
     'the dark taskbar must not force the Milky popup dark');
 painter.sync([], {...baseState,milky:false});
 assert.equal(panel.get_style(),'height: 36px;');
@@ -102,5 +102,9 @@ quick.inlineStyle='background-color: red;';
 painter.clear();
 assert.equal(quick.get_style(),'background-color: red;');
 assert.equal(panel.get_style(),'height: 36px;');
-assert.match(milkyInlineStyle(baseState), /rgba\(253,254,255,0\.944\)/);
+const blackState={...baseState,milkyBlack:true};
+painter.sync(milkyCardActors(ctx.panel,mode,blackState),blackState);
+assert.match(quick.get_style(), /rgba\(29,31,35,0\.720\)/,
+    'Black color switch must update native actor with unchanged opacity');
+assert.match(milkyInlineStyle(baseState), /rgba\(255,255,255,0\.720\)/);
 console.log('Milky native actors: GPU + CSS bindings, inline painting, same-value no-op, layout, restore and Dark Style PASS.');
