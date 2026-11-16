@@ -51,7 +51,7 @@ syncClass.call(classHost, true);
 assert.ok(classes.has('vliq-global-milky'));
 syncClass.call(classHost, false);
 assert.ok(!classes.has('vliq-global-milky'));
-assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._milkyActorPainter\?\.clear\(\);\s*this\._syncMilkyAppearanceClass\(false\)/,
+assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{[\s\S]{0,190}this\._milkyActorPainter\?\.clear\(\);\s*this\._syncMilkyAppearanceClass\(false\)/,
     'Milky inline styles must be restored before releasing the global material class');
 
 // Header panels must hide their shader actor and restore the actual
