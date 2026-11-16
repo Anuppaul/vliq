@@ -44,8 +44,7 @@ import {
     applyVLIQGlassRole,
 } from './glassMaterialSystem.js';
 import {
-    milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg,
-    MilkyActorPainter, milkyCardActors,
+    buildMilkyAppearanceCss, MilkyActorPainter, milkyCardActors,
 } from './milkyPaint.js';
 import {PanelGlassSurface} from './panelGlass.js';
 import {TopBarIslands} from './topBarIslands.js';
@@ -510,8 +509,6 @@ export class LiquidGlassIntegration {
         this._milkyActorPainter = new MilkyActorPainter();
         this._milkyPaintStatus = '';
         this._cardCssFile = null;
-        this._cardGrainFile = null;
-        this._cardGrainStrength = -1;
         this._cardCssSignature = '';
         this._cardCssCounter = 0;
         this._notificationGlassManager = null;
@@ -681,11 +678,12 @@ export class LiquidGlassIntegration {
                 ['vliq-frost-grain', grain],
                 ['vliq-frost-edge-glow', edge],
                 ['vliq-frost-amount', density],
-                ['vliq-milky-mode', mode === 'milky' ? 1.0 : 0.0],
-                ['vliq-milky-opacity', fraction('milky-opacity')],
-                ['vliq-milky-border', fraction('milky-border')],
-                // Old vendor uniform remains neutral. The selected color
-                // is applied to real GNOME St actors through milkyPaint.js.
+                // Milky is native fixed CSS, not a vendored GPU material.
+                // Neutralize old vendor milky uniforms without reading any
+                // retired Milky settings. Frosted/Liquid values are intact.
+                ['vliq-milky-mode', 0],
+                ['vliq-milky-opacity', 0],
+                ['vliq-milky-border', 0],
                 ['vliq-milky-whiteness', 0],
             ]) {
                 // Old cached schemas lack this optional key. Keep the native
@@ -1613,10 +1611,6 @@ export class LiquidGlassIntegration {
             return {
                 milky: false,
                 systemDarkTaskbar: false,
-                milkyOpacity: 0.24,
-                milkyBorder: 0.20,
-                milkyBlack: false,
-                milkyGrain: 0,
                 opacity: 0,
                 tint: '#ffffff',
                 r: 255,
@@ -1696,19 +1690,6 @@ export class LiquidGlassIntegration {
             // Only the Bottom Taskbar layout consumes this native flag.
             systemDarkTaskbar: this._desktopInterfaceSettings?.get_string?.(
                 'color-scheme') === 'prefer-dark',
-            milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
-            milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
-            // Hot-loaded older GSettings schema snapshots may not yet
-            // expose the newly added switch. Default safely to White until
-            // the compiled schema refresh becomes available.
-            milkyBlack: (() => {
-                try {
-                    return this._vliqSettings.get_boolean('milky-black');
-                } catch {
-                    return false;
-                }
-            })(),
-            milkyGrain: clampNumber(this._vliqSettings.get_int('milky-grain'), 0, 100) / 100,
             opacity,
             tint,
             r,
@@ -1835,7 +1816,9 @@ export class LiquidGlassIntegration {
     }
 
     _syncMilkyAppearanceClass(enabled) {
-        this._milkyModeActive = enabled;
+        // Milky is limited to headers and native Date/Quick popups.
+        // Never turn the vendor OSD into a Milky card.
+        this._milkyModeActive = false;
         const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
         if (uiGroup) {
             if (enabled)
@@ -1843,23 +1826,15 @@ export class LiquidGlassIntegration {
             else
                 uiGroup.remove_style_class_name?.('vliq-global-milky');
         }
-        this._syncMilkyOsdMaterial(enabled);
+        this._syncMilkyOsdMaterial(false);
     }
 
     _syncMilkyNativeActors(state) {
-        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
-        if (state?.milky && state.milkyBlack)
-            uiGroup?.add_style_class_name?.('vliq-milky-black');
-        else
-            uiGroup?.remove_style_class_name?.('vliq-milky-black');
         const actors = state?.milky
             ? milkyCardActors(Main.panel, this._topPanelIslands, state)
             : [];
         this._milkyActorPainter?.sync(actors, state);
-        const marker = state?.milky
-            ? [state.milkyOpacity, state.milkyBlack ? 'black' : 'white',
-                state.milkyBorder, state.milkyGrain].join('/')
-            : 'off';
+        const marker = state?.milky ? 'header=black/60 popup=white/92' : 'off';
         if (this._milkyPaintStatus !== marker) {
             this._milkyPaintStatus = marker;
             console.log('[VLIQ][Milky] Auto backend native actors=' +
@@ -2007,20 +1982,12 @@ export class LiquidGlassIntegration {
                             'date-menu-glass-filter-opacity',
                             'glass-live-scene-fps',
                             'glass-style',
-                            'milky-opacity',
-                            'milky-border',
-                            'milky-black',
-                            'milky-grain',
                             'frost-density',
                             'frost-grain',
                             'frost-edge-glow',
                         ].includes(key)) {
                             if ([
                                 'glass-style',
-                                'milky-opacity',
-                                'milky-border',
-                                'milky-black',
-                                'milky-grain',
                                 'frost-density',
                                 'frost-grain',
                                 'frost-edge-glow',
@@ -2036,8 +2003,6 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
-        (Main.layoutManager?.uiGroup ?? Main.uiGroup)
-            ?.remove_style_class_name?.('vliq-milky-black');
         this._milkyActorPainter?.clear();
         this._syncMilkyAppearanceClass(false);
         if (
@@ -2094,7 +2059,7 @@ export class LiquidGlassIntegration {
             .get_theme();
     }
 
-    _unloadCardAppearanceStylesheet(preserveGrain = false) {
+    _unloadCardAppearanceStylesheet() {
         if (!this._cardCssFile)
             return;
 
@@ -2117,11 +2082,6 @@ export class LiquidGlassIntegration {
 
         this._cardCssFile = null;
         this._cardCssSignature = '';
-        if (!preserveGrain) {
-            try { this._cardGrainFile?.delete?.(null); } catch {}
-            this._cardGrainFile = null;
-            this._cardGrainStrength = -1;
-        }
     }
 
     _applyCardAppearanceStylesheet(
@@ -2140,39 +2100,11 @@ export class LiquidGlassIntegration {
             filterOpacity * 0.6
         );
 
-        // Prepare the grain image only when its slider changes. A fixed
-        // CSS tile is much cheaper than a continuously running GPU shader.
-        // Keep the previous texture until the replacement stylesheet loads.
         const dir = GLib.build_filenamev([
             GLib.get_user_cache_dir(),
             'vliq@wonderer.tech',
             'card-appearance',
         ]);
-        const grainStrength = state.milky
-            ? Math.round(clampNumber(state.milkyGrain ?? 0, 0, 1) * 100)
-            : 0;
-        let grainFile = grainStrength > 0 &&
-            grainStrength === this._cardGrainStrength
-            ? this._cardGrainFile : null;
-        let newGrainCreated = false;
-        if (grainStrength > 0 && !grainFile) {
-            try {
-                GLib.mkdir_with_parents(dir, 0o755);
-                const grainPath = GLib.build_filenamev([
-                    dir, 'grain-' + Date.now() + '-' +
-                        this._cardCssCounter++ + '.svg',
-                ]);
-                GLib.file_set_contents(grainPath,
-                    buildMilkyGrainSvg(grainStrength / 100));
-                grainFile = Gio.File.new_for_path(grainPath);
-                newGrainCreated = true;
-            } catch (error) {
-                grainFile = null;
-                console.warn('[VLIQ][Milky] grain texture unavailable: ' +
-                    error);
-            }
-        }
-        const grainUri = grainFile?.get_uri?.() ?? '';
         const systemAccent =
             this._readSystemAccentColor();
         const accentColor = systemAccent.color;
@@ -2258,14 +2190,12 @@ export class LiquidGlassIntegration {
             '  background-image: none !important;\n' +
             '  box-shadow: none !important;\n' +
             '}\n' +
-            buildMilkyAppearanceCss(state, grainUri);
+            buildMilkyAppearanceCss(state);
 
         if (
             this._cardCssFile &&
             this._cardCssSignature === css
         ) {
-            if (newGrainCreated)
-                try { grainFile?.delete?.(null); } catch {}
             return;
         }
 
@@ -2283,9 +2213,7 @@ export class LiquidGlassIntegration {
         try {
             GLib.file_set_contents(path, css);
         } catch (error) {
-            if (newGrainCreated)
-                try { grainFile?.delete?.(null); } catch {}
-            console.warn('[VLIQ][Milky] failed writing CSS: ' + error);
+            console.warn('[VLIQ][CardAppearance] failed writing CSS: ' + error);
             return;
         }
 
@@ -2293,53 +2221,17 @@ export class LiquidGlassIntegration {
         // the last successfully loaded Appearance stylesheet. A theme
         // swap occurs within one Shell event turn, so no extra paint frame.
         const file = Gio.File.new_for_path(path);
-        let appliedCss = css;
         try {
             this._getShellTheme().load_stylesheet(file);
         } catch (error) {
-            // Some GNOME themes reject local SVG URL backgrounds. Grain is
-            // optional; never leave ALL Milky sliders stuck because an
-            // optional texture failed to load. Retry with plain native CSS.
-            let fallbackLoaded = false;
-            if (grainUri) {
-                try {
-                    appliedCss = css.replaceAll(
-                        'background-image: url("' + grainUri +
-                            '") !important;',
-                        'background-image: none !important;'
-                    ).replaceAll(
-                        'background-repeat: repeat !important;', ''
-                    );
-                    GLib.file_set_contents(path, appliedCss);
-                    this._getShellTheme().load_stylesheet(file);
-                    fallbackLoaded = true;
-                    console.warn('[VLIQ][Milky] grain CSS unsupported; ' +
-                        'using native color/opacity/edge paint');
-                } catch (fallbackError) {
-                    console.warn('[VLIQ][Milky] color fallback failed: ' +
-                        fallbackError);
-                }
-            }
-            if (!fallbackLoaded) {
-                try { file.delete(null); } catch {}
-                if (newGrainCreated)
-                    try { grainFile?.delete?.(null); } catch {}
-                console.warn(
-                    '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
-                );
-                return;
-            }
-            if (newGrainCreated)
-                try { grainFile?.delete?.(null); } catch {}
-            grainFile = null;
+            try { file.delete(null); } catch {}
+            console.warn('[VLIQ][CardAppearance] stylesheet rejected: ' +
+                error);
+            return;
         }
-        // Preserve the tile when opacity, color or rim changes.
-        this._unloadCardAppearanceStylesheet(
-            grainFile !== null && grainFile === this._cardGrainFile);
+        this._unloadCardAppearanceStylesheet();
         this._cardCssFile = file;
-        this._cardGrainFile = grainFile;
-        this._cardGrainStrength = grainFile ? grainStrength : 0;
-        this._cardCssSignature = appliedCss;
+        this._cardCssSignature = css;
 
         Main.messageTray?._banner?.queue_redraw?.();
     }
@@ -4906,24 +4798,11 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        const desired =
-            this._vliqSettings?.get_string?.('glass-style') === 'milky'
-                ? (() => {
-                    const tokens = milkyPaintTokens(
-                        this._readSharedCardAppearance());
-                    const grainUri = this._cardGrainFile?.get_uri?.() ??
-                        '';
-                    const image = grainUri
-                        ? 'background-image: url("' + grainUri +
-                            '"); background-repeat: repeat; '
-                        : 'background-image: none; ';
-                    return 'background-color: ' + tokens.fill + '; ' +
-                        image + 'border-color: transparent; ' +
-                        'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
-                })()
-                : (entry.panelLiquidReady
-                    ? DOCK_PANEL_GLASS_STYLE
-                    : DOCK_PANEL_PREMIUM_STYLE);
+        // Floating Ubuntu Dock retains its original VLIQ/native backdrop;
+        // fixed Milky is reserved for the GNOME header/taskbar only.
+        const desired = entry.panelLiquidReady
+            ? DOCK_PANEL_GLASS_STYLE
+            : DOCK_PANEL_PREMIUM_STYLE;
         if (current === desired)
             return;
 
