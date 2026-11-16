@@ -29,6 +29,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Milky Glass now displays the existing `milky-opacity` setting as **Milky Opacity**. Positive White Balance smoothly increases white coverage; +100 produces truly opaque #FFFFFF (and suppresses grain), rather than translucent white over the wallpaper.
+- Dynamic Milky header selectors now match the runtime stylesheet's specificity so Full Header and Bottom Taskbar honor the live white-balance/opacity values.
+
+
 - Quick Settings opens its native menu immediately on the first click; heavy glass preparation runs on an idle turn while a lightweight card remains visible until the first successful shader composite.
 - Prioritize Quick Settings during startup material prewarming, avoiding a full Calendar-first delay.
 - Position VLIQ as a Windows-style Bottom Taskbar enhancement in the README and add a real desktop screenshot highlighting native GNOME Calendar and notifications.
