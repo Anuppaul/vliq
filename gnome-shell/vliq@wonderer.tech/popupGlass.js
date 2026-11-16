@@ -303,6 +303,10 @@ class PopupGlassSurface {
         this._lastQuickOverlayOpen = false;
         this._quickRegionDirty = true;
         this._quickNeedsRescan = true;
+        // Native Quick Settings body remains visible until the first real
+        // GPU composite. Without this first-frame CSS material the popup can
+        // look blank after its controls open on a cold shader cache.
+        this._quickFirstPaintFallback = false;
         this._quickSignalEntries = [];
         this._quickThemeContext = null;
         this._quickThemeChangedId = 0;
@@ -668,6 +672,7 @@ class PopupGlassSurface {
         this._lastOverviewSceneGeometryKey = '';
         this._filterLayer = filterLayer;
         this._effect = effect;
+        this._syncQuickFirstPaintFallback();
         this._dateInnerRoot = dateInnerRoot;
         this._dateInnerLiquidBox = dateInnerLiquidBox;
         this._dateInnerClone = dateInnerClone;
@@ -1906,6 +1911,23 @@ class PopupGlassSurface {
         }
     }
 
+    _syncQuickFirstPaintFallback() {
+        if (!this._isQuickSettings || !this._box)
+            return;
+        // Only real compositor output means that the VLIQ background exists.
+        // _shadersLoaded alone is insufficient: first Cogl compilation and
+        // the first blur/capture can still be outstanding.
+        const pending = !this._milky &&
+            (this._effect?._diagCompositedPaintCount ?? 0) < 1;
+        if (pending === this._quickFirstPaintFallback)
+            return;
+        this._quickFirstPaintFallback = pending;
+        if (pending)
+            this._box.add_style_class_name?.('vliq-quick-first-paint');
+        else
+            this._box.remove_style_class_name?.('vliq-quick-first-paint');
+    }
+
     updateAppearance(state) {
         if (!this._effect || !state)
             return;
@@ -1915,6 +1937,7 @@ class PopupGlassSurface {
         // visible would put Liquid Glass underneath the new native card.
         const wasMilky = this._milky === true;
         this._milky = state.milky === true;
+        this._syncQuickFirstPaintFallback();
         if (this._milky) {
             this._root?.hide?.();
             this._dateInnerRoot?.hide?.();
@@ -2239,7 +2262,10 @@ class PopupGlassSurface {
     }
 
     syncFrame() {
-        if (this._destroyed || this._milky)
+        if (this._destroyed)
+            return;
+        this._syncQuickFirstPaintFallback();
+        if (this._milky)
             return; // No shader frame or backdrop clones for native Milky.
 
         // Check BEFORE the fixed-FPS frame throttle: opening the Calendar
@@ -2790,6 +2816,8 @@ class PopupGlassSurface {
 
         try {
             this._box?.remove_style_class_name?.(GLASS_CLASS);
+            this._box?.remove_style_class_name?.('vliq-quick-first-paint');
+            this._quickFirstPaintFallback = false;
             this._box?.remove_style_class_name?.(DATE_TEXT_LIGHT_CLASS);
             this._box?.remove_style_class_name?.(DATE_TEXT_DARK_CLASS);
 
@@ -2955,6 +2983,21 @@ export class PopupGlassManager {
                 BoxPointer.PopupAnimation.FADE;
             const confirmedPanelHover =
                 this._vliqPanelHoverConfirmed === true;
+
+            if (
+                manager._enabled &&
+                !manager._surfaces.has(this) &&
+                this === Main.panel?.statusArea?.quickSettings?.menu
+            ) {
+                // First click must never wait on WindowCloneManager, shader
+                // imports or scene capture. Open GNOME's native menu on the
+                // input event; attach the material on the next idle turn.
+                // The native card stays painted until the first GPU frame.
+                const result = manager._originalOpen.apply(this, args);
+                if (this.isOpen)
+                    manager._scheduleIdleAttach(this);
+                return result;
+            }
 
             if (
                 manager._enabled &&
@@ -3535,9 +3578,12 @@ export class PopupGlassManager {
     _scheduleSystemPopupPrewarm() {
         this._cancelSystemPopupPrewarm();
 
+        // Quick Settings is the highest-frequency first-click surface.
+        // The old order warmed Calendar first, delaying Quick's shader
+        // initialization by another entire 350ms timer cycle.
         const candidates = [
-            Main.panel?.statusArea?.dateMenu?.menu ?? null,
             Main.panel?.statusArea?.quickSettings?.menu ?? null,
+            Main.panel?.statusArea?.dateMenu?.menu ?? null,
         ].filter(Boolean);
 
         this._systemPopupPrewarmQueue =
