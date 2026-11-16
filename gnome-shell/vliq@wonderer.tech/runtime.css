@@ -253,6 +253,18 @@
     box-shadow: none !important;
 }
 
+/* Quick Settings opens its NATIVE controls immediately. During initial
+ * async shader compilation (or when Cogl never provides a composite), keep a
+ * lightweight body on the actual menu.box; remove it when one GPU glass
+ * frame has really painted. This does not add a second actor, border, blur
+ * pass or input layer, and it avoids the first-click empty-card flash. */
+.vliq-liquid-popup-content.quick-settings.vliq-quick-first-paint {
+    background-color: rgba(231, 235, 244, 0.52) !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
 /* Quick Menu uses the same single-rim popup chrome as Date Menu. The shader
  * owns the visible edge; Yaru/GNOME shell paint must not add a second outline
  * or drop shadow around the right-side Quick Settings popup. */

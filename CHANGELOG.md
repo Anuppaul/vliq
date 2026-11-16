@@ -27,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Quick Settings opens its native menu immediately on the first click; heavy glass preparation runs on an idle turn while a lightweight card remains visible until the first successful shader composite.
+- Prioritize Quick Settings during startup material prewarming, avoiding a full Calendar-first delay.
+- Position VLIQ as a Windows-style Bottom Taskbar enhancement in the README and add a real desktop screenshot highlighting native GNOME Calendar and notifications.
+
 - Bottom Taskbar notification destroy/remove events now release per-notification references and signal handlers immediately, including count-only GNOME providers.
 - Brightness software dimming no longer retains a compositor inhibition lease when a foreign effect occupies its name or the host lookup fails.
 - Detached GNOME Shell card subtrees now release tracked actor signals and surfaces after a deferred reparenting-safe reconciliation.
