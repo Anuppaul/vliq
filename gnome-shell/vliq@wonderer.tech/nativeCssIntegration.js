@@ -170,7 +170,6 @@ export class NativeCssIntegration {
             this._host?.add_style_class_name?.('vliq-global-milky');
         else
             this._host?.remove_style_class_name?.('vliq-global-milky');
-        this._host?.remove_style_class_name?.('vliq-milky-black');
         if (state.milky && state.milkyBlack)
             this._host?.add_style_class_name?.('vliq-milky-black');
         else
@@ -385,6 +384,7 @@ export class NativeCssIntegration {
         this._milkyActorPainter.clear();
         this._cleanupMilkyStylesheet();
         this._host?.remove_style_class_name?.('vliq-global-milky');
+        this._host?.remove_style_class_name?.('vliq-milky-black');
         this._host?.remove_style_class_name?.('vliq-native-css-dark');
         this._host?.remove_style_class_name?.('vliq-native-css');
         this._host = null;
