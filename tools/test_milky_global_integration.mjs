@@ -119,7 +119,8 @@ syncSpotlight.call({_isActive: () => true,
 assert.equal(hidden, 7);
 assert.equal(stopped, 1);
 
-// Floating Dock stays native: Milky only paints the GNOME header/taskbar.
+// All Liquid Glass surfaces now have Milky counterparts; GNOME headers
+// still stay black at 60%.
 assert.match(dock, /_nativeDockGlassVisible\(entry\)[\s\S]*?get_string\?\.\('glass-style'\) === 'milky'/);
 assert.match(dock, /this\._syncNativeDockVisualState\(entry, true\)/);
 for (const cls of [
@@ -135,8 +136,8 @@ for (const cls of [
     '.vliq-spotlight-glass-results',
     '.dash-background.vliq-ubuntu-dock-glass-background',
     '.vliq-milky-osd',
-]) assert.ok(!css.includes('.vliq-global-milky ' + cls),
-    'Milky must not recolor unrelated GNOME surface: ' + cls);
+]) assert.ok(css.includes('.vliq-global-milky ' + cls),
+    'existing Liquid surface missing white Milky treatment: ' + cls);
 assert.match(css, /rgba\(0,0,0,0\.60\) !important/);
 assert.match(css, /rgba\(245,249,255,0\.92\) !important/);
 assert.match(dock, /buildMilkyAppearanceCss\(state\)/,
@@ -148,7 +149,7 @@ const installOsd = method(dock, '_installMilkyOsdAdapter() {',
     '_syncMilkyAppearanceClass(enabled) {', '_installMilkyOsdAdapter');
 let oldOsdPaint = 0, osdHidden = 0;
 const osd = {_syncGeometry() {oldOsdPaint++;}};
-const osdHost = {_osdManager: osd, _milkyModeActive: false};
+const osdHost = {_osdManager: osd, _milkyModeActive: true};
 installOsd.call(osdHost);
 const osdClasses = new Set();
 const osdState = {
@@ -159,12 +160,14 @@ const osdState = {
     },
 };
 osd._syncGeometry(osdState);
-assert.equal(osdHidden, 0);
-assert.equal(oldOsdPaint, 1);
-assert.ok(!osdClasses.has('vliq-milky-osd'),
-    'OSD stays native instead of being repainted as Milky');
+assert.equal(osdHidden, 1);
+assert.equal(oldOsdPaint, 0);
+assert.ok(osdClasses.has('vliq-milky-osd'),
+    'OSD must receive the fixed white Milky card');
+osdHost._milkyModeActive = false;
 osd._syncGeometry(osdState);
-assert.equal(oldOsdPaint, 2);
+assert.equal(oldOsdPaint, 1);
+assert.ok(!osdClasses.has('vliq-milky-osd'));
 
 // Overview normally renders a sharp clone of every icon above its glass.
 // Milky must restore native icon opacity before hiding that clone layer.
@@ -193,7 +196,7 @@ for (const cls of [
     '.vliq-milky-osd',
     '#overviewGroup .window-close.vliq-window-close-shared-glass',
     '#overviewGroup .window-icon.vliq-window-icon-shared-glass',
-]) assert.ok(!css.includes('.vliq-global-milky ' + cls),
-    'Milky must not recolor OSD/Overview ' + cls);
+]) assert.ok(css.includes('.vliq-global-milky ' + cls),
+    'OSD/Overview Liquid material must have white Milky counterpart: ' + cls);
 
-console.log('Milky scope: native headers and Date/Quick only, with OSD/Overview interaction restoration PASS.');
+console.log('Milky parity: black headers, all Liquid surfaces white; OSD/Overview interaction restoration PASS.');
