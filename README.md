@@ -1,11 +1,11 @@
 # VLIQ
 
 <p align="center">
-  <strong>Make GNOME Shell 50 feel extraordinary. Keep everything native.</strong>
+  <strong>Windows-style Bottom Taskbar for GNOME Shell 50 — powered by native GNOME controls.</strong>
 </p>
 
 <p align="center">
-  Liquid Glass, Frosted Crystal, adjustable Milky Glass, an elegant dark Spotlight, a native Bottom Taskbar, and atmospheric wallpaper effects—without replacing GNOME's interactions.
+  Bring a centered, Windows-style taskbar to GNOME without replacing the desktop. Add Liquid Glass, Frosted Crystal, Milky Glass, Spotlight and atmospheric wallpaper effects when you want them.
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ It does not place a second Dock over Ubuntu Dock, recreate Quick Settings, dupli
 | **VLIQ Orb** | Draggable, multi-monitor radial launcher with Dock Apps, Custom Apps and All Apps sources, paging, previews, tooltips and running indicators. |
 | **VLIQ Spotlight** | `Super+Space` opens a centered **deep-charcoal search bar and matching results list**, both with **16px rounded-rectangle corners**, white text and subtle focus/selection feedback in every VLIQ material mode. |
 | **Ubuntu Dock integration & settings** | Restyles the existing Ubuntu Dock and lets you manage its native autohide, intellihide, pressure, delays, position, panel mode, icons, application list and click actions inside VLIQ Preferences. |
-| **Three desktop layouts** | **3-Part Header**, **Full Header**, and a centered **Bottom Taskbar**. The split islands follow Liquid/Frosted/Milky; Bottom Taskbar uses native GNOME controls, 5px white running dots, live app-window previews and per-app unread/task-completion notification badges. GNOME's own Quick Settings Dark Style darkens only the Bottom Taskbar when that layout is active. |
+| **Windows-style Bottom Taskbar** | Turn GNOME's existing panel into a bottom taskbar with centered running/pinned apps, live window previews, white running dots, and top-right circular completion badges. Native Calendar and Quick Settings stay intact. GNOME's Dark Style darkens the bar without creating a second Dock. |\n| **Three desktop layouts** | Switch live between **3-Part Header**, **Full Header**, and **Windows-style Bottom Taskbar**. Keep GNOME-native panel controls; use Liquid, Frosted, Milky, or GPU-free CSS styling as available. |
 | **Native Shell surfaces** | Shared glass treatment for Quick Settings, Date/Calendar, notifications, panel/status popups and supported Shell-owned cards. |
 | **Brightness directly below Sound** | GNOME's original brightness QuickSlider on supported hardware; a matching software-dimming slider (30–100%) on desktop monitors without a native backlight. Original image at 100% costs no extra GPU effect. |
 | **Monitor-safe launcher geometry** | Orbit, Star, Molecule, Spiral and Petal layouts with fit-first placement and paging near monitor edges/corners. |
@@ -265,7 +265,7 @@ Date-menu cards, Quick Settings controls, Dock and 480×270 window previews
 remain unchanged.
 
 
-## Desktop Layout — native Bottom Taskbar
+## Desktop Layout — Windows-style Bottom Taskbar
 
 Open **GNOME Extensions → VLIQ → Preferences → Desktop Layout → Desktop layout** and choose one of three live-switchable modes:
 
@@ -273,7 +273,7 @@ Open **GNOME Extensions → VLIQ → Preferences → Desktop Layout → Desktop 
 | --- | --- |
 | **3-Part Header** (default) | Three separate **rounded** Activities, Date and Quick Settings islands; **Liquid, Frosted and Milky** each use their corresponding selected material. |
 | **Full Header** | GNOME's original full-width top panel with a square Liquid Glass backdrop. |
-| **Bottom Taskbar** | Moves the **existing GNOME panel** to the primary monitor's bottom: workspace/Activities left, **centered Start + pinned/running apps**, Quick Settings + Date/Clock right. GNOME's **native Dark Style** changes the taskbar background to charcoal when enabled. |
+| **Windows-style Bottom Taskbar** | Moves the **existing GNOME panel** to the primary monitor's bottom: workspace/Activities left, **centered Start + pinned/running apps**, Quick Settings + Date/Clock right. GNOME's **native Dark Style** changes the taskbar background to charcoal when enabled. |
 
 The Bottom Taskbar preserves the native GNOME controls and popup owners instead of drawing a second panel over them. The Start button opens VLIQ's application view. Clicking a pinned app launches it; clicking a running app focuses/restores it, or minimizes a focused window on the next click. **Hover a running app icon for a live native window preview**: individual window thumbnails appear above the taskbar, with click-to-focus and close controls, and a short pointer-leave grace period to prevent flicker while moving the cursor into the preview. The popover is created on demand using native window-actor clones, with no permanent preview render loop. Each running app has a centered **5 px cool-white dot** underneath its icon; a stopped pinned app has no visible dot. **Unread/task-completion notification badges** appear on the app icon for GNOME MessageTray sources associated with that app (for example, Terminal task-completion notifications when the source exposes the app identity). The badge can show **1, 2, 3…** and disappears when the app's notifications are cleared; it is **not a count of open windows**. The badge does not create extra app slots or move the white running dot.
 
