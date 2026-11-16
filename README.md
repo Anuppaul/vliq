@@ -60,9 +60,9 @@
 
 VLIQ follows one rule:
 
-> **Native GNOME behavior first. Change the material, not the desktop interaction model.**
+> **Preserve native GNOME interactions. Enhance the desktop layout and visual materials.**
 
-It does not place a second Dock over Ubuntu Dock, recreate Quick Settings, duplicate the calendar, or replace GNOME's controls. GNOME still owns geometry, hit targets, accessibility, input and animation. VLIQ works beneath supported Shell surfaces and changes the material they are painted with.
+VLIQ does not place a second Dock over Ubuntu Dock, recreate Quick Settings, duplicate the calendar, or replace GNOME's controls. Its **Windows-style Bottom Taskbar** repositions the existing GNOME panel and adds a centered application strip while retaining native menu controls, input behavior and accessibility semantics. Liquid, Frosted and Milky Glass customize supported surfaces without replacing the GNOME desktop environment.
 
 <p align="center">
   <img src="docs/graphics/vliq-glass-system.svg" alt="VLIQ visual system" width="100%">
