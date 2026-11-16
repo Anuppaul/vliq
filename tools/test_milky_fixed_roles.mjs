@@ -16,11 +16,11 @@ const {milkyPaintTokens,buildMilkyAppearanceCss,milkyInlineStyle,
 
 const black=milkyPaintTokens('header');
 const white=milkyPaintTokens('popup');
-assert.equal(black.fill,'rgba(29,31,35,0.600)');
+assert.equal(black.fill,'rgba(0,0,0,0.600)');
 assert.equal(black.rim,'none');
 assert.equal(white.fill,'rgba(245,249,255,0.920)');
 assert.match(white.rim,/rgba\(255,255,255,0\.200\)/);
-assert.match(milkyInlineStyle({},'header'),/rgba\(29,31,35,0\.600\)/);
+assert.match(milkyInlineStyle({},'header'),/rgba\(0,0,0,0\.600\)/);
 assert.match(milkyInlineStyle({},'popup'),/rgba\(245,249,255,0\.920\)/);
 
 for(const state of [
@@ -31,7 +31,7 @@ for(const state of [
     assert.equal(milkyPaintTokens('popup',state).fill,white.fill);
 }
 const generated=buildMilkyAppearanceCss({milky:true},'file:///unused-grain.svg');
-assert.match(generated,/rgba\(29,31,35,0\.600\)/);
+assert.match(generated,/rgba\(0,0,0,0\.600\)/);
 assert.match(generated,/rgba\(245,249,255,0\.920\)/);
 assert.doesNotMatch(generated,/url\(|background-repeat:\s*repeat/);
 for(const target of ['.vliq-native-notification-glass',
@@ -49,7 +49,7 @@ for(const target of [
     assert.equal(css.includes(target),false,
         'static CSS must not recolor unrelated '+target);
 }
-assert.match(css,/rgba\(29,\s*31,\s*35,\s*0\.60\)/);
+assert.match(css,/rgba\(0,\s*0,\s*0,\s*0\.60\)/);
 assert.match(css,/rgba\(245,\s*249,\s*255,\s*0\.92\)/);
 assert.doesNotMatch(gpu,/buildMilkyGrainSvg\(/);
 assert.doesNotMatch(native,/buildMilkyGrainSvg\(/);
@@ -81,20 +81,20 @@ panel.statusArea={quickSettings:{menu:{box:quick}},dateMenu:{menu:{box:date}}};
 const painter=new MilkyActorPainter(),state={milky:true},
     mode={_layoutMode:'bottom'};
 painter.sync(milkyCardActors(panel,mode,state),state);
-assert.match(panel.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(panel.style,/rgba\(0,0,0,0\.600\)/);
 assert.match(quick.style,/rgba\(245,249,255,0\.920\)/);
 assert.match(date.style,/rgba\(245,249,255,0\.920\)/);
 assert.ok(quick.style.startsWith('padding:3px;'));
 mode._layoutMode='split';
 painter.sync(milkyCardActors(panel,mode,state),state);
 assert.equal(panel.style,'height:36px;');
-assert.match(left.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(left.style,/rgba\(0,0,0,0\.600\)/);
 assert.equal(center.style,'');
-assert.match(right.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(right.style,/rgba\(0,0,0,0\.600\)/);
 mode._layoutMode='bottom';
 painter.sync(milkyCardActors(panel,mode,{...state,systemDarkTaskbar:true}),
     {...state,systemDarkTaskbar:true});
-assert.match(panel.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(panel.style,/rgba\(0,0,0,0\.600\)/);
 painter.clear();
 assert.equal(panel.style,'height:36px;');
 assert.equal(quick.style,'padding:3px;');
