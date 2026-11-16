@@ -160,9 +160,14 @@ function parseHexRgb(value) {
 function milkyPaintTokens(state = {}) {
     const opacity = clampNumber(state.milkyOpacity ?? 0.24, 0, 1);
     const border = clampNumber(state.milkyBorder ?? 0.20, 0, 1);
-    const white = clampNumber(state.milkyWhiteness ?? 0, 0, 1);
-    const rgb = [245, 249, 255].map(channel =>
-        Math.round(channel + (255 - channel) * white));
+    // 0 is the original shade; negative values reduce whiteness and
+    // positive values brighten toward pure white without changing density.
+    const white = clampNumber(state.milkyWhiteness ?? 0, -1, 1);
+    const rgb = [245, 249, 255].map((channel, index) => Math.round(
+        white < 0
+            ? channel + ([200, 205, 213][index] - channel) * -white
+            : channel + (255 - channel) * white
+    ));
     return {
         fill: 'rgba(' + rgb.join(',') + ',' + opacity.toFixed(3) + ')',
         rim: border <= 0 ? 'none' :
@@ -171,12 +176,45 @@ function milkyPaintTokens(state = {}) {
     };
 }
 
-function buildMilkyAppearanceCss(state = {}) {
+// Fixed, deterministic CSS tile: never schedule GPU shader work or timers.
+function buildMilkyGrainSvg(intensity) {
+    const strength = clampNumber(intensity, 0, 1);
+    const dots = [];
+    let seed = 0x51a7bd;
+    const next = () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        return seed / 4294967296;
+    };
+    for (let i = 0; i < 420; i++) {
+        const x = (next() * 48).toFixed(2);
+        const y = (next() * 48).toFixed(2);
+        const radius = (0.25 + next() * 0.42).toFixed(2);
+        const bright = next() >= 0.5;
+        const alpha = (strength * (0.05 + next() * 0.18)).toFixed(3);
+        dots.push('<circle cx="' + x + '" cy="' + y +
+            '" r="' + radius + '" fill="' +
+            (bright ? '#ffffff' : '#18212c') +
+            '" fill-opacity="' + alpha + '"/>');
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" ' +
+        'width="48" height="48" viewBox="0 0 48 48">' +
+        dots.join('') + '</svg>';
+}
+
+function milkyGrainCss(uri) {
+    return uri
+        ? '  background-image: url("' + uri + '") !important;\\n' +
+            '  background-repeat: repeat !important;\\n'
+        : '  background-image: none !important;\\n';
+}
+
+function buildMilkyAppearanceCss(state = {}, grainUri = '') {
     // Charcoal reuses native flat surface handling, but must NEVER inherit
     // Milky's white density/shade/edge controls or generated paint.
     if (!state.milky)
         return '';
     const {fill, rim} = milkyPaintTokens(state);
+    const grain = milkyGrainCss(grainUri);
     const roots = [
         // St.Theme is NOT a browser CSS engine: do not use :not().
         // Explicitly clear inactive islands after the main Milky paint.
@@ -215,7 +253,7 @@ function buildMilkyAppearanceCss(state = {}) {
         '.vliq-panel-island.vliq-panel-island-inactive');
     return all.join(',\n') + ' {\n' +
         '  background-color: ' + fill + ' !important;\n' +
-        '  background-image: none !important;\n' +
+        grain +
         '  border: 0 !important;\n' +
         '  box-shadow: ' + rim + ' !important;\n' +
         '}\n' + inactive.join(',\n') + ' {\n' +
@@ -574,6 +612,8 @@ export class LiquidGlassIntegration {
         this._desktopAccentChangedId = 0;
         this._desktopColorSchemeChangedId = 0;
         this._cardCssFile = null;
+        this._cardGrainFile = null;
+        this._cardGrainStrength = -1;
         this._cardCssSignature = '';
         this._cardCssCounter = 0;
         this._notificationGlassManager = null;
@@ -1676,6 +1716,7 @@ export class LiquidGlassIntegration {
                 milkyOpacity: 0.24,
                 milkyBorder: 0.20,
                 milkyWhiteness: 0,
+                milkyGrain: 0,
                 opacity: 0,
                 tint: '#ffffff',
                 r: 255,
@@ -1757,7 +1798,8 @@ export class LiquidGlassIntegration {
                 'color-scheme') === 'prefer-dark',
             milkyOpacity: clampNumber(this._vliqSettings.get_int('milky-opacity'), 0, 100) / 100,
             milkyBorder: clampNumber(this._vliqSettings.get_int('milky-border'), 0, 100) / 100,
-            milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), 0, 100) / 100,
+            milkyWhiteness: clampNumber(this._vliqSettings.get_int('milky-whiteness'), -100, 100) / 100,
+            milkyGrain: clampNumber(this._vliqSettings.get_int('milky-grain'), 0, 100) / 100,
             opacity,
             tint,
             r,
@@ -2037,6 +2079,7 @@ export class LiquidGlassIntegration {
                             'milky-opacity',
                             'milky-border',
                             'milky-whiteness',
+                            'milky-grain',
                             'frost-density',
                             'frost-grain',
                             'frost-edge-glow',
@@ -2046,6 +2089,7 @@ export class LiquidGlassIntegration {
                                 'milky-opacity',
                                 'milky-border',
                                 'milky-whiteness',
+                                'milky-grain',
                                 'frost-density',
                                 'frost-grain',
                                 'frost-edge-glow',
