@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Milky Glass replaces the old White Balance slider with a persistent White/Black color switch. Its opacity remains independent (0–100) and its deterministic grain uses **black particles only** in both color modes. No additional shader or animation.
+
 - README contributor entry points now link to the full community and development resources.
 - Reduced recurring Calendar text-contrast screenshot sampling from 3.2 seconds to 12 seconds while preserving the first-open sample and dynamic-backdrop contrast updates.
 
