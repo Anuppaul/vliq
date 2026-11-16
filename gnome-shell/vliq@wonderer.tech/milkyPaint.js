@@ -188,7 +188,7 @@ export class MilkyActorPainter {
     _restore(actor, entry) {
         // Respect external extensions: never overwrite a newer inline style.
         if (actor?.get_style?.() === entry.applied) {
-            try { actor.set_style(entry.original || null); } catch {}
+            try { actor.set_style(entry.original); } catch {}
         }
     }
 
