@@ -6,7 +6,7 @@ const [native, source] = await Promise.all([
     'nativeCssIntegration.js', 'milkyPaint.js',
 ].map(f => readFile(new URL(f, base), 'utf8')));
 const paint = new Function(source.replace(/^export /gm, '') +
-    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg};')();
+    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg, MilkyActorPainter, milkyCardActors};')();
 
 assert.match(native, /_milkySettingsSignal/);
 assert.match(native, /'milky-opacity', 'milky-whiteness'/);
@@ -100,11 +100,13 @@ const body = native.replace(/^import[\s\S]*?;\s*$/gm, '')
     .replace(/^export /gm, '');
 const NativeIntegration = new Function('Gio', 'GLib', 'St', 'Main',
     'TopBarIslands', 'FullscreenPanelChromeGuard', 'milkyPaintTokens',
-    'buildMilkyAppearanceCss', 'buildMilkyGrainSvg', 'global', 'console',
+    'buildMilkyAppearanceCss', 'buildMilkyGrainSvg',
+    'MilkyActorPainter', 'milkyCardActors', 'global', 'console',
     body + '\nreturn NativeCssIntegration;')(
     Gio, GLib, St, Main, TopBar, Guard, paint.milkyPaintTokens,
     paint.buildMilkyAppearanceCss, paint.buildMilkyGrainSvg,
-    {stage: {}, display: {}}, {warn() {}}
+    paint.MilkyActorPainter, paint.milkyCardActors,
+    {stage: {}, display: {}}, {warn() {}, log() {}}
 );
 const backend = new NativeIntegration({vliqSettings: settings});
 backend.enable();
