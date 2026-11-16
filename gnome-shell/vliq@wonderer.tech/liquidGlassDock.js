@@ -44,7 +44,8 @@ import {
     applyVLIQGlassRole,
 } from './glassMaterialSystem.js';
 import {
-    buildMilkyAppearanceCss, MilkyActorPainter, milkyCardActors,
+    milkyPaintTokens, buildMilkyAppearanceCss,
+    MilkyActorPainter, milkyCardActors,
 } from './milkyPaint.js';
 import {PanelGlassSurface} from './panelGlass.js';
 import {TopBarIslands} from './topBarIslands.js';
@@ -87,7 +88,7 @@ const DOCK_PANEL_GLASS_STYLE =
 // An explicit inline native Dock fallback is needed even when the GNOME
 // theme has a higher-priority rule for the sibling .dash-background.
 const DOCK_PANEL_MILKY_STYLE =
-    'background-color: rgba(245,249,255,0.24); ' +
+    'background-color: rgba(245,249,255,0.920); ' +
     'background-image: none; ' +
     'border-color: transparent; ' +
     'border-radius: 0px; ' +
@@ -1785,11 +1786,10 @@ export class LiquidGlassIntegration {
             try {
                 if (enabled) {
                     state.bgActor?.hide?.();
-                    if (state.bgActor)
-                        state.bgActor.opacity = 0;
                     state.targetBox?.add_style_class_name?.('vliq-milky-osd');
                 } else {
                     state.targetBox?.remove_style_class_name?.('vliq-milky-osd');
+                    state.bgActor?.show?.();
                 }
             } catch {}
         }
@@ -1816,9 +1816,9 @@ export class LiquidGlassIntegration {
     }
 
     _syncMilkyAppearanceClass(enabled) {
-        // Milky is limited to headers and native Date/Quick popups.
-        // Never turn the vendor OSD into a Milky card.
-        this._milkyModeActive = false;
+        // Milky reuses all Liquid surfaces. The native OSD now gets the
+        // same white card without a second shader or compositor capture.
+        this._milkyModeActive = enabled;
         const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
         if (uiGroup) {
             if (enabled)
@@ -1826,7 +1826,7 @@ export class LiquidGlassIntegration {
             else
                 uiGroup.remove_style_class_name?.('vliq-global-milky');
         }
-        this._syncMilkyOsdMaterial(false);
+        this._syncMilkyOsdMaterial(enabled);
     }
 
     _syncMilkyNativeActors(state) {
@@ -4798,11 +4798,14 @@ export class LiquidGlassIntegration {
             actor.style ??
             '';
 
-        // Floating Ubuntu Dock retains its original VLIQ/native backdrop;
-        // fixed Milky is reserved for the GNOME header/taskbar only.
-        const desired = entry.panelLiquidReady
-            ? DOCK_PANEL_GLASS_STYLE
-            : DOCK_PANEL_PREMIUM_STYLE;
+        // Same surfaces as Liquid: Dock background is Milky White,
+        // but the GNOME Full/3-Part/Bottom Header stays pure black 60%.
+        const desired =
+            this._vliqSettings?.get_string?.('glass-style') === 'milky'
+                ? DOCK_PANEL_MILKY_STYLE
+                : (entry.panelLiquidReady
+                    ? DOCK_PANEL_GLASS_STYLE
+                    : DOCK_PANEL_PREMIUM_STYLE);
         if (current === desired)
             return;
 
