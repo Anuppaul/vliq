@@ -6,6 +6,7 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 import {
     milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg,
+    MilkyActorPainter, milkyCardActors,
 } from './milkyPaint.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -31,6 +32,8 @@ export class NativeCssIntegration {
         this._milkyGrainStrength = -1;
         this._milkyFileSequence = 0;
         this._isMilky = false;
+        this._milkyActorPainter = new MilkyActorPainter();
+        this._milkyPaintStatus = '';
         this._host = null;
         this._enabled = false;
         this._launcher = null;
@@ -143,6 +146,22 @@ export class NativeCssIntegration {
             'background-image: none !important;}\n';
     }
 
+    _syncMilkyNativeActors(state) {
+        const actors = state?.milky
+            ? milkyCardActors(Main.panel, this._topPanelIslands, state)
+            : [];
+        this._milkyActorPainter.sync(actors, state);
+        const marker = state?.milky
+            ? [state.milkyOpacity, state.milkyWhiteness,
+                state.milkyBorder, state.milkyGrain].join('/')
+            : 'off';
+        if (marker !== this._milkyPaintStatus) {
+            this._milkyPaintStatus = marker;
+            console.log('[VLIQ][Milky] Native CSS direct actors=' +
+                actors.length + ' values=' + marker);
+        }
+    }
+
     _refreshMilkyAppearance() {
         if (!this._enabled)
             return;
@@ -152,8 +171,9 @@ export class NativeCssIntegration {
             this._host?.add_style_class_name?.('vliq-global-milky');
         else
             this._host?.remove_style_class_name?.('vliq-global-milky');
-        // Update only the panel's existing CSS-only material; never allocate
-        // shader or capture actors on this backend.
+        // Direct St.Widget styling remains functional even if an optional
+        // theme stylesheet or grain image fails to load.
+        this._syncMilkyNativeActors(state);
         this._topPanelIslands?.updateAppearance?.();
 
         if (!state.milky) {
@@ -290,12 +310,15 @@ export class NativeCssIntegration {
                 getDockEntries: () => this._dockEntries(),
                 onLauncherClick: this._launcher,
                 readAppearance: () => this._readMilkyAppearance(),
+                onLayoutChanged: () => this._syncMilkyNativeActors(
+                    this._readMilkyAppearance()),
             });
             if (!panel.setup()) {
                 panel.cleanup();
                 return;
             }
             this._topPanelIslands = panel;
+            this._syncMilkyNativeActors(this._readMilkyAppearance());
             this._fullscreenGuard = new FullscreenPanelChromeGuard({
                 layout: Main.layoutManager,
                 display: global.display,
@@ -356,6 +379,7 @@ export class NativeCssIntegration {
             catch {}
         }
         this._milkySettingsSignal = 0;
+        this._milkyActorPainter.clear();
         this._cleanupMilkyStylesheet();
         this._host?.remove_style_class_name?.('vliq-global-milky');
         this._host?.remove_style_class_name?.('vliq-native-css-dark');
