@@ -30,7 +30,7 @@ for (const id of ['panelLeft', 'panelCenter', 'panelRight']) {
     assert.match(declarations(ready), /background-color: transparent !important/,
         'Liquid/Frosted material is the only ready painter');
     const milkyBody = declarations(milky);
-    assert.match(milkyBody, /rgba\(29,31,35,0\.60\)/,
+    assert.match(milkyBody, /rgba\(0,0,0,0\.60\)/,
         'fixed Milky header must be black at 60% opacity');
     assert.match(milkyBody, /box-shadow: none !important/);
     assert.match(milkyBody, /border-radius: 16px/);
