@@ -203,9 +203,9 @@ function buildMilkyGrainSvg(intensity) {
 
 function milkyGrainCss(uri) {
     return uri
-        ? '  background-image: url("' + uri + '") !important;\\n' +
-            '  background-repeat: repeat !important;\\n'
-        : '  background-image: none !important;\\n';
+        ? '  background-image: url("' + uri + '") !important;\n' +
+            '  background-repeat: repeat !important;\n'
+        : '  background-image: none !important;\n';
 }
 
 function buildMilkyAppearanceCss(state = {}, grainUri = '') {
@@ -2160,7 +2160,7 @@ export class LiquidGlassIntegration {
             .get_theme();
     }
 
-    _unloadCardAppearanceStylesheet() {
+    _unloadCardAppearanceStylesheet(preserveGrain = false) {
         if (!this._cardCssFile)
             return;
 
@@ -2183,6 +2183,11 @@ export class LiquidGlassIntegration {
 
         this._cardCssFile = null;
         this._cardCssSignature = '';
+        if (!preserveGrain) {
+            try { this._cardGrainFile?.delete?.(null); } catch {}
+            this._cardGrainFile = null;
+            this._cardGrainStrength = -1;
+        }
     }
 
     _applyCardAppearanceStylesheet(
@@ -2201,6 +2206,39 @@ export class LiquidGlassIntegration {
             filterOpacity * 0.6
         );
 
+        // Prepare the grain image only when its slider changes. A fixed
+        // CSS tile is much cheaper than a continuously running GPU shader.
+        // Keep the previous texture until the replacement stylesheet loads.
+        const dir = GLib.build_filenamev([
+            GLib.get_user_cache_dir(),
+            'vliq@wonderer.tech',
+            'card-appearance',
+        ]);
+        const grainStrength = state.milky
+            ? Math.round(clampNumber(state.milkyGrain ?? 0, 0, 1) * 100)
+            : 0;
+        let grainFile = grainStrength > 0 &&
+            grainStrength === this._cardGrainStrength
+            ? this._cardGrainFile : null;
+        let newGrainCreated = false;
+        if (grainStrength > 0 && !grainFile) {
+            try {
+                GLib.mkdir_with_parents(dir, 0o755);
+                const grainPath = GLib.build_filenamev([
+                    dir, 'grain-' + Date.now() + '-' +
+                        this._cardCssCounter++ + '.svg',
+                ]);
+                GLib.file_set_contents(grainPath,
+                    buildMilkyGrainSvg(grainStrength / 100));
+                grainFile = Gio.File.new_for_path(grainPath);
+                newGrainCreated = true;
+            } catch (error) {
+                grainFile = null;
+                console.warn('[VLIQ][Milky] grain texture unavailable: ' +
+                    error);
+            }
+        }
+        const grainUri = grainFile?.get_uri?.() ?? '';
         const systemAccent =
             this._readSystemAccentColor();
         const accentColor = systemAccent.color;
@@ -2286,12 +2324,14 @@ export class LiquidGlassIntegration {
             '  background-image: none !important;\n' +
             '  box-shadow: none !important;\n' +
             '}\n' +
-            buildMilkyAppearanceCss(state);
+            buildMilkyAppearanceCss(state, grainUri);
 
         if (
             this._cardCssFile &&
             this._cardCssSignature === css
         ) {
+            if (newGrainCreated)
+                try { grainFile?.delete?.(null); } catch {}
             return;
         }
 
@@ -2311,7 +2351,14 @@ export class LiquidGlassIntegration {
             '.css',
         ]);
 
-        GLib.file_set_contents(path, css);
+        try {
+            GLib.file_set_contents(path, css);
+        } catch (error) {
+            if (newGrainCreated)
+                try { grainFile?.delete?.(null); } catch {}
+            console.warn('[VLIQ][Milky] failed writing CSS: ' + error);
+            return;
+        }
 
         // Load FIRST. An invalid/missing St CSS selector must never destroy
         // the last successfully loaded Appearance stylesheet. A theme
@@ -2321,13 +2368,19 @@ export class LiquidGlassIntegration {
             this._getShellTheme().load_stylesheet(file);
         } catch (error) {
             try { file.delete(null); } catch {}
+            if (newGrainCreated)
+                try { grainFile?.delete?.(null); } catch {}
             console.warn(
                 '[VLIQ][Milky] Appearance stylesheet rejected: ' + error
             );
             return;
         }
-        this._unloadCardAppearanceStylesheet();
+        // Preserve the tile when only density/white balance changed.
+        this._unloadCardAppearanceStylesheet(
+            grainFile !== null && grainFile === this._cardGrainFile);
         this._cardCssFile = file;
+        this._cardGrainFile = grainFile;
+        this._cardGrainStrength = grainStrength;
         this._cardCssSignature = css;
 
         Main.messageTray?._banner?.queue_redraw?.();
