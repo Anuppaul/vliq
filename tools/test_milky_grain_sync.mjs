@@ -11,7 +11,7 @@ const [dock, prefs, schema] = await Promise.all([
 assert.match(schema, /name="milky-grain" type="i">[\s\S]*?<default>28<\/default>/);
 assert.match(schema, /name="milky-whiteness" type="i">[\s\S]*?<range min="-100" max="100"\/>/);
 assert.match(prefs, /settings, 'milky-grain',[\s\S]*?'Micro-grain'/);
-assert.match(prefs, /settings, 'milky-whiteness',[\s\S]*?'White balance'/);
+assert.match(prefs, /settings, 'milky-whiteness',[\s\S]*?'White Balance'/);
 assert.match(prefs, /-100, 100, 1\);/);
 assert.match(dock, /'milky-grain',[\s\S]*?'frost-density'/,
     'grain changes must trigger live appearance refresh');
