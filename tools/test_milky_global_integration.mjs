@@ -43,14 +43,15 @@ const host = {
     remove_style_class_name(v) {classes.delete(v);},
 };
 const syncClass = method(dock, '_syncMilkyAppearanceClass(enabled) {',
-    '_applySharedCardAppearance()', '_syncMilkyAppearanceClass',
+    '_syncMilkyNativeActors(state) {', '_syncMilkyAppearanceClass',
     {Main: {layoutManager: {uiGroup: host}}});
 const classHost = {_syncMilkyOsdMaterial() {}};
 syncClass.call(classHost, true);
 assert.ok(classes.has('vliq-global-milky'));
 syncClass.call(classHost, false);
 assert.ok(!classes.has('vliq-global-milky'));
-assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._syncMilkyAppearanceClass\(false\)/);
+assert.match(dock, /_cleanupSharedCardAppearanceSync\(\)\s*\{\s*this\._milkyActorPainter\?\.clear\(\);\s*this\._syncMilkyAppearanceClass\(false\)/,
+    'Milky inline styles must be restored before releasing the global material class');
 
 // Header panels must hide their shader actor and restore the actual
 // pre-Milky paint opacity (not 255) when switching back.
