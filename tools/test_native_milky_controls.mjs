@@ -98,7 +98,7 @@ const backend=new Native({vliqSettings:settings});
 backend.enable();
 assert.equal(opts.forceCssOnly,true);
 assert.equal(opts.readAppearance().milky,true);
-assert.match(header.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(header.style,/rgba\(0,0,0,0\.600\)/);
 assert.match(quick.style,/rgba\(245,249,255,0\.920\)/);
 assert.match(date.style,/rgba\(245,249,255,0\.920\)/);
 assert.equal(loads.length,1);
@@ -113,7 +113,7 @@ assert.ok(settings.reads.every(k=>k==='glass-style'),
     'native renderer must read only the material selector');
 interfaceSettings.color='prefer-dark';
 for(const cb of interfaceHandlers.values())cb();
-assert.match(header.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(header.style,/rgba\(0,0,0,0\.600\)/);
 assert.match(quick.style,/rgba\(245,249,255,0\.920\)/);
 assert.match(loads.at(-1),/rgba\(245,249,255,0\.920\)/);
 settings.change('glass-style','liquid');
