@@ -51,7 +51,7 @@ const host={
 const state={milky:true,filterOpacity:.05};
 apply.call(host,state);
 const first=host._cardCssSignature,firstFile=host._cardCssFile.path;
-assert.match(first,/rgba\(29,31,35,0\.600\)/);
+assert.match(first,/rgba\(0,0,0,0\.600\)/);
 assert.match(first,/rgba\(245,249,255,0\.920\)/);
 assert.match(first,/vliq-global-milky #panel\.vliq-three-islands/);
 assert.match(first,/vliq-global-milky .popup-menu-content.quick-settings/);
