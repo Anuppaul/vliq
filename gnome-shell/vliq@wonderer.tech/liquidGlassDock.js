@@ -4951,8 +4951,14 @@ export class LiquidGlassIntegration {
                 ? (() => {
                     const tokens = milkyPaintTokens(
                         this._readSharedCardAppearance());
+                    const grainUri = this._cardGrainFile?.get_uri?.() ??
+                        '';
+                    const image = grainUri
+                        ? 'background-image: url("' + grainUri +
+                            '"); background-repeat: repeat; '
+                        : 'background-image: none; ';
                     return 'background-color: ' + tokens.fill + '; ' +
-                        'background-image: none; border-color: transparent; ' +
+                        image + 'border-color: transparent; ' +
                         'border-radius: 0px; box-shadow: ' + tokens.rim + ';';
                 })()
                 : (entry.panelLiquidReady
