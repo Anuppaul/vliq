@@ -27,7 +27,7 @@ panel.statusArea={quickSettings:{menu:{box:quick}},dateMenu:{menu:{box:date}}};
 const painter=new MilkyActorPainter(),selected={milky:true},layout={_layoutMode:'bottom'};
 const paint=state=>painter.sync(milkyCardActors(panel,layout,state),state);
 paint(selected);
-assert.match(panel.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(panel.style,/rgba\(0,0,0,0\.600\)/);
 assert.match(quick.style,/rgba\(245,249,255,0\.920\)/);
 assert.match(date.style,/rgba\(245,249,255,0\.920\)/);
 assert.match(quick.style,/rgba\(255,255,255,0\.200\)/);
@@ -40,14 +40,14 @@ assert.equal(panel.writes,before,
 
 layout._layoutMode='split';paint(selected);
 assert.equal(panel.style,'height:36px;');
-assert.match(left.style,/rgba\(29,31,35,0\.600\)/);
-assert.match(right.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(left.style,/rgba\(0,0,0,0\.600\)/);
+assert.match(right.style,/rgba\(0,0,0,0\.600\)/);
 assert.equal(center.style,'');
 layout._layoutMode='full';paint(selected);
-assert.match(panel.style,/rgba\(29,31,35,0\.600\)/);
+assert.match(panel.style,/rgba\(0,0,0,0\.600\)/);
 assert.equal(left.style,'');assert.equal(right.style,'');
 layout._layoutMode='bottom';paint({...selected,systemDarkTaskbar:true});
-assert.match(panel.style,/rgba\(29,31,35,0\.600\)/,
+assert.match(panel.style,/rgba\(0,0,0,0\.600\)/,
     'native Dark Style must not override fixed Black 60%');
 assert.match(quick.style,/rgba\(245,249,255,0\.920\)/,
     'Quick/Calendar remain Milky White in Dark Style');
@@ -62,6 +62,6 @@ painter.clear();
 assert.equal(quick.style,'background-color: orange;',
     'newer third-party style owners are never overwritten by cleanup');
 assert.equal(panel.style,'height:36px;');
-assert.match(milkyInlineStyle({},'header'),/rgba\(29,31,35,0\.600\)/);
+assert.match(milkyInlineStyle({},'header'),/rgba\(0,0,0,0\.600\)/);
 assert.match(milkyInlineStyle({},'popup'),/rgba\(245,249,255,0\.920\)/);
 console.log('Fixed Milky native actor paint: roles, header mode transitions, Dark Style and reversible originals PASS.');
