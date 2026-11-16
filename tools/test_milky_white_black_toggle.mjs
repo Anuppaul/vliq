@@ -63,4 +63,26 @@ assert.match(buildMilkyAppearanceCss(
     'file:///grain.svg'), /background-image: url\("file:\/\/\/grain.svg"\)/,
     'dark material retains black texture on charcoal substrate');
 
+// The more-specific GNOME Dark Style rule must not mask the selected Milky
+// color in the Native CSS fallback; only Bottom Taskbar remains dark.
+const begin=native.indexOf("    _milkyCss(state, grainUri = '') {");
+const end=native.indexOf('\n    _syncMilkyNativeActors(state) {',begin);
+assert.ok(begin>0&&end>begin);
+const render=new Function('milkyPaintTokens','buildMilkyAppearanceCss',
+    'return ({'+native.slice(begin,end)+'})._milkyCss;')(
+    milkyPaintTokens,buildMilkyAppearanceCss);
+for(const milkyBlack of [false,true]) {
+    const css=render.call({},{
+        milky:true,milkyBlack,milkyOpacity:.47,milkyBorder:.26,
+    });
+    const fill=milkyBlack?'rgba(29,31,35,0.470)':'rgba(255,255,255,0.470)';
+    const darkRule=css.match(
+        /\.vliq-native-css\.vliq-global-milky\.vliq-native-css-dark\s+\.popup-menu-content\s*\{([^}]*)\}/)?.[1];
+    assert.ok(darkRule);
+    assert.ok(darkRule.includes('background-color: '+fill+' !important;'),
+        'native Dark Style must respect White/Black selection');
+    assert.match(css, /vliq-bottom-taskbar\.vliq-system-dark-taskbar\s*\{[^}]*rgba\(29,31,35,0\.98\)/,
+        'Bottom Taskbar stays dark when GNOME native Dark Style is on');
+}
+
 console.log('Milky material toggle: White/Black live settings, retained opacity, static black-only grain PASS.');
