@@ -296,16 +296,16 @@ export default class VLIQPreferences extends ExtensionPreferences {
         });
         appearancePage.add(milky);
         addIntSpin(milky, settings, 'milky-opacity',
-            'Milky density',
-            'How visible the milky-white surface is (0 = invisible, 100 = solid).',
+            'Milky Opacity',
+            'Base card opacity: 0 = transparent, 100 = opaque. Increasing White Balance above 0 gradually raises white coverage.',
             0, 100, 1);
         addIntSpin(milky, settings, 'milky-border',
             'Edge highlight',
             'Strength of the thin white inner rim (0 = none).',
             0, 100, 1);
         addIntSpin(milky, settings, 'milky-whiteness',
-            'White balance',
-            '-100 = light gray, 0 = original cool white, +100 = pure white. Independent of Milky density.',
+            'White Balance',
+            '-100 = light gray at selected opacity; 0 = original cool white; +100 = solid pure white (overrides opacity and grain).',
             -100, 100, 1);
         addIntSpin(milky, settings, 'milky-grain',
             'Micro-grain',
