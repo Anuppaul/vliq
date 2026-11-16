@@ -4,13 +4,13 @@ import {readFile} from 'node:fs/promises';
 const root = new URL('../gnome-shell/vliq@wonderer.tech/', import.meta.url);
 const read = name => readFile(new URL(name, root), 'utf8');
 const [native, runtime, topbar, panel, css, schema, prefs, installer,
-    distEffect, sourceEffect, release] = await Promise.all([
+    distEffect, sourceEffect, release, milkyPaint] = await Promise.all([
     'nativeCssIntegration.js', 'orbThemeRuntime.js', 'topBarIslands.js',
     'panelGlass.js', 'runtime.css',
     'schemas/org.gnome.shell.extensions.vliq.gschema.xml', 'prefs.js',
     '../install.sh', 'vendor/liquid-glass/dist/liquidEffect.js',
     'vendor/liquid-glass/src/liquidEffect.ts',
-    '../../tools/build_ego_release.py',
+    '../../tools/build_ego_release.py', 'milkyPaint.js',
 ].map(read));
 
 // Native mode must not depend on vendor imports, GLSL or framebuffer effects.
@@ -81,11 +81,16 @@ class MockGuard {
     setup() {guards++;}
     cleanup() {guards--;}
 }
+const {MilkyActorPainter, milkyCardActors} =
+    new Function(milkyPaint.replace(/^export /gm, '') +
+        '\nreturn {MilkyActorPainter, milkyCardActors};')();
 const NativeIntegration = new Function('Gio', 'Main', 'TopBarIslands',
-    'FullscreenPanelChromeGuard', 'global', nativeClass +
+    'FullscreenPanelChromeGuard', 'global', 'MilkyActorPainter',
+    'milkyCardActors', nativeClass +
     '\nreturn NativeCssIntegration;')(
     {Settings: class {constructor() {return interfaceSettings;}}},
-    nativeMain, MockTopBar, MockGuard, {display: {}}
+    nativeMain, MockTopBar, MockGuard, {display: {}},
+    MilkyActorPainter, milkyCardActors
 );
 const nativeBackend = new NativeIntegration({vliqSettings: {}});
 nativeBackend.enable();

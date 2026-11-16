@@ -45,6 +45,7 @@ jobs:
           node tools/test_quick_brightness.mjs
           node tools/test_native_css_renderer.mjs
           node tools/test_native_milky_controls.mjs
+          node tools/test_milky_actor_paint.mjs
           node tools/test_fullscreen_panel_guard.mjs
           node tools/test_wallpaper_atmosphere.mjs
           node tools/test_wallpaper_atmosphere_ui.mjs

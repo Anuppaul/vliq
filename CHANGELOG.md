@@ -29,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Milky Glass now updates real GNOME native `St.Widget` inline materials (Bottom/Full Header, active 3-Part islands, Calendar and Quick Settings), independent of dynamic stylesheet reload ordering. Preserve original inline styles and restore them on renderer/material/layout changes; keep GNOME Dark Style's Bottom Taskbar behavior unchanged.
+
 - Native CSS renderer now observes Milky appearance GSettings, regenerates scoped native card styling on changes to Opacity, White Balance, Edge Highlight and Micro-grain, and cleans up its theme handlers/resources on exit. The GPU-backed renderer uses the same pure paint helpers. A failed optional grain image no longer blocks all color controls.
 - Milky Glass now displays the existing `milky-opacity` setting as **Milky Opacity**. Positive White Balance smoothly increases white coverage; +100 produces truly opaque #FFFFFF (and suppresses grain), rather than translucent white over the wallpaper.
 - Dynamic Milky header selectors now match the runtime stylesheet's specificity so Full Header and Bottom Taskbar honor the live white-balance/opacity values.

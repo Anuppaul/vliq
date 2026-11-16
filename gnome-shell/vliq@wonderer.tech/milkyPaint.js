@@ -130,3 +130,109 @@ export function buildMilkyAppearanceCss(state = {}, grainUri = '') {
         '}\n';
 }
 
+
+
+// A GSettings update must reach the actual GNOME St.Widget paint owner.
+// St.Widget.set_style() overrides theme stylesheets and triggers style_changed;
+// using it for the three material properties avoids relying on a successful
+// dynamic St.Theme.load_stylesheet() or stylesheet ordering.
+export function milkyInlineStyle(state = {}) {
+    const {fill, rim} = milkyPaintTokens(state);
+    // Do not override background-image: the static grain texture is owned by
+    // the existing CSS pipeline and can fail without blocking color/rim.
+    return 'background-color: ' + fill + ' !important; ' +
+        'box-shadow: ' + rim + ' !important;';
+}
+
+// Return the visible GNOME native paint owners, never child input controls.
+// Bottom Taskbar system Dark Style remains the sole owner of its background.
+export function milkyCardActors(panel, islands, state = {}) {
+    const result = [];
+    if (!panel)
+        return result;
+    const add = actor => {
+        if (actor && !result.includes(actor))
+            result.push(actor);
+    };
+    add(panel.statusArea?.quickSettings?.menu?.box);
+    add(panel.statusArea?.dateMenu?.menu?.box);
+
+    const mode = islands?._layoutMode ??
+        (panel.has_style_class_name?.('vliq-bottom-taskbar')
+            ? 'bottom'
+            : panel.has_style_class_name?.('vliq-three-islands')
+                ? 'split' : 'full');
+
+    if (mode === 'full' ||
+        (mode === 'bottom' && !state.systemDarkTaskbar))
+        add(panel);
+    else if (mode === 'split') {
+        for (const actor of [
+            panel._leftBox, panel._centerBox, panel._rightBox,
+        ]) {
+            if (actor?.has_style_class_name?.('vliq-panel-island') &&
+                !actor?.has_style_class_name?.('vliq-panel-island-inactive'))
+                add(actor);
+        }
+    }
+    return result;
+}
+
+export class MilkyActorPainter {
+    constructor() {
+        // Strong references exist only while Milky mode is active. sync([])
+        // and clear() release every actor; no per-frame signal or timer.
+        this._entries = new Map();
+    }
+
+    _restore(actor, entry) {
+        // Respect external extensions: never overwrite a newer inline style.
+        if (actor?.get_style?.() === entry.applied) {
+            try { actor.set_style(entry.original); } catch {}
+        }
+    }
+
+    sync(actors = [], state = {}) {
+        const enabled = state.milky === true;
+        const allowed = new Set(enabled ? actors : []);
+        for (const [actor, entry] of this._entries) {
+            if (allowed.has(actor))
+                continue;
+            this._restore(actor, entry);
+            this._entries.delete(actor);
+        }
+        if (!enabled)
+            return;
+        const paint = milkyInlineStyle(state);
+        for (const actor of allowed) {
+            if (typeof actor?.set_style !== 'function' ||
+                typeof actor?.get_style !== 'function')
+                continue;
+            try {
+                const current = actor.get_style() ?? '';
+                let entry = this._entries.get(actor);
+                if (!entry) {
+                    entry = {original: current, applied: null};
+                    this._entries.set(actor, entry);
+                } else if (current !== entry.applied) {
+                    // Another owner modified the widget while Milky was
+                    // enabled. Rebase on their style rather than erasing it.
+                    entry.original = current;
+                }
+                const base = entry.original?.trim() ?? '';
+                const next = (base ? base + ' ' : '') + paint;
+                if (current !== next)
+                    actor.set_style(next);
+                entry.applied = next;
+            } catch (error) {
+                // A destroyed/unrealized actor should not break all other
+                // cards or leave a strong reference in the registry.
+                this._entries.delete(actor);
+            }
+        }
+    }
+
+    clear() {
+        this.sync([], {milky: false});
+    }
+}
