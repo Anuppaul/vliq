@@ -156,11 +156,17 @@ const liveCss = host._cardCssSignature;
 theme.rejectNext = true;
 state.milkyGrain = 0.95;
 apply();
-assert.equal(host._cardGrainFile, liveGrain,
-    'failed style replacement retains previous grain');
-assert.equal(host._cardCssSignature, liveCss);
-assert.equal(svgWrites().length, 1,
-    'failed replacement must not leak temporary grain files');
+assert.equal(host._cardGrainFile, null,
+    'on optional SVG rejection native color/opacity/edge CSS must survive');
+assert.notEqual(host._cardCssSignature, liveCss,
+    'grain load failure must not roll back the new Milky appearance');
+assert.match(host._cardCssSignature,
+    /background-image: none !important/,
+    'GNOME fallback removes only optional noise texture');
+assert.equal(svgWrites().length, 0,
+    'rejected new and old grain textures must be released');
+assert.ok(removed.includes(liveGrain.path),
+    'old grain texture must be released when fallback drops grain');
 state.milkyGrain = 0;
 apply();
 assert.equal(host._cardGrainFile, null);
