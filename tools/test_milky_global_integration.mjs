@@ -137,7 +137,7 @@ for (const cls of [
     '.vliq-milky-osd',
 ]) assert.ok(!css.includes('.vliq-global-milky ' + cls),
     'Milky must not recolor unrelated GNOME surface: ' + cls);
-assert.match(css, /rgba\(29,31,35,0\.60\) !important/);
+assert.match(css, /rgba\(0,0,0,0\.60\) !important/);
 assert.match(css, /rgba\(245,249,255,0\.92\) !important/);
 assert.match(dock, /buildMilkyAppearanceCss\(state\)/,
     'fixed header/menus reach GNOME native stylesheet without grain');
