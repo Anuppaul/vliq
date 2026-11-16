@@ -34,8 +34,8 @@ const manager = {
 const Main = {panel: {statusArea: {quickSettings: {menu: quickMenu}}}};
 const BoxPointer = {PopupAnimation: {FADE: Symbol('fade')}};
 const patched = new Function('manager', 'Main', 'BoxPointer',
-    openBlock + '\nreturn manager._patchedOpen;')(
-    manager, Main, BoxPointer);
+    openBlock + '\nreturn this._patchedOpen;').call(
+    manager, manager, Main, BoxPointer);
 patched.call(quickMenu, 'clicked');
 assert.deepEqual(events, ['GNOME-native-open', 'idle-material-attach'],
     'first click opens GNOME now and defers costly shader/material setup');
