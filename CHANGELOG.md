@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Adjustable Milky Glass Micro-grain using a static, repeatable native CSS noise tile (no added shader, animation or frame loop).\n- Independent Milky White Balance slider from −100 (cool light gray) through 0 (original white) to +100 (pure white); density and Frosted/Liquid optics remain independent.\n
+- Adjustable Milky Glass Micro-grain using a static, repeatable native CSS noise tile (no added shader, animation or frame loop).
+- Independent Milky White Balance slider from −100 (cool light gray) through 0 (original white) to +100 (pure white); density and Frosted/Liquid optics remain independent.
 - Automatic GPU-renderer failure recovery and an explicit shader-independent Native CSS backend, selectable in Performance settings, with native Full/3-Part/Bottom layouts and per-session status reporting.
 - Native CSS backend preserves the selected material preference and cleans up its GNOME actors/signals when switching back to GPU rendering.
 - Contributor guide, contributor map and local development guide.
