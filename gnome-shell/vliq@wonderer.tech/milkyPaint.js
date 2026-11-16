@@ -40,6 +40,12 @@ export function buildMilkyAppearanceCss(state = {}) {
         '.vliq-global-milky .vliq-liquid-popup-content.datemenu-popover',
         '.vliq-global-milky .popup-menu-content.quick-settings',
         '.vliq-global-milky .popup-menu-content.datemenu-popover',
+        // GNOME puts arrow-expanded Wired/Wi-Fi/Bluetooth/Power menus in
+        // QuickSettingsMenu._overlay, a sibling of menu.box. Give the
+        // actual quick-toggle-menu backplate the same fixed 92% white
+        // without painting a second overlay container.
+        '.vliq-global-milky .quick-toggle-menu',
+        '.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu',
     ];
     const inactive=['panelLeft','panelCenter','panelRight'].map(id =>
         '.vliq-global-milky #panel.vliq-three-islands #' + id +

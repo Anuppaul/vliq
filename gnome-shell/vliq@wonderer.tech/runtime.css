@@ -2216,6 +2216,48 @@
     color: #20252e !important;
 }
 
+/* Fixed Milky expanded Quick Settings menus.
+ * GNOME 50 creates Wired/Wi-Fi/Bluetooth/Power arrow-opened menus in a
+ * sibling QuickSettingsMenu._overlay, outside menu.box.quick-settings.
+ * The .quick-toggle-menu is the ONE visible paint owner: match the outer
+ * Quick Settings card's exact 92% opacity. Do not stack another 92% layer
+ * on the surrounding quick-toggle-menu-container or on option rows. */
+.vliq-global-milky .quick-toggle-menu,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu:hover,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu:focus {
+    background-color: rgba(245,249,255,0.920) !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20) !important;
+    color: #20252e !important;
+}
+/* The container only positions/animates the native menu; it must not
+ * introduce a second opaque plate or dark GNOME theme background. */
+.vliq-global-milky .quick-toggle-menu-container,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* A previous contrast sample may mark expanded cards as light-on-dark.
+ * Fixed Milky uses dark foreground, regardless of the wallpaper sample. */
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu StLabel,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu StIcon,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-inactive-menu-item,
+.vliq-native-css.vliq-global-milky .quick-toggle-menu StLabel,
+.vliq-native-css.vliq-global-milky .quick-toggle-menu StIcon {
+    color: #20252e !important;
+}
+/* Preserve GNOME's active/accent identification, list focus and click flow. */
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .vliq-quick-active StLabel,
+.vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .vliq-quick-active StIcon {
+    color: -st-accent-color !important;
+}
+
 /* VLIQ app icon consistency -----------------------------------------------
  * Same exact Bottom Taskbar hover/pressed material everywhere:
  * - Ubuntu Dock floating and extended/panel modes
