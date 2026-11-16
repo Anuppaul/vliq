@@ -168,8 +168,16 @@ function milkyPaintTokens(state = {}) {
             ? channel + ([200, 205, 213][index] - channel) * -white
             : channel + (255 - channel) * white
     ));
+    // White Balance is a *visible coverage* control at positive values.
+    // Previously RGB reached #fff at +100 but retained Milky Opacity's
+    // default 24% alpha, so a dark wallpaper still looked gray. Blend up
+    // the alpha continuously: 0 = chosen opacity; +100 = solid #ffffff.
+    // Negative White Balance leaves user-set opacity unchanged.
+    const coverage = Math.max(0, white);
+    const effectiveOpacity = opacity + (1 - opacity) * coverage;
     return {
-        fill: 'rgba(' + rgb.join(',') + ',' + opacity.toFixed(3) + ')',
+        fill: 'rgba(' + rgb.join(',') + ',' +
+            effectiveOpacity.toFixed(3) + ')',
         rim: border <= 0 ? 'none' :
             'inset 0 0 0 1px rgba(255,255,255,' +
                 border.toFixed(3) + ')',
@@ -214,15 +222,26 @@ function buildMilkyAppearanceCss(state = {}, grainUri = '') {
     if (!state.milky)
         return '';
     const {fill, rim} = milkyPaintTokens(state);
-    const grain = milkyGrainCss(grainUri);
+    // At +100 the entire card must be flat, solid #FFFFFF. A residual
+    // dark grain image would otherwise break the full-white guarantee.
+    const grain = milkyGrainCss(
+        clampNumber(state.milkyWhiteness ?? 0, -1, 1) >= 1
+            ? '' : grainUri
+    );
     const roots = [
         // St.Theme is NOT a browser CSS engine: do not use :not().
         // Explicitly clear inactive islands after the main Milky paint.
         ...['panelLeft', 'panelCenter', 'panelRight'].map(id =>
             '.vliq-global-milky #panel.vliq-three-islands #' + id +
             '.vliq-panel-island'),
-        '#panel.vliq-liquid-top-panel.vliq-full-header',
-        '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
+        // Match static global-Milky selectors *including ready classes*.
+        // Otherwise runtime.css has higher specificity and its 24%-alpha
+        // white wins even after the live dynamic stylesheet loads.
+        '.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header',
+        '.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready',
+        '.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
+        '.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready',
+        '.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached',
         '.vliq-global-milky .vliq-liquid-popup-content',
         '.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content',
         '.vliq-global-milky .popup-menu-content.datemenu-popover',
@@ -2214,7 +2233,8 @@ export class LiquidGlassIntegration {
             'vliq@wonderer.tech',
             'card-appearance',
         ]);
-        const grainStrength = state.milky
+        const grainStrength = state.milky &&
+            clampNumber(state.milkyWhiteness ?? 0, -1, 1) < 1
             ? Math.round(clampNumber(state.milkyGrain ?? 0, 0, 1) * 100)
             : 0;
         let grainFile = grainStrength > 0 &&
