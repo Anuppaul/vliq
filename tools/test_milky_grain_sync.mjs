@@ -74,7 +74,7 @@ const Gio = {File: {new_for_path(path) {
     };
 }}};
 const Main = {messageTray: {_banner: {queue_redraw() {}}}};
-const methodsStart = dock.indexOf('    _unloadCardAppearanceStylesheet() {');
+const methodsStart = dock.indexOf('    _unloadCardAppearanceStylesheet(preserveGrain = false) {');
 const applyStart = dock.indexOf('    _applyCardAppearanceStylesheet(', methodsStart);
 const methodsEnd = dock.indexOf('    isBottomTaskbarActive() {', applyStart);
 assert.ok(methodsStart >= 0 && applyStart > methodsStart &&
