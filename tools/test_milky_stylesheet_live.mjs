@@ -92,8 +92,11 @@ assert.notEqual(host._cardCssSignature, first);
 const preserved = host._cardCssFile;
 const preservedCss = host._cardCssSignature;
 theme.rejectNext = true;
-state.milkyWhiteness = 0.95;
-state.milkyOpacity = 0.99;
+// Force a *different generated CSS*. With +95 white and 99% opacity the
+// rounded RGB/alpha can equal +100 white exactly, so no load is attempted
+// and the one-shot injected error wrongly lands on the next mode switch.
+state.milkyWhiteness = 0.20;
+state.milkyOpacity = 0.50;
 apply.call(host, state);
 assert.equal(host._cardCssFile, preserved,
     'invalid replacement must keep existing working native Milky card');
