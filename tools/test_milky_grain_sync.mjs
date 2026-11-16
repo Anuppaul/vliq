@@ -27,7 +27,20 @@ const original = f.milkyPaintTokens({
 });
 assert.equal(original.fill, 'rgba(245,249,255,0.240)');
 assert.equal(f.milkyPaintTokens({milkyWhiteness: 1}).fill,
-    'rgba(255,255,255,0.240)');
+    'rgba(255,255,255,1.000)',
+    '+100 must produce fully opaque white even when base opacity is 24%');
+assert.equal(f.milkyPaintTokens({
+    milkyWhiteness: 1, milkyOpacity: 0,
+}).fill, 'rgba(255,255,255,1.000)',
+'white +100 is not defeated by stored opacity 0');
+assert.equal(f.milkyPaintTokens({
+    milkyWhiteness: 0.5, milkyOpacity: 0.24,
+}).fill, 'rgba(250,252,255,0.620)',
+'positive white balance ramps opacity continuously rather than jumping at +100');
+assert.equal(f.milkyPaintTokens({
+    milkyWhiteness: 0, milkyOpacity: 0.24,
+}).fill, 'rgba(245,249,255,0.240)',
+'white balance zero retains the original 24%-alpha Milky body');
 assert.equal(f.milkyPaintTokens({milkyWhiteness: -1}).fill,
     'rgba(200,205,213,0.240)');
 assert.equal(f.milkyPaintTokens({milkyWhiteness: -2}).fill,
@@ -46,6 +59,23 @@ const textured = f.buildMilkyAppearanceCss(
 assert.match(textured, /background-image: url\("file:\/\/\/tmp\/grain.svg"\) !important/);
 assert.match(textured, /background-repeat: repeat !important/);
 assert.match(textured, /background-color: rgba\(223,227,234,0\.240\)/);
+const pureWhite = f.buildMilkyAppearanceCss({
+    milky: true, milkyWhiteness: 1, milkyOpacity: 0.24, milkyGrain: 1,
+}, 'file:///tmp/grain.svg');
+assert.match(pureWhite, /rgba\(255,255,255,1\.000\)/);
+assert.doesNotMatch(pureWhite, /file:\/\/\/tmp\/grain.svg/,
+    'grain overlay must not darken a fully white surface');
+assert.match(pureWhite, /background-image: none !important/,
+    'full-white endpoint disables CSS noise');
+for (const suffix of [
+    'vliq-full-header',
+    'vliq-full-header.vliq-top-header-ready',
+    'vliq-bottom-taskbar',
+    'vliq-bottom-taskbar.vliq-top-header-ready',
+    'vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached',
+]) assert.ok(pureWhite.includes(
+    '.vliq-global-milky #panel.vliq-liquid-top-panel.' + suffix
+), 'white-opacity override must beat shipped CSS on ' + suffix);
 assert.doesNotMatch(f.buildMilkyAppearanceCss({milky: false},
     'file:///tmp/grain.svg'), /file:\/\/\/tmp/);
 
@@ -139,6 +169,19 @@ assert.ok(removed.includes(liveGrain.path));
 assert.match(host._cardCssSignature, /background-image: none !important/);
 state.milkyGrain = 0.44;
 apply();
+assert.equal(host._cardGrainStrength, 44);
+state.milkyWhiteness = 1;
+apply();
+assert.equal(host._cardGrainStrength, 0,
+    'white +100 must suppress generated noise, irrespective of grain slider');
+assert.equal(host._cardGrainFile, null);
+assert.match(host._cardCssSignature, /rgba\(255,255,255,1\.000\)/);
+assert.ok(!host._cardCssSignature.includes('grain-'),
+    'no grain URL should remain in the fully white CSS');
+state.milkyWhiteness = 0;
+apply();
+assert.equal(host._cardGrainStrength, 44,
+    'moving White Balance off max restores the saved grain strength');
 state.milky = false;
 apply();
 assert.equal(host._cardGrainFile, null);
