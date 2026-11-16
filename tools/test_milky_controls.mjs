@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 
 const root = '../gnome-shell/vliq@wonderer.tech/';
 const read = file => readFile(new URL(root + file, import.meta.url), 'utf8');
-const [prefs, schema, dock, vendorSchema, material, shader] =
+const [prefs, schema, dock, vendorSchema, material, shader, milkyPaint] =
     await Promise.all([
         read('prefs.js'),
         read('schemas/org.gnome.shell.extensions.vliq.gschema.xml'),
@@ -11,6 +11,7 @@ const [prefs, schema, dock, vendorSchema, material, shader] =
         read('vendor/liquid-glass/schemas/org.gnome.shell.extensions.liquid-glass@thinkingcoding1231.gmail.com.gschema.xml'),
         read('vendor/liquid-glass/dist/rendering/material.js'),
         read('vendor/liquid-glass/shaders/glass.frag'),
+        read('milkyPaint.js'),
     ]);
 const controls = [
     ['milky-opacity', 24, 'vliq-milky-opacity', 'vliq_milky_opacity'],
@@ -37,13 +38,11 @@ assert.match(prefs, /milky\.set_sensitive\(settings\.get_string\('glass-style'\)
 assert.match(prefs, /settings\.connect\('changed::glass-style', syncMilkyControls\)/);
 
 // Real GJS material CSS builders, evaluated with the existing clamp logic.
-const begin = dock.indexOf('function milkyPaintTokens(');
-const end = dock.indexOf('function canonicalExtensionRoot()', begin);
-assert.ok(begin > 0 && end > begin);
+assert.match(dock, /from '\.\/milkyPaint\.js'/,
+    'GPU and native CSS backends must share one canonical paint source');
 const {milkyPaintTokens, buildMilkyAppearanceCss} =
-    new Function('clampNumber', dock.slice(begin, end) +
-        '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss};')(
-        (value, lo, hi) => Math.min(hi, Math.max(lo, value)));
+    new Function(milkyPaint.replace(/^export /gm, '') +
+        '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss};')();
 const defaults = milkyPaintTokens({
     milkyOpacity: 0.24, milkyBorder: 0.20, milkyWhiteness: 0,
 });
