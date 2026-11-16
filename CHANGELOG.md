@@ -35,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Quick Settings arrow-expanded Wired/Wi-Fi/Bluetooth/Power lists now use the same fixed **92% Milky White** opacity as the outer menu. Style the native sibling `.quick-toggle-menu` paint owner instead of leaving its background at transparent/18%; keep the overlay container transparent to prevent stacked opacity, and make text readable without changing native menu interaction.
+
 - Milky Glass now updates real GNOME native `St.Widget` inline materials (Bottom/Full Header, active 3-Part islands, Calendar and Quick Settings), independent of dynamic stylesheet reload ordering. Preserve original inline styles and restore them on renderer/material/layout changes; keep GNOME Dark Style's Bottom Taskbar behavior unchanged.
 
 - Native CSS renderer now observes Milky appearance GSettings, regenerates scoped native card styling on changes to Opacity, White/Black color, Edge Highlight and Micro-grain, and cleans up its theme handlers/resources on exit. The GPU-backed renderer uses the same pure paint helpers. A failed optional grain image no longer blocks all color controls.
