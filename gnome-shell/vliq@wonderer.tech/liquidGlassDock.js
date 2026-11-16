@@ -45,6 +45,7 @@ import {
 } from './glassMaterialSystem.js';
 import {
     milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg,
+    MilkyActorPainter, milkyCardActors,
 } from './milkyPaint.js';
 import {PanelGlassSurface} from './panelGlass.js';
 import {TopBarIslands} from './topBarIslands.js';
@@ -506,6 +507,8 @@ export class LiquidGlassIntegration {
         this._desktopInterfaceSettings = null;
         this._desktopAccentChangedId = 0;
         this._desktopColorSchemeChangedId = 0;
+        this._milkyActorPainter = new MilkyActorPainter();
+        this._milkyPaintStatus = '';
         this._cardCssFile = null;
         this._cardGrainFile = null;
         this._cardGrainStrength = -1;
@@ -1832,11 +1835,28 @@ export class LiquidGlassIntegration {
         this._syncMilkyOsdMaterial(enabled);
     }
 
+    _syncMilkyNativeActors(state) {
+        const actors = state?.milky
+            ? milkyCardActors(Main.panel, this._topPanelIslands, state)
+            : [];
+        this._milkyActorPainter?.sync(actors, state);
+        const marker = state?.milky
+            ? [state.milkyOpacity, state.milkyWhiteness,
+                state.milkyBorder, state.milkyGrain].join('/')
+            : 'off';
+        if (this._milkyPaintStatus !== marker) {
+            this._milkyPaintStatus = marker;
+            console.log('[VLIQ][Milky] Auto backend native actors=' +
+                actors.length + ' values=' + marker);
+        }
+    }
+
     _applySharedCardAppearance() {
         const state = this._readSharedCardAppearance();
 
         // CSS-only Milky must work even with a cached legacy vendor module.
         this._syncMilkyAppearanceClass(state.milky === true);
+        this._syncMilkyNativeActors(state);
         if (state.milky !== true)
             this._watchShaderHealth();
         this._popupGlassManager?.updateAppearance(state);
@@ -2000,6 +2020,7 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
+        this._milkyActorPainter?.clear();
         this._syncMilkyAppearanceClass(false);
         if (
             this._cardAppearanceSettingId &&
@@ -2341,6 +2362,8 @@ export class LiquidGlassIntegration {
                 getDockEntries: () => this._nativeDashEntries,
                 onLauncherClick: this._bottomLauncherCallback,
                 onLayoutChanged: () => {
+                    this._syncMilkyNativeActors(
+                        this._readSharedCardAppearance());
                     // Bottom mode must retire native Ubuntu Dock's own
                     // Panel Mode CSS + LiquidEffect; returning to a top
                     // header must restore whichever Dock mode was native.
