@@ -6,7 +6,8 @@ const [native,paint]=await Promise.all([
 ].map(n=>readFile(new URL(n,root),'utf8')));
 const m=new Function(paint.replace(/^export /gm,'')+
     '\nreturn {milkyPaintTokens,buildMilkyAppearanceCss,MilkyActorPainter,milkyCardActors};')();
-assert.doesNotMatch(native,/buildMilkyGrainSvg|milky-grain|milky-opacity|milky-border|milky-black/);
+assert.doesNotMatch(native,/buildMilkyGrainSvg|getInt\('milky-|get_int\('milky-|get_boolean\?\.\('milky-/,
+    'retired Milky inputs cannot control native runtime materials');
 assert.match(native,/key === 'glass-style'/);
 assert.match(native,/buildMilkyAppearanceCss\(state\)/);
 
