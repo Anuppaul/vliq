@@ -11,7 +11,7 @@ const fn=new Function(paint.replace(/^export /gm,'')+
     '\nreturn {milkyPaintTokens,buildMilkyAppearanceCss};')();
 const header=fn.milkyPaintTokens('header'),
     popup=fn.milkyPaintTokens('popup');
-assert.equal(header.fill,'rgba(29,31,35,0.600)');
+assert.equal(header.fill,'rgba(0,0,0,0.600)');
 assert.equal(popup.fill,'rgba(245,249,255,0.920)');
 for(const state of [
     {milkyOpacity:0,milkyBlack:false,milkyBorder:0,milkyGrain:0},
@@ -34,6 +34,6 @@ assert.doesNotMatch(gpu,/buildMilkyGrainSvg/);
 assert.doesNotMatch(native,/buildMilkyGrainSvg/);
 const css=fn.buildMilkyAppearanceCss({milky:true},'file:///ignore.svg');
 assert.doesNotMatch(css,/file:\/\/\/ignore\.svg|url\(/);
-assert.match(css,/rgba\(29,31,35,0\.600\)/);
+assert.match(css,/rgba\(0,0,0,0\.600\)/);
 assert.match(css,/rgba\(245,249,255,0\.920\)/);
 console.log('Retired Milky sliders and White/Black toggle: legacy schema preserved, runtime ignores old keys PASS.');
