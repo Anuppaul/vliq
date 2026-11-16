@@ -5,7 +5,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import {
-    milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg,
+    milkyPaintTokens, buildMilkyAppearanceCss,
     MilkyActorPainter, milkyCardActors,
 } from './milkyPaint.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -28,8 +28,6 @@ export class NativeCssIntegration {
         this._milkySettingsSignal = 0;
         this._milkyStyleFile = null;
         this._milkyCssSignature = '';
-        this._milkyGrainFile = null;
-        this._milkyGrainStrength = -1;
         this._milkyFileSequence = 0;
         this._isMilky = false;
         this._milkyActorPainter = new MilkyActorPainter();
@@ -70,26 +68,12 @@ export class NativeCssIntegration {
     }
 
     _readMilkyAppearance() {
-        const getInt = (key, fallback) => {
-            try {
-                const value = this._settings?.get_int?.(key);
-                return Number.isFinite(value) ? value : fallback;
-            } catch {
-                return fallback;
-            }
-        };
         let milky = false;
         try {
             milky = this._settings?.get_string?.('glass-style') === 'milky';
         } catch {}
-        const clamp = (value, low, high) =>
-            Math.max(low, Math.min(high, value));
         return {
             milky,
-            milkyOpacity: clamp(getInt('milky-opacity', 24), 0, 100) / 100,
-            milkyBlack: this._settings?.get_boolean?.('milky-black') === true,
-            milkyBorder: clamp(getInt('milky-border', 20), 0, 100) / 100,
-            milkyGrain: clamp(getInt('milky-grain', 28), 0, 100) / 100,
             systemDarkTaskbar:
                 this._interfaceSettings?.get_string?.('color-scheme') ===
                 'prefer-dark',
@@ -100,7 +84,7 @@ export class NativeCssIntegration {
         return St.ThemeContext.get_for_stage(global.stage).get_theme();
     }
 
-    _cleanupMilkyStylesheet(keepGrain = false) {
+    _cleanupMilkyStylesheet() {
         if (this._milkyStyleFile) {
             try { this._theme().unload_stylesheet(this._milkyStyleFile); }
             catch {}
@@ -108,42 +92,27 @@ export class NativeCssIntegration {
         }
         this._milkyStyleFile = null;
         this._milkyCssSignature = '';
-        if (!keepGrain) {
-            try { this._milkyGrainFile?.delete?.(null); } catch {}
-            this._milkyGrainFile = null;
-            this._milkyGrainStrength = -1;
-        }
     }
 
-    _milkyCss(state, grainUri = '') {
-        const tokens = milkyPaintTokens(state);
-        const image = grainUri
-            ? 'background-image: url("' + grainUri +
-                '") !important; background-repeat: repeat !important;'
-            : 'background-image: none !important;';
-        // This scope is intentionally stronger than the static, always-on
-        // native CSS fallback. Theme reload order must not decide whether
-        // the user's opacity/white/edge values are actually visible.
-        const shared = buildMilkyAppearanceCss(state, grainUri)
+    _milkyCss(state) {
+        // Only real GNOME headers and the native Calendar/Quick Settings
+        // menu content receive fixed Milky paint. Do not style generic
+        // PopupMenus, notifications, Orb, preview cards, or Ubuntu Dock.
+        const shared = buildMilkyAppearanceCss(state)
             .replaceAll('.vliq-global-milky ',
                 '.vliq-native-css.vliq-global-milky ');
-        return shared +
-            '.vliq-native-css.vliq-global-milky .popup-menu-content {' +
-            'background-color: ' + tokens.fill + ' !important;' +
-            image + 'border: 0 !important;' +
-            'box-shadow: ' + tokens.rim + ' !important;}\n' +
-            // Keep GNOME's Bottom-only Dark Style independent of the
-            // user's Milky White / Black color toggle.
+        const white = milkyPaintTokens('popup');
+        const darkPopup =
             '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
-            '.popup-menu-content {' +
-            'background-color: ' + tokens.fill + ' !important;' +
-            image + 'border: 0 !important;' +
-            'box-shadow: ' + tokens.rim + ' !important;}\n' +
-            '.vliq-native-css.vliq-global-milky ' +
-            '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.' +
-            'vliq-system-dark-taskbar {' +
-            'background-color: rgba(29,31,35,0.98) !important;' +
-            'background-image: none !important;}\n';
+            '.popup-menu-content.quick-settings,\\n' +
+            '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
+            '.popup-menu-content.datemenu-popover {\\n' +
+            '  background-color: ' + white.fill + ' !important;\\n' +
+            '  background-image: none !important;\\n' +
+            '  border: 0 !important;\\n' +
+            '  box-shadow: ' + white.rim + ' !important;\\n' +
+            '}\\n';
+        return shared + darkPopup;
     }
 
     _syncMilkyNativeActors(state) {
@@ -151,10 +120,7 @@ export class NativeCssIntegration {
             ? milkyCardActors(Main.panel, this._topPanelIslands, state)
             : [];
         this._milkyActorPainter.sync(actors, state);
-        const marker = state?.milky
-            ? [state.milkyOpacity, state.milkyBlack ? 'black' : 'white',
-                state.milkyBorder, state.milkyGrain].join('/')
-            : 'off';
+        const marker = state?.milky ? 'header=black/60 popup=white/92' : 'off';
         if (marker !== this._milkyPaintStatus) {
             this._milkyPaintStatus = marker;
             console.log('[VLIQ][Milky] Native CSS direct actors=' +
@@ -171,10 +137,7 @@ export class NativeCssIntegration {
             this._host?.add_style_class_name?.('vliq-global-milky');
         else
             this._host?.remove_style_class_name?.('vliq-global-milky');
-        if (state.milky && state.milkyBlack)
-            this._host?.add_style_class_name?.('vliq-milky-black');
-        else
-            this._host?.remove_style_class_name?.('vliq-milky-black');
+        // No per-Milky theme/texture switch remains in the preferences.
         // Direct St.Widget styling remains functional even if an optional
         // theme stylesheet or grain image fails to load.
         this._syncMilkyNativeActors(state);
@@ -184,40 +147,15 @@ export class NativeCssIntegration {
             this._cleanupMilkyStylesheet();
             return;
         }
-        const grainStrength = Math.round(state.milkyGrain * 100);
+        // Fixed CSS is generated only on material or native Dark Style
+        // changes. There is no SVG grain tile, frame loop or slider watcher.
+        const css = this._milkyCss(state);
+        if (this._milkyStyleFile && css === this._milkyCssSignature)
+            return;
         const dir = GLib.build_filenamev([
             GLib.get_user_cache_dir(), 'vliq@wonderer.tech',
             'native-card-appearance',
         ]);
-        let grain = grainStrength > 0 &&
-            grainStrength === this._milkyGrainStrength
-            ? this._milkyGrainFile : null;
-        let newGrain = false;
-        let createdGrainFile = null;
-        if (grainStrength > 0 && !grain) {
-            try {
-                GLib.mkdir_with_parents(dir, 0o755);
-                const path = GLib.build_filenamev([
-                    dir, 'grain-' + this._milkyFileSequence++ + '.svg',
-                ]);
-                GLib.file_set_contents(path,
-                    buildMilkyGrainSvg(grainStrength / 100));
-                grain = Gio.File.new_for_path(path);
-                newGrain = true;
-                createdGrainFile = grain;
-            } catch (error) {
-                console.warn('[VLIQ][NativeCSS] grain disabled: ' + error);
-                grain = null;
-            }
-        }
-        const grainUri = grain?.get_uri?.() ?? '';
-        let css = this._milkyCss(state, grainUri);
-        if (this._milkyStyleFile &&
-            css === this._milkyCssSignature) {
-            if (newGrain)
-                try { grain?.delete?.(null); } catch {}
-            return;
-        }
         let file = null;
         try {
             GLib.mkdir_with_parents(dir, 0o755);
@@ -226,37 +164,16 @@ export class NativeCssIntegration {
             ]);
             GLib.file_set_contents(path, css);
             file = Gio.File.new_for_path(path);
-            try {
-                this._theme().load_stylesheet(file);
-            } catch (error) {
-                // St may reject an SVG CSS image on some distributions.
-                // NEVER let optional grain disable every Milky slider.
-                if (!grainUri)
-                    throw error;
-                css = this._milkyCss(state);
-                GLib.file_set_contents(path, css);
-                this._theme().load_stylesheet(file);
-                console.warn('[VLIQ][NativeCSS] grain image unsupported; ' +
-                    'using plain Milky CSS');
-                try { createdGrainFile?.delete?.(null); } catch {}
-                createdGrainFile = null;
-                grain = null;
-            }
+            this._theme().load_stylesheet(file);
         } catch (error) {
             try { file?.delete?.(null); } catch {}
-            if (newGrain)
-                try { createdGrainFile?.delete?.(null); } catch {}
-            console.warn('[VLIQ][NativeCSS] material update failed: ' +
+            console.warn('[VLIQ][NativeCSS] fixed Milky CSS unavailable: ' +
                 error);
             return;
         }
-        const keepGrain = grain &&
-            grain === this._milkyGrainFile;
-        this._cleanupMilkyStylesheet(keepGrain);
+        this._cleanupMilkyStylesheet();
         this._milkyStyleFile = file;
         this._milkyCssSignature = css;
-        this._milkyGrainFile = grain;
-        this._milkyGrainStrength = grain ? grainStrength : 0;
     }
 
     _syncSystemTheme() {
@@ -295,10 +212,7 @@ export class NativeCssIntegration {
 
             this._milkySettingsSignal = this._settings?.connect?.(
                 'changed', (_settings, key) => {
-                    if ([
-                        'glass-style', 'milky-opacity', 'milky-black',
-                        'milky-border', 'milky-grain',
-                    ].includes(key))
+                    if (key === 'glass-style')
                         this._refreshMilkyAppearance();
                 }
             ) ?? 0;
