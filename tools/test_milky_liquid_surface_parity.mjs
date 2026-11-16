@@ -9,9 +9,9 @@ const [paintSource, css, gpu, native, notifications, cards, popups] =
         'nativeCssIntegration.js', 'notificationGlass.js',
         'shellCards.js', 'popupGlass.js',
     ].map(read));
-const {milkyPaintTokens, buildMilkyAppearanceCss} =
+const {milkyPaintTokens, buildMilkyAppearanceCss, milkyInlineStyle} =
     new Function(paintSource.replace(/^export /gm, '') +
-    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss};')();
+    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, milkyInlineStyle};')();
 const white = milkyPaintTokens('popup').fill;
 const black = milkyPaintTokens('header').fill;
 assert.equal(white, 'rgba(245,249,255,0.920)');
@@ -64,4 +64,64 @@ assert.match(native,/buildMilkyAppearanceCss\(state\)/);
 assert.doesNotMatch(actual,/url\(|background-repeat:\s*repeat/,
     'no Grain or new texture render');
 assert.equal(buildMilkyAppearanceCss({milky:false}), '');
+// Exercise the exact production notification inline painter. The native
+// banner was previously forced transparent !important, which defeated all
+// late white CSS no matter how specific the selector.
+const start=notifications.indexOf('    _syncMilkyBannerPaint(material, state) {');
+const end=notifications.indexOf('    _readCornerRadius(actor) {',start);
+assert.ok(start>0&&end>start);
+const applyBanner=new Function('milkyInlineStyle','TEXT_LIGHT_CLASS',
+    'TEXT_DARK_CLASS','return ({'+notifications.slice(start,end)+
+    '})._syncMilkyBannerPaint;')(
+    milkyInlineStyle,'vliq-notification-text-light','vliq-notification-text-dark');
+const notificationsState={milky:true}, savedStyle='padding:4px;',
+    transparentStyle=savedStyle+' background-color: transparent !important;';
+const actor={
+    style:transparentStyle,
+    classes:new Set(),
+    get_style(){return this.style;},
+    set_style(v){this.style=v;},
+    remove_style_class_name(v){this.classes.delete(v);},
+    add_style_class_name(v){this.classes.add(v);},
+};
+const material={
+    actor,originalInlineStyle:savedStyle,neutralInlineStyle:transparentStyle,
+    useDarkText:null,wasMilky:false,
+};
+let samples=0,canceled=0,darkCalls=0;
+const host={
+    _cancelTextSample(){canceled++;},
+    _applyTextPolarity(m,dark){
+        if(dark){darkCalls++;m.useDarkText=true;
+            m.actor.add_style_class_name('vliq-notification-text-dark');}
+    },
+    _scheduleTextSample(){samples++;},
+};
+applyBanner.call(host,material,notificationsState);
+assert.match(actor.style,/rgba\(245,249,255,0\.920\)/,
+    'notification banner is no longer transparent in Milky mode');
+assert.equal(material.wasMilky,true);
+assert.ok(darkCalls===1&&canceled===1);
+assert.ok(actor.classes.has('vliq-notification-text-dark'));
+applyBanner.call(host,material,{milky:false});
+assert.equal(actor.style,transparentStyle,
+    'switch to Liquid restores the exact previous transparent inline style');
+assert.equal(material.useDarkText,null);
+assert.equal(samples,1,'Liquid/Frosted resumes adaptive foreground sampling');
+
+// Shader-independent backend must produce GNOME CSS *newlines*, not literal
+// escaped "\\n" text that causes St.Theme to reject the stylesheet.
+const methodStart=native.indexOf('    _milkyCss(state) {');
+const methodEnd=native.indexOf('    _syncMilkyNativeActors(state) {',methodStart);
+assert.ok(methodStart>0&&methodEnd>methodStart);
+const nativeCss=new Function('milkyPaintTokens','buildMilkyAppearanceCss',
+    'return ({'+native.slice(methodStart,methodEnd)+'})._milkyCss;')(
+    milkyPaintTokens,buildMilkyAppearanceCss).call({}, {milky:true});
+assert.match(nativeCss,/\.vliq-native-css\.vliq-global-milky \.notification-banner/);
+assert.match(nativeCss,/\.vliq-native-css\.vliq-global-milky \.popup-menu-content/);
+assert.match(nativeCss,/\.vliq-native-css\.vliq-global-milky \.switcher-list/);
+assert.match(nativeCss,/\.vliq-native-css\.vliq-global-milky \.osd-window/);
+assert.doesNotMatch(nativeCss,/\\n/,
+    'Native CSS rules must be separated by actual newlines, not literal slash-n');
+
 console.log('Milky parity: notifications, popup/app menus, dialogs, previews, Orb, Spotlight, Dock, OSD and overview; headers black, all other Liquid surfaces white PASS.');
