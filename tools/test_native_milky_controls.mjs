@@ -9,7 +9,7 @@ const paint = new Function(source.replace(/^export /gm, '') +
     '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg, MilkyActorPainter, milkyCardActors};')();
 
 assert.match(native, /_milkySettingsSignal/);
-assert.match(native, /'milky-opacity', 'milky-whiteness'/);
+assert.match(native, /'milky-opacity', 'milky-black'/);
 assert.match(native, /'milky-border', 'milky-grain'/);
 assert.match(native, /_refreshMilkyAppearance\(\)/);
 assert.match(native, /buildMilkyAppearanceCss\(state, grainUri\)/);
@@ -65,12 +65,13 @@ const systemSettings = {
 const settingsHandlers = new Map();
 const values = {
     'glass-style': 'milky', 'milky-opacity': 24,
-    'milky-whiteness': 0, 'milky-border': 20,
+    'milky-black': false, 'milky-border': 20,
     'milky-grain': 28,
 };
 const settings = {
     get_string(key) {return values[key];},
     get_int(key) {return values[key];},
+    get_boolean(key) {return values[key] === true;},
     connect(signal, fn) {
         assert.equal(signal, 'changed');
         const id = next++;settingsHandlers.set(id, fn);return id;
@@ -116,34 +117,33 @@ assert.ok(classes.has('vliq-global-milky'),
 assert.equal(panelOptions.forceCssOnly, true);
 assert.equal(panelOptions.readAppearance().milky, true,
     'panel reads current Milky settings, not hard-coded false');
-assert.ok(applied.at(-1).includes('rgba(245,249,255,0.240)'));
+assert.ok(applied.at(-1).includes('rgba(255,255,255,0.240)'));
 assert.ok(applied.at(-1).includes('grain-'),
     'initial static grain uses saved slider');
 const firstGrain = backend._milkyGrainFile.path;
 
 settings.change('milky-opacity', 68);
-assert.ok(applied.at(-1).includes('rgba(245,249,255,0.680)'),
-    'Opacity changes immediately repaint card without GPU mode');
+assert.ok(applied.at(-1).includes('rgba(255,255,255,0.680)'),
+    'Opacity changes immediately repaint white card without GPU mode');
 assert.equal(backend._milkyGrainFile.path, firstGrain,
     'Opacity change reuses static noise tile');
 settings.change('milky-border', 70);
 assert.ok(applied.at(-1).includes('rgba(255,255,255,0.700)'),
     'Edge Highlight changes immediately repaint card');
-settings.change('milky-whiteness', 100);
-assert.ok(applied.at(-1).includes('rgba(255,255,255,1.000)'),
-    'White Balance +100 overrides opacity, even in native CSS fallback');
-assert.equal(backend._milkyGrainFile, null,
-    'full white disables grain overlay');
-assert.ok(removals.includes(firstGrain));
-settings.change('milky-whiteness', -100);
-assert.ok(applied.at(-1).includes('rgba(200,205,213,0.680)'),
-    'negative balance dims the card to cool gray');
+settings.change('milky-black', true);
+assert.ok(applied.at(-1).includes('rgba(29,31,35,0.680)'),
+    'Black toggle must preserve 68% Milky Opacity');
+assert.equal(backend._milkyGrainFile.path, firstGrain,
+    'Black toggle retains black-only grain tile');
+settings.change('milky-black', false);
+assert.ok(applied.at(-1).includes('rgba(255,255,255,0.680)'),
+    'White toggle restores pure white at unchanged opacity');
 assert.equal(backend._milkyGrainStrength, 28);
 
 theme.rejectSvg = true;
 settings.change('milky-grain', 88);
-assert.ok(applied.at(-1).includes('rgba(200,205,213,0.680)'),
-    'if SVG image fails, CSS must still apply latest color');
+assert.ok(applied.at(-1).includes('rgba(255,255,255,0.680)'),
+    'if SVG image fails, CSS must still apply latest selected color');
 assert.ok(applied.at(-1).includes('background-image: none !important'),
     'SVG failure fallback must remove optional grain, not entire material');
 assert.ok(backend._milkyStyleFile,
