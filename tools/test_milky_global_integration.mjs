@@ -22,6 +22,7 @@ function method(source, start, end, name, imports = {}) {
 let selected = 'milky';
 const settings = {
     get_int() {return 4;},
+    get_boolean(key) {return key === 'milky-black' ? false : false;},
     get_string(k) {return k === 'glass-style' ? selected : '#ffffff';},
 };
 const readAppearance = method(dock, '_readSharedCardAppearance() {',
