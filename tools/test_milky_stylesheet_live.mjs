@@ -55,8 +55,8 @@ assert.match(first,/rgba\(0,0,0,0\.600\)/);
 assert.match(first,/rgba\(245,249,255,0\.920\)/);
 assert.match(first,/vliq-global-milky #panel\.vliq-three-islands/);
 assert.match(first,/vliq-global-milky .popup-menu-content.quick-settings/);
-assert.doesNotMatch(first,/vliq-global-milky .vliq-native-notification-glass/);
-assert.doesNotMatch(first,/vliq-global-milky .vliq-orb-face-v2/);
+assert.match(first,/vliq-global-milky .vliq-native-notification-glass/);
+assert.match(first,/vliq-global-milky .vliq-orb-face-v2/);
 assert.doesNotMatch(first,/grain-|url\(/);
 state.milkyOpacity=1;state.milkyBlack=true;state.milkyGrain=100;
 apply.call(host,state);
@@ -76,4 +76,4 @@ assert.equal(host._cardCssSignature,valid);
 apply.call(host,state);
 assert.ok(!host._cardCssSignature.includes(
     'vliq-global-milky #panel.vliq-three-islands'));
-console.log('Fixed Milky: actual CSS theme load/unload scoped to header/menus, no grain, accent updates and rollback PASS.');
+console.log('Fixed Milky: actual CSS theme load/unload scoped to all Liquid-backed cards, no grain, accent updates and rollback PASS.');
