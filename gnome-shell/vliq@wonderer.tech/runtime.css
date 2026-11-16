@@ -2226,7 +2226,7 @@
 .vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu,
 .vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu:hover,
 .vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu:focus {
-    background-color: rgba(245,249,255,0.92) !important;
+    background-color: rgba(245,249,255,0.920) !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 16px !important;
