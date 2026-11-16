@@ -3,9 +3,10 @@ import {readFile} from 'node:fs/promises';
 
 const root = new URL('../gnome-shell/vliq@wonderer.tech/', import.meta.url);
 const read = filename => readFile(new URL(filename, root), 'utf8');
-const [dock, prefs, schema] = await Promise.all([
+const [dock, prefs, schema, paint] = await Promise.all([
     'liquidGlassDock.js', 'prefs.js',
     'schemas/org.gnome.shell.extensions.vliq.gschema.xml',
+    'milkyPaint.js',
 ].map(read));
 
 assert.match(schema, /name="milky-grain" type="i">[\s\S]*?<default>28<\/default>/);
@@ -16,12 +17,10 @@ assert.match(prefs, /-100, 100, 1\);/);
 assert.match(dock, /'milky-grain',[\s\S]*?'frost-density'/,
     'grain changes must trigger live appearance refresh');
 
-const start = dock.indexOf('function milkyPaintTokens(');
-const finish = dock.indexOf('function canonicalExtensionRoot(', start);
-assert.ok(start > 0 && finish > start);
-const f = new Function('clampNumber', dock.slice(start, finish) +
-    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg};')(
-    (value, lo, hi) => Math.min(hi, Math.max(lo, value)));
+assert.match(dock, /from '\.\/milkyPaint\.js'/,
+    'GPU manager must use same native Milky appearance module');
+const f = new Function(paint.replace(/^export /gm, '') +
+    '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg};')();
 const original = f.milkyPaintTokens({
     milkyOpacity: 0.24, milkyWhiteness: 0, milkyBorder: 0.20,
 });
