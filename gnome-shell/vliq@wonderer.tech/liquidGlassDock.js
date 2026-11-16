@@ -1838,6 +1838,11 @@ export class LiquidGlassIntegration {
     }
 
     _syncMilkyNativeActors(state) {
+        const uiGroup = Main.layoutManager?.uiGroup ?? Main.uiGroup;
+        if (state?.milky && state.milkyBlack)
+            uiGroup?.add_style_class_name?.('vliq-milky-black');
+        else
+            uiGroup?.remove_style_class_name?.('vliq-milky-black');
         const actors = state?.milky
             ? milkyCardActors(Main.panel, this._topPanelIslands, state)
             : [];
@@ -2022,6 +2027,8 @@ export class LiquidGlassIntegration {
     }
 
     _cleanupSharedCardAppearanceSync() {
+        (Main.layoutManager?.uiGroup ?? Main.uiGroup)
+            ?.remove_style_class_name?.('vliq-milky-black');
         this._milkyActorPainter?.clear();
         this._syncMilkyAppearanceClass(false);
         if (
