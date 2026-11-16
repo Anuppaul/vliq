@@ -31,6 +31,8 @@ for (const [key, value, vendorKey, uniform] of controls) {
     assert.ok(material.includes("'" + vendorKey + "'"));
     assert.ok(shader.includes('uniform float ' + uniform + ';'));
 }
+assert.match(prefs, /settings, 'milky-opacity',[\s\S]*?'Milky Opacity'/,
+    'opacity is explicitly labeled in Milky Appearance, not hidden as density');
 assert.match(prefs, /milky\.set_sensitive\(settings\.get_string\('glass-style'\) === 'milky'\)/);
 assert.match(prefs, /settings\.connect\('changed::glass-style', syncMilkyControls\)/);
 
@@ -51,13 +53,15 @@ const low = buildMilkyAppearanceCss({
     milky: true, milkyOpacity: 0.03, milkyBorder: 0,
     milkyWhiteness: 1,
 });
-assert.match(low, /rgba\(255,255,255,0\.030\)/);
+assert.match(low, /rgba\(255,255,255,1\.000\)/,
+    'White Balance +100 makes the card solid white even at 3% Milky Opacity');
 assert.match(low, /box-shadow: none !important;/);
 const high = buildMilkyAppearanceCss({
     milky: true, milkyOpacity: 0.90, milkyBorder: 0.75,
     milkyWhiteness: 0.5,
 });
-assert.match(high, /0\.900/);
+assert.match(high, /0\.950/,
+    'White Balance +50 increases opacity smoothly above the 90% baseline');
 assert.match(high, /rgba\(255,255,255,0\.750\)/);
 assert.ok(high.includes('vliq-panel-island-inactive'));
 assert.doesNotMatch(high, /:not\(/,
