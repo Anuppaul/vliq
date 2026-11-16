@@ -34,20 +34,24 @@ const generated=buildMilkyAppearanceCss({milky:true},'file:///unused-grain.svg')
 assert.match(generated,/rgba\(0,0,0,0\.600\)/);
 assert.match(generated,/rgba\(245,249,255,0\.920\)/);
 assert.doesNotMatch(generated,/url\(|background-repeat:\s*repeat/);
-for(const target of ['.vliq-native-notification-glass',
+// Headers remain black, while every other Liquid Glass target adopts
+// the same fixed white material. No additional actor is constructed.
+for(const target of [
+    '.vliq-native-notification-glass',
     '.vliq-orb-face-v2','.vliq-app-button','.vliq-app-preview-card',
     '.vliq-spotlight-glass-results','.vliq-ubuntu-dock-glass-background',
-    '.vliq-milky-osd','#overviewGroup .window-close']){
-    assert.equal(generated.includes(target),false,
-        'no extra Milky paint on '+target);
+    '.vliq-milky-osd','#overviewGroup .window-close',
+]){
+    assert.ok(generated.includes(target),
+        'existing Liquid target missing Milky White: '+target);
 }
 for(const target of [
     '.vliq-global-milky .vliq-native-notification-glass',
     '.vliq-global-milky .vliq-orb-face-v2',
     '.vliq-global-milky .dash-background',
 ]){
-    assert.equal(css.includes(target),false,
-        'static CSS must not recolor unrelated '+target);
+    assert.ok(css.includes(target),
+        'static CSS must cover existing Liquid surface: '+target);
 }
 assert.match(css,/rgba\(0,\s*0,\s*0,\s*0\.60\)/);
 assert.match(css,/rgba\(245,\s*249,\s*255,\s*0\.92\)/);
@@ -100,4 +104,4 @@ assert.equal(panel.style,'height:36px;');
 assert.equal(quick.style,'padding:3px;');
 assert.equal(date.style,'margin:2px;');
 assert.equal(left.style,'');assert.equal(right.style,'');
-console.log('Fixed Milky: 60% black header, white QS/Calendar, no settings/grain/other-surface styling PASS.');
+console.log('Milky fixed roles: 60% black headers and all Liquid surfaces white, no controls or grain PASS.');
