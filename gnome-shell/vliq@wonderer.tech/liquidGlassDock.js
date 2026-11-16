@@ -2335,11 +2335,6 @@ export class LiquidGlassIntegration {
             return;
         }
 
-        const dir = GLib.build_filenamev([
-            GLib.get_user_cache_dir(),
-            'vliq@wonderer.tech',
-            'card-appearance',
-        ]);
         GLib.mkdir_with_parents(dir, 0o755);
 
         const path = GLib.build_filenamev([
