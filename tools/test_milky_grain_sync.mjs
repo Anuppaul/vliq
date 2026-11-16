@@ -13,7 +13,7 @@ const {buildMilkyAppearanceCss} =
     new Function(paint.replace(/^export /gm,'')+
         '\nreturn {buildMilkyAppearanceCss};')();
 const css=buildMilkyAppearanceCss({milky:true});
-assert.match(css,/rgba\(29,31,35,0\.600\)/);
+assert.match(css,/rgba\(0,0,0,0\.600\)/);
 assert.match(css,/rgba\(245,249,255,0\.920\)/);
 assert.doesNotMatch(css,/background-repeat:\s*repeat|url\(/);
 assert.equal(buildMilkyAppearanceCss({milky:false}),'');
@@ -57,7 +57,7 @@ const apply=()=>methods._applyCardAppearanceStylesheet.call(host,state);
 apply();
 const first=host._cardCssSignature,oldPath=host._cardCssFile.path;
 assert.equal(loads.length,1);
-assert.match(first,/rgba\(29,31,35,0\.600\)/);
+assert.match(first,/rgba\(0,0,0,0\.600\)/);
 assert.match(first,/rgba\(245,249,255,0\.920\)/);
 assert.equal([...paths.keys()].filter(x=>x.endsWith('.svg')).length,0);
 state.milkyOpacity=0;
