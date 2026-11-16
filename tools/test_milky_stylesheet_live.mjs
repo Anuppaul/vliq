@@ -46,10 +46,10 @@ const theme = {
     },
 };
 const apply = new Function(
-    'GLib', 'Gio', 'Main', 'buildMilkyAppearanceCss',
+    'GLib', 'Gio', 'Main', 'buildMilkyAppearanceCss', 'clampNumber',
     'return ({' + source.slice(begin, finish) +
         '})._applyCardAppearanceStylesheet;')(
-    GLib, Gio, Main, build);
+    GLib, Gio, Main, build, clampNumber);
 const host = {
     _cardCssCounter: 0, _cardCssFile: null, _cardCssSignature: '',
     _getShellTheme: () => theme,
