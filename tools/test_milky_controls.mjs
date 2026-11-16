@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 
 const root = '../gnome-shell/vliq@wonderer.tech/';
 const read = file => readFile(new URL(root + file, import.meta.url), 'utf8');
-const [prefs, schema, dock, vendorSchema, material, shader] =
+const [prefs, schema, dock, vendorSchema, material, shader, milkyPaint] =
     await Promise.all([
         read('prefs.js'),
         read('schemas/org.gnome.shell.extensions.vliq.gschema.xml'),
@@ -11,6 +11,7 @@ const [prefs, schema, dock, vendorSchema, material, shader] =
         read('vendor/liquid-glass/schemas/org.gnome.shell.extensions.liquid-glass@thinkingcoding1231.gmail.com.gschema.xml'),
         read('vendor/liquid-glass/dist/rendering/material.js'),
         read('vendor/liquid-glass/shaders/glass.frag'),
+        read('milkyPaint.js'),
     ]);
 const controls = [
     ['milky-opacity', 24, 'vliq-milky-opacity', 'vliq_milky_opacity'],
@@ -31,17 +32,17 @@ for (const [key, value, vendorKey, uniform] of controls) {
     assert.ok(material.includes("'" + vendorKey + "'"));
     assert.ok(shader.includes('uniform float ' + uniform + ';'));
 }
+assert.match(prefs, /settings, 'milky-opacity',[\s\S]*?'Milky Opacity'/,
+    'opacity is explicitly labeled in Milky Appearance, not hidden as density');
 assert.match(prefs, /milky\.set_sensitive\(settings\.get_string\('glass-style'\) === 'milky'\)/);
 assert.match(prefs, /settings\.connect\('changed::glass-style', syncMilkyControls\)/);
 
 // Real GJS material CSS builders, evaluated with the existing clamp logic.
-const begin = dock.indexOf('function milkyPaintTokens(');
-const end = dock.indexOf('function canonicalExtensionRoot()', begin);
-assert.ok(begin > 0 && end > begin);
+assert.match(dock, /from '\.\/milkyPaint\.js'/,
+    'GPU and native CSS backends must share one canonical paint source');
 const {milkyPaintTokens, buildMilkyAppearanceCss} =
-    new Function('clampNumber', dock.slice(begin, end) +
-        '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss};')(
-        (value, lo, hi) => Math.min(hi, Math.max(lo, value)));
+    new Function(milkyPaint.replace(/^export /gm, '') +
+        '\nreturn {milkyPaintTokens, buildMilkyAppearanceCss};')();
 const defaults = milkyPaintTokens({
     milkyOpacity: 0.24, milkyBorder: 0.20, milkyWhiteness: 0,
 });
@@ -51,13 +52,15 @@ const low = buildMilkyAppearanceCss({
     milky: true, milkyOpacity: 0.03, milkyBorder: 0,
     milkyWhiteness: 1,
 });
-assert.match(low, /rgba\(255,255,255,0\.030\)/);
+assert.match(low, /rgba\(255,255,255,1\.000\)/,
+    'White Balance +100 makes the card solid white even at 3% Milky Opacity');
 assert.match(low, /box-shadow: none !important;/);
 const high = buildMilkyAppearanceCss({
     milky: true, milkyOpacity: 0.90, milkyBorder: 0.75,
     milkyWhiteness: 0.5,
 });
-assert.match(high, /0\.900/);
+assert.match(high, /0\.950/,
+    'White Balance +50 increases opacity smoothly above the 90% baseline');
 assert.match(high, /rgba\(255,255,255,0\.750\)/);
 assert.ok(high.includes('vliq-panel-island-inactive'));
 assert.doesNotMatch(high, /:not\(/,

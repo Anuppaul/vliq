@@ -2,6 +2,11 @@
 // This module deliberately imports NO vendored LiquidEffect or GPU capture
 // manager. Native Shell actors own their contents, animation and input.
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import St from 'gi://St';
+import {
+    milkyPaintTokens, buildMilkyAppearanceCss, buildMilkyGrainSvg,
+} from './milkyPaint.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {TopBarIslands} from './topBarIslands.js';
@@ -19,6 +24,13 @@ export class NativeCssIntegration {
         this._fullscreenGuard = null;
         this._interfaceSettings = null;
         this._interfaceSignal = 0;
+        this._milkySettingsSignal = 0;
+        this._milkyStyleFile = null;
+        this._milkyCssSignature = '';
+        this._milkyGrainFile = null;
+        this._milkyGrainStrength = -1;
+        this._milkyFileSequence = 0;
+        this._isMilky = false;
         this._host = null;
         this._enabled = false;
         this._launcher = null;
@@ -54,6 +66,176 @@ export class NativeCssIntegration {
         return entries;
     }
 
+    _readMilkyAppearance() {
+        const getInt = (key, fallback) => {
+            try {
+                const value = this._settings?.get_int?.(key);
+                return Number.isFinite(value) ? value : fallback;
+            } catch {
+                return fallback;
+            }
+        };
+        let milky = false;
+        try {
+            milky = this._settings?.get_string?.('glass-style') === 'milky';
+        } catch {}
+        const clamp = (value, low, high) =>
+            Math.max(low, Math.min(high, value));
+        return {
+            milky,
+            milkyOpacity: clamp(getInt('milky-opacity', 24), 0, 100) / 100,
+            milkyWhiteness:
+                clamp(getInt('milky-whiteness', 0), -100, 100) / 100,
+            milkyBorder: clamp(getInt('milky-border', 20), 0, 100) / 100,
+            milkyGrain: clamp(getInt('milky-grain', 28), 0, 100) / 100,
+            systemDarkTaskbar:
+                this._interfaceSettings?.get_string?.('color-scheme') ===
+                'prefer-dark',
+        };
+    }
+
+    _theme() {
+        return St.ThemeContext.get_for_stage(global.stage).get_theme();
+    }
+
+    _cleanupMilkyStylesheet(keepGrain = false) {
+        if (this._milkyStyleFile) {
+            try { this._theme().unload_stylesheet(this._milkyStyleFile); }
+            catch {}
+            try { this._milkyStyleFile.delete(null); } catch {}
+        }
+        this._milkyStyleFile = null;
+        this._milkyCssSignature = '';
+        if (!keepGrain) {
+            try { this._milkyGrainFile?.delete?.(null); } catch {}
+            this._milkyGrainFile = null;
+            this._milkyGrainStrength = -1;
+        }
+    }
+
+    _milkyCss(state, grainUri = '') {
+        const tokens = milkyPaintTokens(state);
+        const image = grainUri
+            ? 'background-image: url("' + grainUri +
+                '") !important; background-repeat: repeat !important;'
+            : 'background-image: none !important;';
+        // This scope is intentionally stronger than the static, always-on
+        // native CSS fallback. Theme reload order must not decide whether
+        // the user's opacity/white/edge values are actually visible.
+        const shared = buildMilkyAppearanceCss(state, grainUri)
+            .replaceAll('.vliq-global-milky ',
+                '.vliq-native-css.vliq-global-milky ');
+        return shared +
+            '.vliq-native-css.vliq-global-milky .popup-menu-content {' +
+            'background-color: ' + tokens.fill + ' !important;' +
+            image + 'border: 0 !important;' +
+            'box-shadow: ' + tokens.rim + ' !important;}\n' +
+            // Preserve GNOME Quick Settings' Dark Style in native CSS mode,
+            // and keep Bottom Taskbar charcoal even when white balance=100.
+            '.vliq-native-css.vliq-global-milky.vliq-native-css-dark ' +
+            '.popup-menu-content {' +
+            'background-color: rgba(29,31,35,0.97) !important;' +
+            'background-image: none !important;}\n' +
+            '.vliq-native-css.vliq-global-milky ' +
+            '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.' +
+            'vliq-system-dark-taskbar {' +
+            'background-color: rgba(29,31,35,0.98) !important;' +
+            'background-image: none !important;}\n';
+    }
+
+    _refreshMilkyAppearance() {
+        if (!this._enabled)
+            return;
+        const state = this._readMilkyAppearance();
+        this._isMilky = state.milky;
+        if (state.milky)
+            this._host?.add_style_class_name?.('vliq-global-milky');
+        else
+            this._host?.remove_style_class_name?.('vliq-global-milky');
+        // Update only the panel's existing CSS-only material; never allocate
+        // shader or capture actors on this backend.
+        this._topPanelIslands?.updateAppearance?.();
+
+        if (!state.milky) {
+            this._cleanupMilkyStylesheet();
+            return;
+        }
+        const grainStrength = state.milkyWhiteness >= 1
+            ? 0 : Math.round(state.milkyGrain * 100);
+        const dir = GLib.build_filenamev([
+            GLib.get_user_cache_dir(), 'vliq@wonderer.tech',
+            'native-card-appearance',
+        ]);
+        let grain = grainStrength > 0 &&
+            grainStrength === this._milkyGrainStrength
+            ? this._milkyGrainFile : null;
+        let newGrain = false;
+        let createdGrainFile = null;
+        if (grainStrength > 0 && !grain) {
+            try {
+                GLib.mkdir_with_parents(dir, 0o755);
+                const path = GLib.build_filenamev([
+                    dir, 'grain-' + this._milkyFileSequence++ + '.svg',
+                ]);
+                GLib.file_set_contents(path,
+                    buildMilkyGrainSvg(grainStrength / 100));
+                grain = Gio.File.new_for_path(path);
+                newGrain = true;
+                createdGrainFile = grain;
+            } catch (error) {
+                console.warn('[VLIQ][NativeCSS] grain disabled: ' + error);
+                grain = null;
+            }
+        }
+        const grainUri = grain?.get_uri?.() ?? '';
+        let css = this._milkyCss(state, grainUri);
+        if (this._milkyStyleFile &&
+            css === this._milkyCssSignature) {
+            if (newGrain)
+                try { grain?.delete?.(null); } catch {}
+            return;
+        }
+        let file = null;
+        try {
+            GLib.mkdir_with_parents(dir, 0o755);
+            const path = GLib.build_filenamev([
+                dir, 'milky-' + this._milkyFileSequence++ + '.css',
+            ]);
+            GLib.file_set_contents(path, css);
+            file = Gio.File.new_for_path(path);
+            try {
+                this._theme().load_stylesheet(file);
+            } catch (error) {
+                // St may reject an SVG CSS image on some distributions.
+                // NEVER let optional grain disable every Milky slider.
+                if (!grainUri)
+                    throw error;
+                css = this._milkyCss(state);
+                GLib.file_set_contents(path, css);
+                this._theme().load_stylesheet(file);
+                console.warn('[VLIQ][NativeCSS] grain image unsupported; ' +
+                    'using plain Milky CSS');
+                try { createdGrainFile?.delete?.(null); } catch {}
+                createdGrainFile = null;
+                grain = null;
+            }
+        } catch (error) {
+            try { file?.delete?.(null); } catch {}
+            if (newGrain)
+                try { createdGrainFile?.delete?.(null); } catch {}
+            console.warn('[VLIQ][NativeCSS] material update failed: ' +
+                error);
+            return;
+        }
+        const keepGrain = grain &&
+            grain === this._milkyGrainFile;
+        this._cleanupMilkyStylesheet(keepGrain);
+        this._milkyStyleFile = file;
+        this._milkyCssSignature = css;
+        this._milkyGrainFile = grain;
+        this._milkyGrainStrength = grain ? grainStrength : 0;
+    }
+
     _syncSystemTheme() {
         if (!this._host)
             return;
@@ -66,7 +248,7 @@ export class NativeCssIntegration {
             this._host.add_style_class_name('vliq-native-css-dark');
         else
             this._host.remove_style_class_name('vliq-native-css-dark');
-        this._topPanelIslands?.updateAppearance?.();
+        this._refreshMilkyAppearance();
     }
 
     enable() {
@@ -88,6 +270,15 @@ export class NativeCssIntegration {
                 this._interfaceSignal = 0;
             }
 
+            this._milkySettingsSignal = this._settings?.connect?.(
+                'changed', (_settings, key) => {
+                    if ([
+                        'glass-style', 'milky-opacity', 'milky-whiteness',
+                        'milky-border', 'milky-grain',
+                    ].includes(key))
+                        this._refreshMilkyAppearance();
+                }
+            ) ?? 0;
             this._syncSystemTheme();
             if (!Main.panel)
                 return;
@@ -98,12 +289,7 @@ export class NativeCssIntegration {
                 forceCssOnly: true,
                 getDockEntries: () => this._dockEntries(),
                 onLauncherClick: this._launcher,
-                readAppearance: () => ({
-                    milky: false,
-                    systemDarkTaskbar:
-                        this._interfaceSettings?.get_string?.('color-scheme') ===
-                        'prefer-dark',
-                }),
+                readAppearance: () => this._readMilkyAppearance(),
             });
             if (!panel.setup()) {
                 panel.cleanup();
@@ -165,6 +351,13 @@ export class NativeCssIntegration {
         }
         this._interfaceSignal = 0;
         this._interfaceSettings = null;
+        if (this._milkySettingsSignal) {
+            try { this._settings?.disconnect?.(this._milkySettingsSignal); }
+            catch {}
+        }
+        this._milkySettingsSignal = 0;
+        this._cleanupMilkyStylesheet();
+        this._host?.remove_style_class_name?.('vliq-global-milky');
         this._host?.remove_style_class_name?.('vliq-native-css-dark');
         this._host?.remove_style_class_name?.('vliq-native-css');
         this._host = null;

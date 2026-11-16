@@ -6,13 +6,12 @@ import {readFile} from 'node:fs/promises';
 const source = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/liquidGlassDock.js',
     import.meta.url), 'utf8');
-const start = source.indexOf('function milkyPaintTokens(');
-const end = source.indexOf('function canonicalExtensionRoot(', start);
-assert.ok(start >= 0 && end > start);
+const paint = await readFile(new URL(
+    '../gnome-shell/vliq@wonderer.tech/milkyPaint.js',
+    import.meta.url), 'utf8');
 const clampNumber = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const build = new Function('clampNumber',
-    source.slice(start, end) + '\nreturn buildMilkyAppearanceCss;')(
-    clampNumber);
+const build = new Function(paint.replace(/^export /gm, '') +
+    '\nreturn buildMilkyAppearanceCss;')();
 
 const begin = source.indexOf('    _applyCardAppearanceStylesheet(');
 const finish = source.indexOf('    isBottomTaskbarActive() {', begin);
@@ -78,16 +77,26 @@ state.milkyOpacity = 0.74;
 state.milkyBorder = 0.5;
 state.milkyWhiteness = 0.8;
 apply.call(host, state);
-assert.ok(host._cardCssSignature.includes('rgba(253,254,255,0.740)'));
+assert.ok(host._cardCssSignature.includes('rgba(253,254,255,0.948)'),
+    'white +80 increases white coverage above the selected 74% opacity');
 assert.ok(host._cardCssSignature.includes('rgba(255,255,255,0.500)'));
 assert.notEqual(host._cardCssSignature, first,
     'changes in the 3 sliders must reload the actual stylesheet');
 assert.ok(events.includes('unload:' + previousPath),
     'old CSS must be unloaded only after replacement loads');
+state.milkyWhiteness = 1;
+apply.call(host, state);
+assert.ok(host._cardCssSignature.includes('rgba(255,255,255,1.000)'),
+    'live +100 must render an opaque white card, not a translucent tint');
+assert.notEqual(host._cardCssSignature, first);
 const preserved = host._cardCssFile;
 const preservedCss = host._cardCssSignature;
 theme.rejectNext = true;
-state.milkyOpacity = 0.99;
+// Force a *different generated CSS*. With +95 white and 99% opacity the
+// rounded RGB/alpha can equal +100 white exactly, so no load is attempted
+// and the one-shot injected error wrongly lands on the next mode switch.
+state.milkyWhiteness = 0.20;
+state.milkyOpacity = 0.50;
 apply.call(host, state);
 assert.equal(host._cardCssFile, preserved,
     'invalid replacement must keep existing working native Milky card');

@@ -310,7 +310,7 @@
     <key name="milky-whiteness" type="i">
       <default>0</default>
       <range min="-100" max="100"/>
-      <summary>Milky Glass white balance, gray to original to pure white</summary>
+      <summary>Milky Glass white balance, gray to original to fully opaque white</summary>
     </key>
     <key name="milky-grain" type="i">
       <default>28</default>
