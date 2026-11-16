@@ -2551,3 +2551,12 @@
     border: 0 !important;
     box-shadow: inset 0 1px rgba(255, 255, 255, 0.13) !important;
 }
+
+/* Black Milky: keep the native panel's primary labels/indicators legible.
+ * Inner Calendar/Quick Settings tile text is owned by each native widget;
+ * never force light text onto their existing pale cards. */
+.vliq-global-milky.vliq-milky-black #panel .panel-button,
+.vliq-global-milky.vliq-milky-black #panel .panel-button StLabel,
+.vliq-global-milky.vliq-milky-black #panel .clock {
+    color: #f4f6fa !important;
+}
