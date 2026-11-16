@@ -102,7 +102,7 @@ assert.match(topbar, /\{cornerRadius: RADIUS, cssOnly: this\._forceCssOnly\}/,
     '3-Part restores optical material for Liquid/Frosted in Auto, CSS when selected');
 assert.match(topbar, /cssOnly: true/,
     '3-Part retains a native fallback when glass fails');
-assert.match(css, /rgba\(29,31,35,0\.60\)/,
+assert.match(css, /rgba\(0,0,0,0\.60\)/,
     'Milky Header uses fixed 60% black paint');
 assert.match(css, /rgba\(245,249,255,0\.92\)/,
     'Milky Quick Settings and Calendar use fixed milky white');
