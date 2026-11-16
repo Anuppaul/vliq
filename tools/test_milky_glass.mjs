@@ -65,7 +65,8 @@ assert.equal(vendor.get('vliq-milky-mode'), 0);
 state.mode = 'milky';
 method.call(instance);
 assert.equal(vendor.get('vliq-frost-amount'), 0);
-assert.equal(vendor.get('vliq-milky-mode'), 1);
+assert.equal(vendor.get('vliq-milky-mode'), 0,
+    'fixed Milky is painted natively, not through the old vendor shader');
 assert.equal(vendor.get('glass-displacement-scale'), 42);
 state.mode = 'frosted';
 method.call(instance);
@@ -76,8 +77,8 @@ method.call(instance);
 assert.equal(vendor.get('vliq-milky-mode'), 0);
 assert.equal(vendor.get('vliq-frost-amount'), 0);
 
-// The shipped renderer binds the new uniform independently of the
-// user-customized Liquid/Frosted lens and samples no background in Milky.
+// The legacy vendor mode remains bundled for compatibility, but current
+// fixed Milky deliberately leaves this shader branch disabled.
 assert.match(material, /vliq_milky_mode/);
 assert.match(material, /'vliq-milky-mode'/);
 assert.match(material, /_onFrostChanged\?\.\(amount, initial, milkyMode\)/);
@@ -101,8 +102,10 @@ assert.match(topbar, /\{cornerRadius: RADIUS, cssOnly: this\._forceCssOnly\}/,
     '3-Part restores optical material for Liquid/Frosted in Auto, CSS when selected');
 assert.match(topbar, /cssOnly: true/,
     '3-Part retains a native fallback when glass fails');
-assert.match(css, /rgba\(245, 249, 255, 0\.24\)/,
-    'new material matches the accepted 3-Part main card RGB and opacity');
+assert.match(css, /rgba\(0,0,0,0\.60\)/,
+    'Milky Header uses fixed 60% black paint');
+assert.match(css, /rgba\(245,249,255,0\.92\)/,
+    'Milky Quick Settings and Calendar use fixed milky white');
 
 // Milky disables expensive backdrop blur without changing the stored base.
 const blurBegin = effect.indexOf('    _applyVLIQBlurRadius() {');

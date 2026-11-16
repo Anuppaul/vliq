@@ -125,7 +125,9 @@ assert.ok(rule.startsWith('/* Follow GNOME'));
 assert.match(rule, /#panel\.vliq-liquid-top-panel\.vliq-bottom-taskbar\.vliq-system-dark-taskbar/);
 assert.match(rule, /rgba\(29,31,35,0\.98\)/);
 assert.ok(rule.includes('.vliq-global-milky #panel'),
-    'dark GNOME style must beat Milky CSS on Bottom Taskbar');
+    'Milky gets its own fixed-opacity Bottom Taskbar override');
+assert.match(rule, /vliq-global-milky[^\{]+\{\s*background-color: rgba\(0,0,0,0\.60\)/,
+    'selected Milky keeps black 60% regardless of native Dark Style');
 // Match actual selector targets, not explanatory CSS comment words.
 for (const forbidden of [
     '#panel.vliq-three-islands',

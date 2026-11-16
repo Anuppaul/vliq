@@ -29,12 +29,16 @@ for (const id of ['panelLeft', 'panelCenter', 'panelRight']) {
         'shader fallback cannot be opaque');
     assert.match(declarations(ready), /background-color: transparent !important/,
         'Liquid/Frosted material is the only ready painter');
-    for (const selector of [milky, fallback]) {
-        const body = declarations(selector);
-        assert.match(body, /rgba\(245, 249, 255, 0\.24\)/);
-        assert.match(body, /rgba\(255, 255, 255, 0\.20\)/);
-        assert.match(body, /border-radius: 16px/);
-    }
+    const milkyBody = declarations(milky);
+    assert.match(milkyBody, /rgba\(0,0,0,0\.60\)/,
+        'fixed Milky header must be black at 60% opacity');
+    assert.match(milkyBody, /box-shadow: none !important/);
+    assert.match(milkyBody, /border-radius: 16px/);
+    const fallbackBody = declarations(fallback);
+    assert.match(fallbackBody, /rgba\(245, 249, 255, 0\.24\)/,
+        'Liquid/Frosted failures preserve the old native white fallback');
+    assert.match(fallbackBody, /rgba\(255, 255, 255, 0\.20\)/);
+    assert.match(fallbackBody, /border-radius: 16px/);
     const inactive = '.vliq-global-milky ' + island +
         '.vliq-panel-island-inactive';
     assert.match(declarations(inactive), /background-color: transparent !important/);

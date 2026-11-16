@@ -322,12 +322,19 @@
     border: 0 !important;
     box-shadow: none !important;
 }
-/* Milky mode is ALWAYS the original pure native card, even if the shader
- * was previously ready before switching Appearance. The CSS fallback is
- * identical when the shader fails to initialize. */
+/* Fixed Milky header material. The native three header islands are
+ * the ONLY split-panel paint owners; other GNOME widgets stay native. */
 .vliq-global-milky #panel.vliq-three-islands #panelLeft.vliq-panel-island,
 .vliq-global-milky #panel.vliq-three-islands #panelCenter.vliq-panel-island,
-.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island,
+.vliq-global-milky #panel.vliq-three-islands #panelRight.vliq-panel-island {
+    background-color: rgba(0,0,0,0.60) !important;
+    background-image: none !important;
+    border-radius: 16px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+/* When a glass shader cannot attach in Liquid/Frosted mode, preserve the
+ * existing white native card fallback instead of painting a dark Milky card. */
 #panel.vliq-three-islands #panelLeft.vliq-panel-island-css-fallback,
 #panel.vliq-three-islands #panelCenter.vliq-panel-island-css-fallback,
 #panel.vliq-three-islands #panelRight.vliq-panel-island-css-fallback {
@@ -2176,99 +2183,38 @@
     spacing: 1px;
 }
 
-/* Global Milky appearance. The 3-Part Header's native gray-white card is
- * the canonical paint material. These rules target only VLIQ-managed Shell
- * surfaces, NEVER window content or the desktop wallpaper. VLIQ's JS
- * disables its shader actors while this class is active. */
+/* Fixed, *scoped* Milky: only Full/Bottom Header and three header
+ * islands use opaque-leaning black at 60%. No noise texture or layer. */
 .vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header,
 .vliq-global-milky #panel.vliq-liquid-top-panel.vliq-full-header.vliq-top-header-ready,
 .vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar,
 .vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-top-header-ready,
 .vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-bottom-taskbar-glass-attached {
-    background-color: rgba(245, 249, 255, 0.24) !important;
+    background-color: rgba(0,0,0,0.60) !important;
     background-image: none !important;
     border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    box-shadow: none !important;
 }
-.vliq-global-milky .vliq-liquid-popup-content,
-.vliq-global-milky .vliq-liquid-popup-content.popup-menu-content,
-.vliq-global-milky .popup-menu-content.datemenu-popover,
-.vliq-global-milky .popup-menu-content.quick-settings {
-    background-color: rgba(245, 249, 255, 0.24) !important;
+
+/* Calendar and Quick Settings retain hardcoded Milky White irrespective of
+ * the header material, system Dark Style or old saved slider values. */
+.vliq-global-milky .vliq-liquid-popup-content.quick-settings,
+.vliq-global-milky .vliq-liquid-popup-content.datemenu-popover,
+.vliq-global-milky .popup-menu-content.quick-settings,
+.vliq-global-milky .popup-menu-content.datemenu-popover {
+    background-color: rgba(245,249,255,0.92) !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 18px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20) !important;
+    color: #20252e !important;
 }
-.vliq-global-milky .vliq-liquid-shell-card,
-.vliq-global-milky .vliq-app-preview-card.vliq-liquid-shell-card,
-.vliq-global-milky .vliq-native-notification-glass,
-.vliq-global-milky .vliq-native-notification-glass:hover,
-.vliq-global-milky .vliq-native-notification-glass:focus {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+.vliq-global-milky .popup-menu-content.quick-settings StLabel,
+.vliq-global-milky .popup-menu-content.datemenu-popover StLabel,
+.vliq-native-css.vliq-native-css-dark.vliq-global-milky .popup-menu-content.quick-settings StLabel,
+.vliq-native-css.vliq-native-css-dark.vliq-global-milky .popup-menu-content.datemenu-popover StLabel {
+    color: #20252e !important;
 }
-.vliq-global-milky .vliq-orb-face-v2,
-.vliq-global-milky .vliq-orb-face-v2:hover,
-.vliq-global-milky .vliq-orb-face-v2:focus,
-.vliq-global-milky .vliq-app-button,
-.vliq-global-milky .vliq-app-button:hover,
-.vliq-global-milky .vliq-app-button:focus {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-.vliq-global-milky .vliq-spotlight-glass-entry,
-.vliq-global-milky .vliq-spotlight-glass-results {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    border-radius: 16px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-/* Floating and panel Ubuntu Dock share one native .dash-background, which
- * is a SIBLING of the icon container. Leave every app icon untouched. */
-.vliq-global-milky .dash-background.vliq-ubuntu-dock-glass-background,
-.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background,
-.vliq-global-milky .dash-background.vliq-ubuntu-dock-panel-background.vliq-native-panel-liquid-ready,
-.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-glass-background,
-.vliq-global-milky .liquid-glass-transparent .dash-background.vliq-ubuntu-dock-panel-background {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-
-/* Native GNOME volume/brightness OSD. Vendor's UI container is restored as
- * the Milky card while its original icons, slider and fade remain native. */
-.vliq-global-milky .vliq-milky-osd {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    border-radius: 16px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-
-/* Overview: same Milky circles, no duplicate LiquidEffect or opacity-zero
- * native app icons. WindowPreview still owns every input/hit target. */
-.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass,
-.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:hover,
-.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:focus,
-.vliq-global-milky #overviewGroup .window-close.vliq-window-close-shared-glass:active,
-.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass,
-.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:hover,
-.vliq-global-milky #overviewGroup .window-icon.vliq-window-icon-shared-glass:focus {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    background-image: none !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-
 
 /* VLIQ app icon consistency -----------------------------------------------
  * Same exact Bottom Taskbar hover/pressed material everywhere:
@@ -2350,33 +2296,26 @@
     background-image: none !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
 }
-.vliq-global-milky .vliq-app-button {
-    background-color: transparent !important;
-    box-shadow: none !important;
-}
-.vliq-global-milky .vliq-app-button:hover,
-.vliq-global-milky .vliq-app-button:focus {
-    background-color: rgba(245, 249, 255, 0.24) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
-}
-.vliq-global-milky .vliq-app-button:active {
-    background-color: rgba(245, 249, 255, 0.34) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
-}
-
 /* Follow GNOME Quick Settings' native Dark Style ONLY on Bottom Taskbar.
  * The JS class exists iff this layout is Bottom and the native desktop
  * color-scheme is prefer-dark. Full Header, 3-Part, Dock, menus, and
  * notifications retain their normal GNOME/VLIQ material styles. */
 #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar,
 #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar.vliq-top-header-ready,
-#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar.vliq-bottom-taskbar-glass-attached,
-.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar {
+#panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar.vliq-bottom-taskbar-glass-attached {
     background-color: rgba(29,31,35,0.98) !important;
     background-image: none !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: inset 0 1px rgba(255,255,255,0.13) !important;
+}
+
+/* Milky always stays black at the user's requested 60% opacity even
+ * when GNOME Dark Style would otherwise paint the Bottom Taskbar at 98%. */
+.vliq-global-milky #panel.vliq-liquid-top-panel.vliq-bottom-taskbar.vliq-system-dark-taskbar {
+    background-color: rgba(0,0,0,0.60) !important;
+    background-image: none !important;
+    box-shadow: none !important;
 }
 
 /* GNOME task-completion/unread notification counts on Bottom Taskbar icons.
@@ -2552,11 +2491,9 @@
     box-shadow: inset 0 1px rgba(255, 255, 255, 0.13) !important;
 }
 
-/* Black Milky: keep the native panel's primary labels/indicators legible.
- * Inner Calendar/Quick Settings tile text is owned by each native widget;
- * never force light text onto their existing pale cards. */
-.vliq-global-milky.vliq-milky-black #panel .panel-button,
-.vliq-global-milky.vliq-milky-black #panel .panel-button StLabel,
-.vliq-global-milky.vliq-milky-black #panel .clock {
+/* Fixed black Milky headers need readable native panel labels. */
+.vliq-global-milky #panel .panel-button,
+.vliq-global-milky #panel .panel-button StLabel,
+.vliq-global-milky #panel .clock {
     color: #f4f6fa !important;
 }

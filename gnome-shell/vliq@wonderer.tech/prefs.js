@@ -229,7 +229,7 @@ export default class VLIQPreferences extends ExtensionPreferences {
         const glassStyle = new Adw.ComboRow({
             title: 'Material style',
             subtitle:
-                'Liquid refracts, Frosted diffuses, and Milky creates a soft translucent gray-white card.',
+                'Liquid refracts, Frosted diffuses; Milky uses fixed 60% black headers and milky-white Quick Settings/Calendar.',
             model: Gtk.StringList.new([
                 'Liquid Glass',
                 'Frosted Crystal',
@@ -289,31 +289,6 @@ export default class VLIQPreferences extends ExtensionPreferences {
         };
         syncFrostControls();
         settings.connect('changed::glass-style', syncFrostControls);
-
-        const milky = new Adw.PreferencesGroup({
-            title: 'Milky Glass',
-            description: 'Choose a White or Black card with independent opacity, edge highlight and static black micro-grain.',
-        });
-        appearancePage.add(milky);
-        addIntSpin(milky, settings, 'milky-opacity',
-            'Milky Opacity',
-            'Card opacity: 0 = transparent, 100 = opaque in both White and Black modes.',
-            0, 100, 1);
-        addIntSpin(milky, settings, 'milky-border',
-            'Edge highlight',
-            'Strength of the thin white inner rim (0 = none).',
-            0, 100, 1);
-        addSwitch(milky, settings, 'milky-black',
-            'Milky Color — Black',
-            'Off = White · On = Black. Opacity and grain remain adjustable.');
-        addIntSpin(milky, settings, 'milky-grain',
-            'Micro-grain',
-            'Black micro-grain only; 0 = off, 100 = strongest. No added shader or animation.',
-            0, 100, 1);
-        const syncMilkyControls = () =>
-            milky.set_sensitive(settings.get_string('glass-style') === 'milky');
-        syncMilkyControls();
-        settings.connect('changed::glass-style', syncMilkyControls);
 
         const glass = new Adw.PreferencesGroup({
             title: 'Liquid Glass Controls',

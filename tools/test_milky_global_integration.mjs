@@ -119,30 +119,28 @@ syncSpotlight.call({_isActive: () => true,
 assert.equal(hidden, 7);
 assert.equal(stopped, 1);
 
-// Dock has a native Milky paint in floating/panel modes and hides the
-// expensive old GPU backplate while all app icons remain GNOME-owned.
-assert.match(dock, /DOCK_PANEL_MILKY_STYLE/);
+// Floating Dock stays native: Milky only paints the GNOME header/taskbar.
 assert.match(dock, /_nativeDockGlassVisible\(entry\)[\s\S]*?get_string\?\.\('glass-style'\) === 'milky'/);
 assert.match(dock, /this\._syncNativeDockVisualState\(entry, true\)/);
 for (const cls of [
     '#panel.vliq-liquid-top-panel.vliq-full-header',
     '#panel.vliq-liquid-top-panel.vliq-bottom-taskbar',
-    '.vliq-liquid-popup-content',
     '.popup-menu-content.datemenu-popover',
     '.popup-menu-content.quick-settings',
-    '.vliq-liquid-shell-card',
+]) assert.ok(css.includes('.vliq-global-milky ' + cls),
+    'Missing fixed scoped Milky material: ' + cls);
+for (const cls of [
     '.vliq-native-notification-glass',
     '.vliq-orb-face-v2',
-    '.vliq-app-button',
-    '.vliq-spotlight-glass-entry',
     '.vliq-spotlight-glass-results',
     '.dash-background.vliq-ubuntu-dock-glass-background',
-    '.dash-background.vliq-ubuntu-dock-panel-background',
-]) assert.ok(css.includes('.vliq-global-milky ' + cls),
-    'Missing native Milky material: ' + cls);
-assert.match(css, /rgba\(245, 249, 255, 0\.24\) !important/);
-assert.match(dock, /buildMilkyAppearanceCss\(state,\s*grainUri\)/,
-    'live Milky controls must reach dynamic native stylesheet');
+    '.vliq-milky-osd',
+]) assert.ok(!css.includes('.vliq-global-milky ' + cls),
+    'Milky must not recolor unrelated GNOME surface: ' + cls);
+assert.match(css, /rgba\(0,0,0,0\.60\) !important/);
+assert.match(css, /rgba\(245,249,255,0\.92\) !important/);
+assert.match(dock, /buildMilkyAppearanceCss\(state\)/,
+    'fixed header/menus reach GNOME native stylesheet without grain');
 
 // OSD owns a separate legacy vendor render path. Its instance adapter
 // must hide the shader even when the GJS vendor module was hot-cached.
@@ -150,7 +148,7 @@ const installOsd = method(dock, '_installMilkyOsdAdapter() {',
     '_syncMilkyAppearanceClass(enabled) {', '_installMilkyOsdAdapter');
 let oldOsdPaint = 0, osdHidden = 0;
 const osd = {_syncGeometry() {oldOsdPaint++;}};
-const osdHost = {_osdManager: osd, _milkyModeActive: true};
+const osdHost = {_osdManager: osd, _milkyModeActive: false};
 installOsd.call(osdHost);
 const osdClasses = new Set();
 const osdState = {
@@ -161,13 +159,12 @@ const osdState = {
     },
 };
 osd._syncGeometry(osdState);
-assert.equal(osdHidden, 1);
-assert.equal(oldOsdPaint, 0);
-assert.ok(osdClasses.has('vliq-milky-osd'));
-osdHost._milkyModeActive = false;
-osd._syncGeometry(osdState);
+assert.equal(osdHidden, 0);
 assert.equal(oldOsdPaint, 1);
-assert.ok(!osdClasses.has('vliq-milky-osd'));
+assert.ok(!osdClasses.has('vliq-milky-osd'),
+    'OSD stays native instead of being repainted as Milky');
+osd._syncGeometry(osdState);
+assert.equal(oldOsdPaint, 2);
 
 // Overview normally renders a sharp clone of every icon above its glass.
 // Milky must restore native icon opacity before hiding that clone layer.
@@ -196,7 +193,7 @@ for (const cls of [
     '.vliq-milky-osd',
     '#overviewGroup .window-close.vliq-window-close-shared-glass',
     '#overviewGroup .window-icon.vliq-window-icon-shared-glass',
-]) assert.ok(css.includes('.vliq-global-milky ' + cls),
-    'global Milky missed native OSD/Overview ' + cls);
+]) assert.ok(!css.includes('.vliq-global-milky ' + cls),
+    'Milky must not recolor OSD/Overview ' + cls);
 
-console.log('Global Milky native material, OSD/Overview visibility and reversible styles PASS.');
+console.log('Milky scope: native headers and Date/Quick only, with OSD/Overview interaction restoration PASS.');

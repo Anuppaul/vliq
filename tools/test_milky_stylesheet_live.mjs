@@ -1,109 +1,79 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-// Exercise shipped VLIQ methods, not a reimplementation of Milky CSS.
-// A user's Milky slider change must reach the actual St.Theme stylesheet.
-const source = await readFile(new URL(
-    '../gnome-shell/vliq@wonderer.tech/liquidGlassDock.js',
-    import.meta.url), 'utf8');
-const paint = await readFile(new URL(
-    '../gnome-shell/vliq@wonderer.tech/milkyPaint.js',
-    import.meta.url), 'utf8');
-const clampNumber = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const build = new Function(paint.replace(/^export /gm, '') +
+const root=new URL('../gnome-shell/vliq@wonderer.tech/',import.meta.url);
+const [dock,paint]=await Promise.all([
+    'liquidGlassDock.js','milkyPaint.js',
+].map(n=>readFile(new URL(n,root),'utf8')));
+const build=new Function(paint.replace(/^export /gm,'')+
     '\nreturn buildMilkyAppearanceCss;')();
+const start=dock.indexOf('    _applyCardAppearanceStylesheet(');
+const end=dock.indexOf('    isBottomTaskbarActive() {',start);
+assert.ok(start>0&&end>start);
 
-const begin = source.indexOf('    _applyCardAppearanceStylesheet(');
-const finish = source.indexOf('    isBottomTaskbarActive() {', begin);
-assert.ok(begin > 0 && finish > begin);
-
-const written = new Map();
-const events = [];
-const GLib = {
-    build_filenamev: parts => parts.join('/'),
-    get_user_cache_dir: () => '/tmp/vliq-test',
-    mkdir_with_parents() {},
-    file_set_contents(path, css) {written.set(path, css);},
+const written=new Map(),events=[];
+const GLib={
+    get_user_cache_dir:()=>'/tmp/vliq-appearance',
+    build_filenamev:p=>p.join('/'),
+    mkdir_with_parents(){},
+    file_set_contents(p,c){written.set(p,c);},
 };
-const Gio = {
-    File: {new_for_path: path => ({
-        path, delete() {events.push('delete:' + path);},
-    })},
-};
-const Main = {messageTray: {_banner: {queue_redraw() {}}}};
-const theme = {
-    rejectNext: false,
-    load_stylesheet(file) {
-        events.push('load:' + file.path);
-        if (this.rejectNext) {
-            this.rejectNext = false;
-            throw new Error('Invalid stylesheet');
-        }
+const Gio={File:{new_for_path:path=>({
+    path,delete(){events.push('delete:'+path);},
+})}};
+const Main={messageTray:{_banner:{queue_redraw(){}}}};
+const theme={
+    fail:false,
+    load_stylesheet(file){
+        if(this.fail){this.fail=false;throw Error('invalid CSS');}
+        events.push('load:'+file.path);
     },
-    unload_stylesheet(file) {
-        events.push('unload:' + file.path);
-    },
+    unload_stylesheet(file){events.push('unload:'+file.path);},
 };
-const apply = new Function(
-    'GLib', 'Gio', 'Main', 'buildMilkyAppearanceCss', 'clampNumber',
-    'return ({' + source.slice(begin, finish) +
-        '})._applyCardAppearanceStylesheet;')(
-    GLib, Gio, Main, build, clampNumber);
-const host = {
-    _cardCssCounter: 0, _cardCssFile: null, _cardCssSignature: '',
-    _getShellTheme: () => theme,
-    _readSystemAccentColor: () => ({color: '#4285f4'}),
-    _unloadCardAppearanceStylesheet() {
-        if (this._cardCssFile) {
-            theme.unload_stylesheet(this._cardCssFile);
-            this._cardCssFile.delete();
-            this._cardCssFile = null;
-            this._cardCssSignature = '';
-        }
+const apply=new Function('GLib','Gio','Main','buildMilkyAppearanceCss',
+    'console','return ({'+dock.slice(start,end)+
+    '})._applyCardAppearanceStylesheet;')(
+    GLib,Gio,Main,build,{warn(){}}
+);
+let accent='#4285f4';
+const host={
+    _cardCssCounter:0,_cardCssFile:null,_cardCssSignature:'',
+    _readSystemAccentColor:()=>({color:accent}),
+    _getShellTheme:()=>theme,
+    _unloadCardAppearanceStylesheet(){
+        if(!this._cardCssFile)return;
+        theme.unload_stylesheet(this._cardCssFile);
+        this._cardCssFile.delete();
+        this._cardCssFile=null;
+        this._cardCssSignature='';
     },
 };
-const state = {
-    milky: true, milkyOpacity: 0.24, milkyBorder: 0.20,
-    milkyBlack: false, filterOpacity: 0.05,
-};
-apply.call(host, state);
-const first = host._cardCssSignature;
-assert.ok(first.includes('rgba(255,255,255,0.240)'));
-assert.doesNotMatch(first, /:not\(/,
-    'St.Theme does not support browser-only negation selectors');
-assert.ok(first.includes('.vliq-panel-island.vliq-panel-island-inactive'));
-const previousPath = host._cardCssFile.path;
-state.milkyOpacity = 0.74;
-state.milkyBorder = 0.5;
-state.milkyBlack = true;
-apply.call(host, state);
-assert.ok(host._cardCssSignature.includes('rgba(29,31,35,0.740)'),
-    'Black color switch changes RGB without altering selected 74% opacity');
-assert.ok(host._cardCssSignature.includes('rgba(255,255,255,0.500)'));
-assert.notEqual(host._cardCssSignature, first,
-    'changes in the 3 sliders must reload the actual stylesheet');
-assert.ok(events.includes('unload:' + previousPath),
-    'old CSS must be unloaded only after replacement loads');
-state.milkyBlack = false;
-apply.call(host, state);
-assert.ok(host._cardCssSignature.includes('rgba(255,255,255,0.740)'),
-    'White toggle restores pure white while preserving 74% opacity');
-assert.notEqual(host._cardCssSignature, first);
-const preserved = host._cardCssFile;
-const preservedCss = host._cardCssSignature;
-theme.rejectNext = true;
-// Force a *different generated CSS*. With +95 white and 99% opacity the
-// rounded RGB/alpha can equal +100 white exactly, so no load is attempted
-// and the one-shot injected error wrongly lands on the next mode switch.
-state.milkyBlack = true;
-state.milkyOpacity = 0.50;
-apply.call(host, state);
-assert.equal(host._cardCssFile, preserved,
-    'invalid replacement must keep existing working native Milky card');
-assert.equal(host._cardCssSignature, preservedCss);
-state.milky = false;
-apply.call(host, state);
+const state={milky:true,filterOpacity:.05};
+apply.call(host,state);
+const first=host._cardCssSignature,firstFile=host._cardCssFile.path;
+assert.match(first,/rgba\(0,0,0,0\.600\)/);
+assert.match(first,/rgba\(245,249,255,0\.920\)/);
+assert.match(first,/vliq-global-milky #panel\.vliq-three-islands/);
+assert.match(first,/vliq-global-milky .popup-menu-content.quick-settings/);
+assert.doesNotMatch(first,/vliq-global-milky .vliq-native-notification-glass/);
+assert.doesNotMatch(first,/vliq-global-milky .vliq-orb-face-v2/);
+assert.doesNotMatch(first,/grain-|url\(/);
+state.milkyOpacity=1;state.milkyBlack=true;state.milkyGrain=100;
+apply.call(host,state);
+assert.equal(host._cardCssSignature,first,
+    'retired per-Milky values cannot modify fixed-theme CSS');
+accent='#e62d42';
+apply.call(host,state);
+assert.notEqual(host._cardCssSignature,first,
+    'unrelated semantic accent setting still updates its own CSS');
+assert.ok(events.includes('unload:'+firstFile));
+const valid=host._cardCssSignature,preserved=host._cardCssFile;
+theme.fail=true;state.milky=false;
+apply.call(host,state);
+assert.equal(host._cardCssFile,preserved,
+    'bad stylesheet load must not destroy current GNOME styling');
+assert.equal(host._cardCssSignature,valid);
+apply.call(host,state);
 assert.ok(!host._cardCssSignature.includes(
-    'vliq-global-milky #panel.vliq-three-islands #panelLeft'),
-    'switching back to Liquid/Frosted removes Milky overrides');
-console.log('Milky native CSS sliders, hot swap, rollback, mode exit PASS.');
+    'vliq-global-milky #panel.vliq-three-islands'));
+console.log('Fixed Milky: actual CSS theme load/unload scoped to header/menus, no grain, accent updates and rollback PASS.');

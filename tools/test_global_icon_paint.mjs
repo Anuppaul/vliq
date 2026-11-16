@@ -61,11 +61,12 @@ for (const selector of [
     '.vliq-app-button:hover',
     '.vliq-app-button:focus',
     '.vliq-app-button:active',
-    '.vliq-global-milky .vliq-app-button:hover',
 ]) {
     assert.ok(shared.includes(selector),
         'global native hover state missing: ' + selector);
 }
+assert.doesNotMatch(shared, /\.vliq-global-milky \.vliq-app-button/,
+    'fixed Milky must not recolor Orb hover cards');
 for (const selector of [
     '#dashtodockDashContainer .app-well-app-running-dot',
     '#dashtodockDashContainer .app-grid-running-dot',
