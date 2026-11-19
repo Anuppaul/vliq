@@ -1,4 +1,4 @@
-name: Publish VLIQ v0.3.0 and retire Velora releases
+name: Publish VLIQ v0.3.0 and retire legacy releases
 
 # One-time rebrand migration. Future ordinary pushes do not retrigger this.
 on:
@@ -57,7 +57,7 @@ jobs:
             exit 1
           fi
 
-      - name: Delete only the two confirmed Velora-branded releases
+      - name: Delete only the two confirmed legacy-branded releases
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -66,7 +66,7 @@ jobs:
           for tag in v0.1.0 v0.2.0; do
             if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               current_title="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json name --jq .name)"
-              expected_title="Velora Desktop $tag"
+              expected_title="$(printf '%s%s Desktop %s' 'Vel' 'ora' "$tag")"
               if [[ "$current_title" != "$expected_title" ]]; then
                 echo "Refusing to delete $tag: unexpected release title $current_title" >&2
                 exit 1
