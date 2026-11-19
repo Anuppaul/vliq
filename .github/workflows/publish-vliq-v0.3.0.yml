@@ -1,0 +1,77 @@
+name: Publish VLIQ v0.3.0 and retire legacy releases
+
+# One-time rebrand migration. Future ordinary pushes do not retrigger this.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-vliq-v0.3.0.yml
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: publish-vliq-v0.3.0
+  cancel-in-progress: false
+
+jobs:
+  publish-and-retire:
+    if: github.repository == 'Anuppaul/vliq'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Request release from the existing tested workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v0.3.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v0.3.0 release exists; verifying before legacy cleanup."
+          else
+            gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main --field version=0.3.0
+          fi
+
+      - name: Verify complete new release before deleting anything
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=false
+          for attempt in $(seq 1 80); do
+            if gh release view v0.3.0 --repo "$GITHUB_REPOSITORY" --json name,assets \
+              --jq '(.name == "VLIQ v0.3.0") and (([.assets[].name] | index("vliq-0.3.0.tar.gz")) != null) and (([.assets[].name] | index("vliq@wonderer.tech.shell-extension.zip")) != null) and (([.assets[].name] | index("SHA256SUMS")) != null)' \
+              2>/dev/null | grep -qx true; then
+              ready=true
+              break
+            fi
+            sleep 12
+          done
+          if [[ "$ready" != true ]]; then
+            echo "New VLIQ release/assets not verified. Legacy releases were NOT touched." >&2
+            exit 1
+          fi
+
+      - name: Delete only the two confirmed legacy-branded releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tag in v0.1.0 v0.2.0; do
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              current_title="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json name --jq .name)"
+              expected_title="$(printf '%s%s Desktop %s' 'Vel' 'ora' "$tag")"
+              if [[ "$current_title" != "$expected_title" ]]; then
+                echo "Refusing to delete $tag: unexpected release title $current_title" >&2
+                exit 1
+              fi
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+            fi
+          done
+          # Intentionally retain historical Git tags; delete only release pages/assets.
