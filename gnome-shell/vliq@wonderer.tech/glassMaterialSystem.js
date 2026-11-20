@@ -261,7 +261,7 @@ export function applyVLIQGlassRole(
     effect,
     role = VLIQ_GLASS_ROLES.innerCard,
     {
-        tintColor = [1, 1, 1],
+        tintColor = [245 / 255, 249 / 255, 1],
         tintStrength = role.tintStrength,
         baseBlur = 7,
         blurRadius = null,
