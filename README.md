@@ -120,10 +120,11 @@ remains respected. The five old numeric GSettings keys are retained only
 for compatibility and no longer affect rendering.
 
 **Status:** The Wallpaper page reports the number of loaded wallpaper
-actors with the tint attached. This confirms effect attachment, not
-verified GPU pixels. A fixed one-sample compositor pass adds no animation,
-CPU screenshots or per-frame timers, but GPU cost still needs testing on
-GNOME Shell 50. The existing Liquid/Frosted glass materials are unchanged.
+actors with the native tint overlay. The 24% shade is painted by a lightweight
+St.Widget sibling of each actual wallpaper actor, not a late-compiling GLSL
+effect. There is no shader warm-up, CPU screenshot or per-frame timer. The
+existing Liquid/Frosted glass materials are unchanged. Test first-frame
+appearance, crossfades and multiple monitors on a real GNOME Shell 50 session.
 
 ## Choose a Glass Material
 
