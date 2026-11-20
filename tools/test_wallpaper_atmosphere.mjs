@@ -56,8 +56,9 @@ class BackgroundContent extends Emitter {
 class BackgroundActor extends Emitter {
     constructor(loaded=true){
         super();this.content=new BackgroundContent(loaded);
-        this.effects=new Map();this.adds=0;this.removes=0;
+        this.effects=new Map();this.adds=0;this.removes=0;this.parent=null;
     }
+    get_parent(){return this.parent;}
     add_effect_with_name(name,effect){
         assert.equal(name,'vliq-milky-wallpaper');
         assert.equal(this.effects.has(name),false,'one effect per wallpaper');
@@ -72,9 +73,16 @@ class Actor extends Emitter {
     constructor(name){super();this.name=name;this.children=[];}
     get_name(){return this.name;}
     get_children(){return [...this.children];}
-    add_child(child){this.children.push(child);this.emit('child-added',child);}
+    add_child(child){this.children.push(child);child.parent=this;this.emit('child-added',child);}
+    insert_child_above(child,sibling){
+        const idx=this.children.indexOf(sibling);
+        assert.ok(idx>=0);
+        this.children.splice(idx+1,0,child);child.parent=this;
+        this.emit('child-added',child);
+    }
     remove_child(child){
         this.children=this.children.filter(x=>x!==child);
+        child.parent=null;
         this.emit('child-removed',child);
     }
 }
@@ -103,21 +111,22 @@ function drainIdles() {
         assert.equal(fn(),false);
     }
 }
-let registrations=0;
-let cachedEffectClass=null;
-class FakeEffect {}
-const Type=new Function('GLib','Meta','Main',
-    'readWallpaperProfile','getWallpaperTintEffectClass',
-    managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
-        .replace(/^export\s+/gm,'') +
-        '\nreturn WallpaperAtmosphereManager;'
-)(GLib,Meta,Main,config.readWallpaperProfile,()=>{
-    if (!cachedEffectClass) {
-        cachedEffectClass=FakeEffect;
-        registrations++;
-    }
-    return cachedEffectClass;
-});
+let overlayCreates=0;
+let overlayDestroys=0;
+class NativeOverlay {
+    constructor(opts){this.opts=opts;this.constraints=[];this.parent=null;overlayCreates++;}
+    add_constraint(constraint){this.constraints.push(constraint);}
+    destroy(){overlayDestroys++;this.parent?.remove_child(this);}
+}
+const St={Widget:NativeOverlay};
+const Clutter={BindConstraint:class {constructor(o){Object.assign(this,o);}},
+    BindCoordinate:{ALL:0}};
+const Type=new Function('GLib','Meta','Main','Clutter','St',
+    'readWallpaperProfile',
+    managerSource.replace(/^import[\\s\\S]*?;\\s*$/gm,'')
+        .replace(/^export\\s+/gm,'') +
+        '\\nreturn WallpaperAtmosphereManager;'
+)(GLib,Meta,Main,Clutter,St,config.readWallpaperProfile);
 class Settings extends Emitter {
     constructor(style='milky'){
         super();this.data=new Map([
@@ -137,12 +146,12 @@ const settings=new Settings();
 const manager=new Type(settings);
 manager.setup();
 assert.equal(manager._actors.size,2);
-assert.equal(native.effects.size,1,'Milky is default on loaded wallpaper');
-assert.equal(unloaded.effects.size,0,'never shade unloaded Mutter background');
-assert.equal(registrations,1);
+assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1,'Milky is default on loaded wallpaper');
+assert.equal(unloaded.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0,'never shade unloaded Mutter background');
+assert.equal(overlayCreates,1);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Milky White tint attached to 1\/1 loaded wallpaper sources/);
+    /Native Milky White tint on 1\/1 loaded wallpaper sources/);
 
 // The shared mirror is created lazily, while App Grid has independent
 // per-monitor wallpaper actors. Neither may tint the UI above the wallpaper.
@@ -155,27 +164,27 @@ const grid=new BackgroundActor();
 overview.add_child(grid);
 assert.equal(manager.watchContainer(overview),true);
 assert.equal(manager.watchContainer(overview),false);
-assert.equal(mirror.effects.size,1);
-assert.equal(grid.effects.size,1);
+assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
 assert.equal(panelIcon.effects,undefined);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Milky White tint attached to 3\/3 loaded wallpaper sources/);
+    /Native Milky White tint on 3\/3 loaded wallpaper sources/);
 
 // Retired settings must not reconfigure, repaint, or add effects.
-const oldCount=registrations;
-const oldNativeAdds=native.adds;
+const oldCount=overlayCreates;
+const oldNativeAdds=overlayCreates;
 settings.change('wallpaper-grain',100);
 settings.change('wallpaper-filmic',0);
 drainIdles();
-assert.equal(native.adds,oldNativeAdds);
-assert.equal(registrations,oldCount);
+assert.equal(overlayCreates,oldNativeAdds);
+assert.equal(overlayCreates,oldCount);
 
 // Switching to Original detaches the pass and preserves saved legacy data.
 settings.change('wallpaper-style','original');
 drainIdles();
 for(const actor of [native,unloaded,mirror,grid])
-    assert.equal(actor.effects.size,0);
+    assert.equal(actor.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 assert.match(settings.get_string('wallpaper-runtime-status'),
     /Original: no VLIQ wallpaper tint attached/);
 assert.equal(settings.data.get('wallpaper-grain'),100);
@@ -184,33 +193,33 @@ assert.equal(settings.data.get('wallpaper-grain'),100);
 settings.change('wallpaper-style','cinematic');
 drainIdles();
 assert.equal(settings.get_string('wallpaper-style'),'cinematic');
-assert.equal(native.effects.size,1);
-assert.equal(mirror.effects.size,1);
-assert.equal(grid.effects.size,1);
+assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
 
 // Background load changes detach/attach safely, including null background.
 native.content.setLoaded(false);
-assert.equal(native.effects.size,0);
+assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 native.content.setLoaded(true);
-assert.equal(native.effects.size,1);
+assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
 unloaded.content.setLoaded(true);
-assert.equal(unloaded.effects.size,1);
+assert.equal(unloaded.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
 
 // Real wallpaper replacement and mirror removal must release effects.
 desktop.remove_child(native);
-assert.equal(native.effects.size,0);
+assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 const replacement=new BackgroundActor();
 desktop.add_child(replacement);
-assert.equal(replacement.effects.size,1);
+assert.equal(replacement.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
 uiGroup.remove_child(mirrorGroup);
-assert.equal(mirror.effects.size,0);
+assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 manager.unwatchContainer(overview);
-assert.equal(grid.effects.size,0);
+assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 
 manager.cleanup();
 assert.equal(manager._actors.size,0);
 assert.equal(manager._containers.size,0);
-assert.equal(replacement.effects.size,0);
+assert.equal(replacement.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 assert.equal(desktop.get_children().length,3);
 assert.match(settings.get_string('wallpaper-runtime-status'),
     /Inactive: VLIQ wallpaper tint stopped/);
@@ -224,8 +233,8 @@ assert.match(appGrid,/this\._atmosphereManager\?\.unwatchContainer\(widget\)/);
 for(const name of ['wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
     'wallpaperAtmosphereConfig.js','wallpaperAtmospherePreferences.js'])
     assert.ok(install.includes('"' + name + '"'));
-assert.match(effectSource,/vfunc_build_pipeline/);
-assert.match(effectSource,/vfunc_get_static_snippet/);
-assert.match(effectSource,/Shell\.GLSLEffect \?\? Clutter\.ShaderEffect/);
+assert.match(managerSource,/insert_child_above\(overlay, actor\)/);
+assert.match(managerSource,/Clutter\.BindConstraint/);
+assert.doesNotMatch(managerSource,/getWallpaperTintEffectClass|add_effect_with_name/);
 assert.doesNotMatch(effectSource,/GLib\.timeout_add|Shell\.Screenshot|new Gio\.File/);
-console.log('Fixed Milky wallpaper tint: source scoping, legacy migration, Original opt-out, lifecycle and packaging PASS.');
+console.log('Native Milky wallpaper tint: first-paint overlay, source scoping, legacy migration, Original opt-out, lifecycle and packaging PASS.');
