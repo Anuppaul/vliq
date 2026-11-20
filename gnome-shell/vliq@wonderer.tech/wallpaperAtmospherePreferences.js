@@ -42,7 +42,13 @@ export function addWallpaperAtmospherePreferences(
         if (syncing)
             return;
         const style = WALLPAPER_STYLES[presetRow.selected]?.id;
-        if (style && settings.get_string('wallpaper-style') !== style)
+        const saved = settings.get_string('wallpaper-style');
+        // When a live Shell still has the old unset Original default,
+        // selecting Original must persist a real opt-out even though the
+        // effective old schema value already reads 'original'.
+        const needsExplicitOptOut = style === 'original' &&
+            settings.get_user_value?.('wallpaper-style') === null;
+        if (style && (saved !== style || needsExplicitOptOut))
             settings.set_string('wallpaper-style', style);
     });
     settings.connect('changed::wallpaper-style', syncStyle);
