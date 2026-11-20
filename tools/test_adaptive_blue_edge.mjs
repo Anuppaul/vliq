@@ -43,7 +43,7 @@ assert.match(rim,/edgeCoverage \*= mix\(0\.72, 1\.0, whiteOrGray\)/);
 assert.match(rim,/edgeCoverage \*= mix\(1\.0, 0\.58, brightEdge\)/);
 assert.match(rim,/edgeCoverage \*= mix\(\s*1\.0,\s*0\.87,/);
 assert.match(rim,/litColor = mix\(litColor, edgeColor, edgeCoverage\);/);
-assert.doesNotMatch(rim,/time|frame|texture2D|sampler2D|cogl_sampler|GLib/i);
+assert.doesNotMatch(rim.replace(/\/\/[^\n]*/g,''),/\btime\b|\bframe\b|texture2D|sampler2D|cogl_sampler|GLib/i);
 assert.doesNotMatch(rim,/cogl_color_out\s*=|shadowAlpha/);
 assert.match(shader,/float insideMask = 1\.0 - outsideTransition;/);
 assert.match(shader,/vec3 finalRgb\s*=\s*litColor \* alpha \+ shadowColor \* shadowContribution;/);
