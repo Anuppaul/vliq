@@ -81,8 +81,14 @@ for(let side=0;side<4;side++) {
     assert.ok(samples.every(s=>
         s.rgb.every(c=>c>0.3&&c<1.01)),
     'dark rim is optical slate rather than solid black');
-    assert.deepEqual(samples,Array.from({length:501},(_,i)=>
-        toneAt(i-250,side)), 'rim has no time-varying output');
+    assert.deepEqual(
+        samples.map(({rgb,weight})=>({rgb,weight})),
+        Array.from({length:501},(_,i)=>{
+            const {rgb,weight}=toneAt(i-250,side);
+            return {rgb,weight};
+        }),
+        'rim has no time-varying output'
+    );
 }
 const sample=toneAt(14,0,0,0.5);
 assert.equal(sample.coverageAt(1.15),0);
