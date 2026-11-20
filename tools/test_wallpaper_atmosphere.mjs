@@ -16,55 +16,50 @@ const [configSource, managerSource, effectSource, schema,
 
 const config = new Function(
     configSource.replace(/^export\s+/gm, '') +
-    '\nreturn {ATMOSPHERE_KEYS, ATMOSPHERE_PRESETS, readAtmosphereProfile};'
+    '\nreturn {WALLPAPER_STYLES,WALLPAPER_MILKY_TINT,readWallpaperProfile};'
 )();
-assert.deepEqual(config.ATMOSPHERE_KEYS, [
-    'wallpaper-filmic', 'wallpaper-vignette', 'wallpaper-ambient',
-    'wallpaper-grain', 'wallpaper-adaptive-contrast',
-]);
-assert.deepEqual(config.ATMOSPHERE_PRESETS.map(x => x.id), [
-    'original', 'natural', 'cinematic', 'atmosphere', 'custom',
-]);
-assert.deepEqual(config.ATMOSPHERE_PRESETS
-    .find(x => x.id === 'atmosphere').values, [62,52,54,3,56]);
-assert.match(schema, /<key name="wallpaper-style" type="s">\s*<default>'original'<\/default>/);
-for (const key of config.ATMOSPHERE_KEYS)
-    assert.match(schema, new RegExp('<key name="' + key + '"'));
-const defaultValues = Object.fromEntries(
-    config.ATMOSPHERE_KEYS.map((key,i) => [key,[62,52,54,3,56][i]])
-);
+assert.deepEqual(config.WALLPAPER_STYLES.map(x => x.id), ['milky','original']);
+assert.deepEqual(config.WALLPAPER_MILKY_TINT,
+    {red:245,green:249,blue:255,opacity:0.24});
+assert.match(schema,
+    /<key name="wallpaper-style" type="s">\s*<default>'milky'<\/default>/);
+for (const key of ['wallpaper-filmic','wallpaper-vignette',
+    'wallpaper-ambient','wallpaper-grain','wallpaper-adaptive-contrast']) {
+    assert.match(schema,new RegExp('<key name="' + key + '"'));
+    assert.doesNotMatch(managerSource,new RegExp("get_int\\('" + key));
+}
+assert.doesNotMatch(managerSource,/ATMOSPHERE_KEYS|\.configure\(/);
+assert.doesNotMatch(effectSource,
+    /va_filmic|va_vignette|va_ambient|va_grain|va_adaptive|va_resolution/);
 
 class Emitter {
-    constructor() {this._subs = new Map();this._id = 0;}
-    connect(event, handler) {
-        const id = ++this._id;
-        this._subs.set(id,{event,handler});
-        return id;
+    constructor() {this._subs=new Map();this._id=0;}
+    connect(event,handler) {
+        const id=++this._id;this._subs.set(id,{event,handler});return id;
     }
-    disconnect(id){this._subs.delete(id);}
-    emit(event,...args){
-        for (const {event:e,handler} of [...this._subs.values()])
-            if(e===event) handler(this,...args);
+    disconnect(id) {this._subs.delete(id);}
+    emit(event,...args) {
+        for(const item of [...this._subs.values()])
+            if(item.event===event)item.handler(this,...args);
     }
 }
 class BackgroundContent extends Emitter {
     constructor(loaded=true){super();this.background=loaded?{}:null;}
-    load(){this.background={};this.emit('notify::background');}
+    setLoaded(loaded){this.background=loaded?{}:null;this.emit('notify::background');}
 }
 class BackgroundActor extends Emitter {
-    constructor({loaded=true,name='background'}={}){
-        super();this._name=name;
-        this.content=new BackgroundContent(loaded);
+    constructor(loaded=true){
+        super();this.content=new BackgroundContent(loaded);
         this.effects=new Map();this.adds=0;this.removes=0;
     }
-    get_name(){return this._name;}
-    add_effect_with_name(name, effect){
-        assert.equal(this.effects.has(name),false,'no duplicate wallpaper effect');
+    add_effect_with_name(name,effect){
+        assert.equal(name,'vliq-milky-wallpaper');
+        assert.equal(this.effects.has(name),false,'one effect per wallpaper');
         this.effects.set(name,effect);this.adds++;
     }
     remove_effect(effect){
-        for (const [name,item] of this.effects)
-            if(item===effect){this.effects.delete(name);this.removes++;return;}
+        for(const [key,value] of this.effects)
+            if(value===effect){this.effects.delete(key);this.removes++;return;}
     }
 }
 class Actor extends Emitter {
@@ -73,194 +68,153 @@ class Actor extends Emitter {
     get_children(){return [...this.children];}
     add_child(child){this.children.push(child);this.emit('child-added',child);}
     remove_child(child){
-        this.children=this.children.filter(c=>c!==child);
+        this.children=this.children.filter(x=>x!==child);
         this.emit('child-removed',child);
     }
 }
-const desktop = new Actor('gnome-real-background-group');
-const uiGroup = new Actor('uiGroup');
-const native = new BackgroundActor();
-const notWallpaper = new Actor('native-panel-icon');
-desktop.add_child(native);
-desktop.add_child(notWallpaper);
-const unloaded = new BackgroundActor({loaded:false});
-desktop.add_child(unloaded);
-const Meta = {BackgroundActor,BackgroundContent};
+const desktop=new Actor('desktop');
+const uiGroup=new Actor('uiGroup');
+const native=new BackgroundActor();
+const unloaded=new BackgroundActor(false);
+const panelIcon=new Actor('native-app-icon');
+for(const child of [native,unloaded,panelIcon])desktop.add_child(child);
+const Meta={BackgroundActor,BackgroundContent};
 const Main={layoutManager:{_backgroundGroup:desktop,uiGroup}};
-const idleTasks=new Map();
+const idles=new Map();
 let idleId=0;
-function drainIdles() {
-    let ticks=0;
-    while(idleTasks.size){
-        assert.ok(++ticks<100, 'status refresh must be bounded');
-        const [id,cb]=idleTasks.entries().next().value;
-        idleTasks.delete(id);
-        assert.equal(cb(), false);
-    }
-}
 const GLib={
     PRIORITY_DEFAULT_IDLE:200,
     SOURCE_REMOVE:false,
-    idle_add(_p,cb){const id=++idleId;idleTasks.set(id,cb);return id;},
-    source_remove(id){idleTasks.delete(id);},
+    idle_add(_priority,fn){const id=++idleId;idles.set(id,fn);return id;},
+    source_remove(id){idles.delete(id);},
 };
-let registerCount=0;
-let shaderClass=null;
-class FakeEffect {
-    constructor(){this.profiles=[];}
-    configure(values){this.profiles.push([...values]);}
-}
-const source=managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
-    .replace(/^export\s+/gm,'');
-const Type=new Function('GLib','Meta','Main','ATMOSPHERE_KEYS',
-    'readAtmosphereProfile','getAtmosphereEffectClass',
-    source+'\nreturn WallpaperAtmosphereManager;'
-)(
-    GLib,Meta,Main,config.ATMOSPHERE_KEYS,config.readAtmosphereProfile,
-    () => {
-        if (!shaderClass) {
-            shaderClass = FakeEffect;
-            registerCount++;
-        }
-        return shaderClass;
+function drainIdles() {
+    let n=0;
+    while(idles.size) {
+        assert.ok(++n<100,'no unbounded idle scheduling');
+        const [id,fn]=idles.entries().next().value;
+        idles.delete(id);
+        assert.equal(fn(),false);
     }
-);
+}
+let registrations=0;
+class FakeEffect {}
+const Type=new Function('GLib','Meta','Main',
+    'readWallpaperProfile','getWallpaperTintEffectClass',
+    managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
+        .replace(/^export\s+/gm,'') +
+        '\nreturn WallpaperAtmosphereManager;'
+)(GLib,Meta,Main,config.readWallpaperProfile,()=>{
+    registrations++;return FakeEffect;
+});
 class Settings extends Emitter {
-    constructor(){super();this.data=new Map(Object.entries({
-        'wallpaper-style':'original',
-        'wallpaper-runtime-status':'Not initialized — install or reload VLIQ',
-        ...defaultValues,
-    }));}
-    get_string(k){return this.data.get(k);}
-    get_int(k){return this.data.get(k);}
-    set_string(k,v){this.change(k,v);}
+    constructor(style='milky'){
+        super();this.data=new Map([
+            ['wallpaper-style',style],
+            ['wallpaper-runtime-status','Not initialized'],
+            ['wallpaper-filmic',62],['wallpaper-vignette',52],
+            ['wallpaper-ambient',54],['wallpaper-grain',3],
+            ['wallpaper-adaptive-contrast',56],
+        ]);
+    }
+    get_string(key){return this.data.get(key);}
+    get_int(){throw new Error('Retired effect settings must not be read');}
+    set_string(key,value){this.change(key,value);}
     change(key,value){this.data.set(key,value);this.emit('changed',key);}
 }
 const settings=new Settings();
 const manager=new Type(settings);
 manager.setup();
-assert.equal(manager._actors.size,2,
-    'watch only real Meta.BackgroundActors, never UI icons');
-assert.equal(native.effects.size,0,
-    'Original does not even register a shader/effect');
-assert.equal(unloaded.effects.size,0);
-assert.equal(registerCount,0);
+assert.equal(manager._actors.size,2);
+assert.equal(native.effects.size,1,'Milky is default on loaded wallpaper');
+assert.equal(unloaded.effects.size,0,'never shade unloaded Mutter background');
+assert.equal(registrations,1);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Original: no Atmosphere GPU effect attached/,
-    'live status makes disabled Original mode explicit');
+    /Milky White tint attached to 1\/1 loaded wallpaper sources/);
 
-// The Liquid Glass shared wallpaper mirror can be created AFTER Atmosphere
-// startup. Its children must be graded once, using the same profile.
+// The shared mirror is created lazily, while App Grid has independent
+// per-monitor wallpaper actors. Neither may tint the UI above the wallpaper.
 const mirrorGroup=new Actor('lg-bg-mirror-source');
-const mirror=new BackgroundActor({name:'lg-bg-mirror'});
+const mirror=new BackgroundActor();
 mirrorGroup.add_child(mirror);
 uiGroup.add_child(mirrorGroup);
-assert.equal(mirror.effects.size,0);
-
-// App Grid native blurred wallpaper is an independent background source.
-const overviewWidget=new Actor('GNOME-overview-monitor-background');
-const gridBg=new BackgroundActor();
-overviewWidget.add_child(gridBg);
-assert.equal(manager.watchContainer(overviewWidget),true);
-assert.equal(manager.watchContainer(overviewWidget),false);
-assert.equal(gridBg.effects.size,0);
+const overview=new Actor('overview-wallpaper-container');
+const grid=new BackgroundActor();
+overview.add_child(grid);
+assert.equal(manager.watchContainer(overview),true);
+assert.equal(manager.watchContainer(overview),false);
+assert.equal(mirror.effects.size,1);
+assert.equal(grid.effects.size,1);
+assert.equal(panelIcon.effects,undefined);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Original: no Atmosphere GPU effect attached/,
-    'mirror/App Grid bookkeeping may update diagnostic once without shaders');
+    /Milky White tint attached to 3\/3 loaded wallpaper sources/);
 
-// Batch five setting changes into ONE native idle reconfiguration.
-settings.change('wallpaper-filmic',18);
-settings.change('wallpaper-vignette',10);
-settings.change('wallpaper-style','atmosphere');
-assert.equal(idleTasks.size,1,
-    'multiple GSettings changes produce one apply idle');
+// Retired settings must not reconfigure, repaint, or add effects.
+const oldCount=registrations;
+const oldNativeAdds=native.adds;
+settings.change('wallpaper-grain',100);
+settings.change('wallpaper-filmic',0);
 drainIdles();
+assert.equal(native.adds,oldNativeAdds);
+assert.equal(registrations,oldCount);
+
+// Switching to Original detaches the pass and preserves saved legacy data.
+settings.change('wallpaper-style','original');
+drainIdles();
+for(const actor of [native,unloaded,mirror,grid])
+    assert.equal(actor.effects.size,0);
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Shader attached to 3\/3 loaded wallpaper sources/,
-    'live UI reports verified actor attachments after apply');
-assert.equal(registerCount,1,
-    'single effect class for all independent wallpaper actors');
+    /Original: no VLIQ wallpaper tint attached/);
+assert.equal(settings.data.get('wallpaper-grain'),100);
+
+// Old saved presets map to Milky without modifying the GSettings value.
+settings.change('wallpaper-style','cinematic');
+drainIdles();
+assert.equal(settings.get_string('wallpaper-style'),'cinematic');
 assert.equal(native.effects.size,1);
 assert.equal(mirror.effects.size,1);
-assert.equal(gridBg.effects.size,1);
-assert.equal(unloaded.effects.size,0,'never render a null background');
-const effectOf=actor=>actor.effects.get('vliq-atmosphere-wallpaper');
-for(const actor of [native,mirror,gridBg])
-    assert.deepEqual(effectOf(actor).profiles.at(-1),[62,52,54,3,56],
-        'named Atmosphere must upgrade from stale pre-PR #62 slider values');
-assert.notEqual(effectOf(native),effectOf(mirror),
-    'separate native paint sources own distinct instances');
+assert.equal(grid.effects.size,1);
 
-// A wallpaper can be inserted before GNOME assigned its Meta.Background.
-// The effect attaches ONLY when real contents become loaded.
-unloaded.content.load();
+// Background load changes detach/attach safely, including null background.
+native.content.setLoaded(false);
+assert.equal(native.effects.size,0);
+native.content.setLoaded(true);
+assert.equal(native.effects.size,1);
+unloaded.content.setLoaded(true);
 assert.equal(unloaded.effects.size,1);
-assert.equal(registerCount,1);
-drainIdles();
-assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Shader attached to 4\/4 loaded wallpaper sources/);
 
-// While a *named* preset is active, stale saved sliders may change but the
-// visible preset stays canonical. Switching to Custom intentionally uses
-// the saved values, with no duplicate GObject class.
-settings.change('wallpaper-ambient',11);
-drainIdles();
-assert.equal(native.adds,1);
-assert.deepEqual(effectOf(native).profiles.at(-1),[62,52,54,3,56]);
-settings.change('wallpaper-style','custom');
-drainIdles();
-assert.deepEqual(effectOf(native).profiles.at(-1),[18,10,11,3,56]);
-
-// A GNOME wallpaper change replaces the background actor; old effects and
-// event watchers must be cleaned without ever editing the picture file.
+// Real wallpaper replacement and mirror removal must release effects.
 desktop.remove_child(native);
 assert.equal(native.effects.size,0);
-assert.equal(native.removes,1);
 const replacement=new BackgroundActor();
 desktop.add_child(replacement);
 assert.equal(replacement.effects.size,1);
-
-// Turning Original ON is a true zero-GPU mode, without resetting controls.
-settings.change('wallpaper-style','original');
-drainIdles();
-for(const actor of [replacement,unloaded,mirror,gridBg])
-    assert.equal(actor.effects.size,0);
-assert.equal(registerCount,1);
-assert.equal(settings.get_int('wallpaper-filmic'),18);
-assert.equal(settings.get_int('wallpaper-ambient'),11);
-assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Original: no Atmosphere GPU effect attached/);
-
-// Watchers track mirror source removal and monitor/App Grid rebuilds.
 uiGroup.remove_child(mirrorGroup);
-assert.equal(manager._containers.has(mirrorGroup),false);
-manager.unwatchContainer(overviewWidget);
-assert.equal(manager._containers.has(overviewWidget),false);
+assert.equal(mirror.effects.size,0);
+manager.unwatchContainer(overview);
+assert.equal(grid.effects.size,0);
 
-// Cleanup removes all signal connections and source tracking. Disabling
-// VLIQ must NEVER delete actual GNOME/Meta background actors.
 manager.cleanup();
 assert.equal(manager._actors.size,0);
 assert.equal(manager._containers.size,0);
+assert.equal(replacement.effects.size,0);
 assert.equal(desktop.get_children().length,3);
-assert.equal(uiGroup.get_children().length,0);
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Inactive: VLIQ Atmosphere runtime stopped/);
+    /Inactive: VLIQ wallpaper tint stopped/);
 
-// Packaging and runtime integration must be real, not just mock tests.
+// Real integration, packaging and compositor class contracts.
 assert.match(integration,/new WallpaperAtmosphereManager\(this\._vliqSettings\)/);
 assert.match(integration,/new AppGridBackdropManager\(\{\s*atmosphereManager:/);
 assert.match(integration,/cleanup\(\s*'wallpaperAtmosphereManager'/);
 assert.match(appGrid,/this\._atmosphereManager\?\.watchContainer\(widget\)/);
 assert.match(appGrid,/this\._atmosphereManager\?\.unwatchContainer\(widget\)/);
-for(const path of [
-    'wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
-    'wallpaperAtmosphereConfig.js','wallpaperAtmospherePreferences.js',
-]) assert.match(install,new RegExp('"' + path.replace(/\./g,'\\.') + '"'));
+for(const name of ['wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
+    'wallpaperAtmosphereConfig.js','wallpaperAtmospherePreferences.js'])
+    assert.ok(install.includes('"' + name + '"'));
 assert.match(effectSource,/vfunc_build_pipeline/);
 assert.match(effectSource,/vfunc_get_static_snippet/);
 assert.match(effectSource,/Shell\.GLSLEffect \?\? Clutter\.ShaderEffect/);
 assert.doesNotMatch(effectSource,/GLib\.timeout_add|Shell\.Screenshot|new Gio\.File/);
-console.log('Atmosphere visible named presets from old saved values, Original safety, real source count/status, wallpaper loading, Custom fidelity and cleanup PASS.');
+console.log('Fixed Milky wallpaper tint: source scoping, legacy migration, Original opt-out, lifecycle and packaging PASS.');
