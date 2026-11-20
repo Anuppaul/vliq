@@ -1,12 +1,23 @@
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
+import Cogl from 'gi://Cogl';
+import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {readWallpaperProfile} from './wallpaperAtmosphereConfig.js';
-import {getWallpaperTintEffectClass} from './wallpaperAtmosphereEffect.js';
 
-const EFFECT_NAME = 'vliq-milky-wallpaper';
+
+// GNOME Shell 50: paint one fixed native Clutter color quad instead of
+// rasterizing St CSS on the first visible frame. Use 8-bit alpha parity
+// with the existing CSS rgba(245,249,255,0.24) Milky hover shade.
+const TINT_COLOR = new Cogl.Color({
+    red: 245, green: 249, blue: 255, alpha: Math.round(255 * 0.24),
+});
+const CLEAR_COLOR = new Cogl.Color({
+    red: 245, green: 249, blue: 255, alpha: 0,
+});
 const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
 
 /**
@@ -17,7 +28,8 @@ const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
  * (3) the independent wallpaper actors of VLIQ's native App Grid blur.
  *
  * The three sources share the original Meta.Background image and stay
- * independent as actors; each has at most ONE tint shader. We never tint
+ * independent as actors; each gets one compositor-native paint-only tint
+ * sibling, without CSS theme resolution or first-use GLSL compilation. We never tint
  * uiGroup, OverviewGroup, popups, windows or the final glass output, so
  * Browser pages and native app icons are not recolored.
  */
@@ -32,8 +44,8 @@ export class WallpaperAtmosphereManager {
         this._uiGroup = null;
         this._uiAddedId = 0;
         this._uiRemovedId = 0;
-        this._pendingUpdateId = 0;
         this._statusUpdateId = 0;
+        this._paintProbeId = 0;
         this._lastStatus = null;
         this._warnings = new Set();
     }
@@ -73,13 +85,131 @@ export class WallpaperAtmosphereManager {
         const onChange = (_settings, key) => {
             if (key !== 'wallpaper-style')
                 return;
-            this._scheduleApply();
+            // A wallpaper style toggle affects only a few lightweight
+            // paint actors. Apply in the GSettings callback, not a
+            // PRIORITY_DEFAULT_IDLE source that can run after a busy frame.
+            const started = GLib.get_monotonic_time();
+            this._applyNow();
+            // This measures actual compositor frame scheduling rather than
+            // only the JS setter. It is a one-shot GNOME Stage signal, never
+            // a permanent repaint hook or polling timer.
+            this._probeNextPaint(key, started);
+            const elapsedMs =
+                (GLib.get_monotonic_time() - started) / 1000;
+            console.log(
+                '[VLIQ][Wallpaper] style=' + this._profile.style +
+                ' applied in ' + elapsedMs.toFixed(2) +
+                ' ms (compositor paint not measured)'
+            );
         };
         this._settingsId = this._settings?.connect?.(
             'changed', onChange
         ) ?? 0;
         this._applyNow();
         this._queueStatus();
+    }
+
+    _disconnectPaintProbe() {
+        if (!this._paintProbeId)
+            return;
+        try {
+            global.stage?.disconnect?.(this._paintProbeId);
+        } catch {}
+        this._paintProbeId = 0;
+    }
+
+    _probeNextPaint(_key, startedUs) {
+        this._disconnectPaintProbe();
+        const stage = global.stage;
+        if (!stage?.connect)
+            return;
+        const style = this._profile.style;
+        try {
+            this._paintProbeId = stage.connect('after-paint', () => {
+                this._disconnectPaintProbe();
+                if (!this._enabled)
+                    return;
+
+                let attached = 0;
+                let mapped = 0;
+                let visible = 0;
+                for (const [source, record] of this._actors) {
+                    const overlay = record.overlay;
+                    if (!overlay)
+                        continue;
+                    attached++;
+                    if (overlay.mapped)
+                        mapped++;
+                    if (overlay.visible)
+                        visible++;
+
+                    // One-shot per-source diagnostics distinguish a
+                    // legitimately hidden App Grid actor from a desktop
+                    // or glass mirror that is unexpectedly unmapped.
+                    // Never poll paint or touch rendering state here.
+                    try {
+                        const parent = source.get_parent?.() ?? null;
+                        const parentName = parent?.get_name?.() ?? 'unnamed';
+                        const scope =
+                            parent === Main.layoutManager?._backgroundGroup
+                                ? 'desktop'
+                                : parentName === VENDOR_MIRROR_NAME
+                                    ? 'glass-mirror'
+                                    : 'overview-or-other';
+                        const siblings = parent?.get_children?.() ?? [];
+                        const indexSource = siblings.indexOf(source);
+                        const indexOverlay = siblings.indexOf(overlay);
+                        const sourceWidth = source.get_width?.() ??
+                            source.width ?? 0;
+                        const sourceHeight = source.get_height?.() ??
+                            source.height ?? 0;
+                        const overlayWidth = overlay.get_width?.() ??
+                            overlay.width ?? 0;
+                        const overlayHeight = overlay.get_height?.() ??
+                            overlay.height ?? 0;
+                        const alpha = overlay.background_color?.alpha ?? '?';
+                        console.log(
+                            '[VLIQ][Wallpaper][PaintProbeSource] style=' +
+                            style + ' scope=' + scope +
+                            ' sourceMapped=' + Boolean(source.mapped) +
+                            ' tintMapped=' + Boolean(overlay.mapped) +
+                            ' tintVisible=' + Boolean(overlay.visible) +
+                            ' sourceOpacity=' +
+                            (source.get_paint_opacity?.() ??
+                                source.opacity ?? '?') +
+                            ' tintOpacity=' +
+                            (overlay.get_paint_opacity?.() ??
+                                overlay.opacity ?? '?') +
+                            ' colorAlpha=' + alpha +
+                            ' sourceSize=' + sourceWidth + 'x' +
+                                sourceHeight +
+                            ' tintSize=' + overlayWidth + 'x' +
+                                overlayHeight +
+                            ' stacking=' + indexSource + '->' +
+                                indexOverlay +
+                            ' siblings=' + siblings.length
+                        );
+                    } catch (error) {
+                        this._warnOnce('paint probe source inspection',
+                            error);
+                    }
+                }
+                const ms = (GLib.get_monotonic_time() - startedUs) / 1000;
+                // Stage after-paint means a compositor frame completed.
+                // It does NOT prove these overlay pixels were visible.
+                console.log(
+                    '[VLIQ][Wallpaper][PaintProbe] style=' + style +
+                    ' stage-after-paint=' + ms.toFixed(2) + ' ms' +
+                    ' overlay=' + attached +
+                    ' mapped=' + mapped +
+                    ' visible=' + visible +
+                    ' (pixel output unverified)'
+                );
+            });
+        } catch (error) {
+            this._paintProbeId = 0;
+            this._warnOnce('after-paint diagnostic unavailable', error);
+        }
     }
 
     _warnOnce(phase, error) {
@@ -113,7 +243,10 @@ export class WallpaperAtmosphereManager {
 
         const content = actor.content ?? actor.get_content?.();
         const record = {
-            effect: null,
+            overlay: null,
+            tinted: null,
+            bindings: [],
+            fallbackSignalIds: [],
             destroyId: 0,
             backgroundId: 0,
             content,
@@ -151,47 +284,108 @@ export class WallpaperAtmosphereManager {
         }
     }
 
+    _syncOverlayColor(record) {
+        const overlay = record?.overlay;
+        if (!overlay)
+            return;
+
+        // Original remains an exact transparent color quad. The
+        // actor stays allocated/mapped across mode changes, so switching
+        // to Milky changes only a native paint color, never CSS, shader
+        // compilation, actor visibility or compositor capture allocation.
+        const tinted = this._enabled && this._profile.active;
+        if (record.tinted === tinted)
+            return;
+        record.tinted = tinted;
+        overlay.set_background_color(tinted ? TINT_COLOR : CLEAR_COLOR);
+    }
+
     _syncActor(actor) {
         const record = this._actors.get(actor);
         if (!record)
             return;
 
-        const active = this._enabled &&
-            this._profile.active &&
-            this._hasLoadedBackground(record);
-
-        if (!active) {
+        if (!this._enabled) {
             this._detachActor(actor, record);
-            this._queueStatus();
             return;
         }
 
+        if (record.overlay) {
+            this._syncOverlayColor(record);
+            return;
+        }
+
+        // Create native Cogl quad immediately on background actor discovery.
+        // Inactive Original still has a transparent cached layer, so a
+        // later Milky toggle cannot trigger CSS first-paint initialization.
+        const parent = actor.get_parent?.();
+        if (!parent)
+            return;
+
         try {
-            if (!record.effect) {
-                // Only attach after GNOME has provided a real background.
-                // The shader is immutable and has no per-frame uniforms.
-                const Effect = getWallpaperTintEffectClass();
-                const effect = new Effect();
-                actor.add_effect_with_name(EFFECT_NAME, effect);
-                record.effect = effect;
+            const overlay = new Clutter.Actor({
+                name: 'vliq-wallpaper-milky-tint',
+                reactive: false,
+                background_color: this._profile.active ?
+                    TINT_COLOR : CLEAR_COLOR,
+            });
+            overlay.add_constraint(new Clutter.BindConstraint({
+                source: actor,
+                coordinate: Clutter.BindCoordinate.ALL,
+            }));
+            parent.insert_child_above(overlay, actor);
+            record.overlay = overlay;
+            record.tinted = this._profile.active;
+
+            // Mutter owns actor fades. Native GObject property bindings
+            // mirror those fades without JavaScript work on every frame.
+            for (const property of ['opacity', 'visible']) {
+                try {
+                    const binding = actor.bind_property(
+                        property, overlay, property,
+                        GObject.BindingFlags.SYNC_CREATE
+                    );
+                    if (binding) {
+                        record.bindings.push(binding);
+                        continue;
+                    }
+                } catch {}
+
+                // A small fallback for a backend without native binding.
+                // Only attach a property-notify callback when necessary.
+                try {
+                    const sync = () => {
+                        overlay[property] = actor[property];
+                    };
+                    sync();
+                    const id = actor.connect('notify::' + property, sync);
+                    record.fallbackSignalIds.push(id);
+                } catch {}
             }
         } catch (error) {
-            this._warnOnce('wallpaper tint unavailable for one actor', error);
+            this._warnOnce('native wallpaper tint unavailable', error);
             this._detachActor(actor, record);
         }
         this._queueStatus();
     }
 
     _detachActor(actor, record) {
-        const effect = record?.effect ?? null;
-        if (!effect)
+        const overlay = record?.overlay ?? null;
+        if (!overlay)
             return;
-        record.effect = null;
-        try {
-            actor.remove_effect?.(effect);
-        } catch {}
-        // The compositor owns the effect lifetime after removal. Do not
-        // destroy GNOME's source actor, background content or wallpaper.
+        record.overlay = null;
+        record.tinted = null;
+        for (const id of record.fallbackSignalIds) {
+            try { actor.disconnect(id); } catch {}
+        }
+        record.fallbackSignalIds = [];
+        for (const binding of record.bindings) {
+            try { binding.unbind?.(); } catch {}
+        }
+        record.bindings = [];
+        try { overlay.destroy?.(); } catch {}
+        // The wallpaper actor and its original Meta.BackgroundContent
+        // always remain owned by GNOME.
     }
 
     _untrack(actor) {
@@ -260,9 +454,9 @@ export class WallpaperAtmosphereManager {
             } catch {}
         }
 
-        // Each monitored wallpaper is parented to exactly one source
-        // container, so dropping it cannot detach a different source.
-        for (const actor of container.get_children?.() ?? [])
+        // A wallpaper may have an overlay sibling; use the tracked actor
+        // registry rather than relying on an array mutated by destroy().
+        for (const actor of [...(container.get_children?.() ?? [])])
             this._untrack(actor);
         return true;
     }
@@ -289,19 +483,19 @@ export class WallpaperAtmosphereManager {
         for (const record of this._actors.values()) {
             if (this._hasLoadedBackground(record))
                 loaded++;
-            if (record.effect)
+            if (record.overlay)
                 attached++;
         }
         // Attachment status is diagnostic; it cannot prove GPU pixel output.
         const message = !this._profile.active
             ? 'Original: no VLIQ wallpaper tint attached'
             : attached > 0
-                ? 'Milky White tint attached to ' + attached + '/' + loaded +
-                    ' loaded wallpaper sources (GPU pixels not verified)'
-                : loaded === 0
-                    ? 'Waiting for GNOME wallpaper background actors'
-                    : 'Not attached: ' + loaded +
-                        ' loaded wallpaper sources; inspect GNOME Shell logs';
+                ? 'Native Milky White tint allocated on ' + attached +
+                    '/' + this._actors.size + ' wallpaper actors (' +
+                    loaded + ' backgrounds loaded; visual check required)'
+                : this._actors.size === 0
+                    ? 'Waiting for GNOME wallpaper actors'
+                    : 'Tint not attached: inspect GNOME Shell logs';
 
         if (this._lastStatus === message)
             return;
@@ -319,22 +513,11 @@ export class WallpaperAtmosphereManager {
         }
     }
 
-    _scheduleApply() {
-        if (!this._enabled || this._pendingUpdateId)
-            return;
-        this._pendingUpdateId = GLib.idle_add(
-            GLib.PRIORITY_DEFAULT_IDLE,
-            () => {
-                this._pendingUpdateId = 0;
-                if (this._enabled)
-                    this._applyNow();
-                return GLib.SOURCE_REMOVE;
-            }
-        );
-    }
-
     _applyNow() {
-        this._profile = readWallpaperProfile(this._settings);
+        const profile = readWallpaperProfile(this._settings);
+        if (this._profile.active === profile.active)
+            return;
+        this._profile = profile;
         for (const actor of this._actors.keys())
             this._syncActor(actor);
         this._queueStatus();
@@ -344,13 +527,8 @@ export class WallpaperAtmosphereManager {
         if (!this._enabled)
             return;
         this._enabled = false;
+        this._disconnectPaintProbe();
 
-        if (this._pendingUpdateId) {
-            try {
-                GLib.source_remove(this._pendingUpdateId);
-            } catch {}
-            this._pendingUpdateId = 0;
-        }
         if (this._statusUpdateId) {
             try {
                 GLib.source_remove(this._statusUpdateId);

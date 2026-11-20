@@ -119,11 +119,18 @@ Milky White without modifying their stored values. Explicitly saved Original
 remains respected. The five old numeric GSettings keys are retained only
 for compatibility and no longer affect rendering.
 
-**Status:** The Wallpaper page reports the number of loaded wallpaper
-actors with the tint attached. This confirms effect attachment, not
-verified GPU pixels. A fixed one-sample compositor pass adds no animation,
-CPU screenshots or per-frame timers, but GPU cost still needs testing on
-GNOME Shell 50. The existing Liquid/Frosted glass materials are unchanged.
+**Status:** The Wallpaper page reports native tint allocation, not verified
+GPU output. Wallpaper tint actors are prepared before asynchronous Liquid
+Glass vendor loading; native actor visibility is updated synchronously with
+wallpaper-style changes, without a low-priority idle queue or actor recreation.
+The 24% shade is painted by a lightweight Clutter.Actor native color
+quad (Cogl.Color, alpha 61/255) alongside each real wallpaper actor. Original
+sets that color alpha to zero, rather than hiding/unmapping the actor.
+Milky restores 24% alpha with one native property update; no St CSS
+resolution, actor re-creation, GLSL shader, or new compositor capture path.
+Wallpaper source opacity and visibility stay bound during crossfades.
+Actual first-frame paint and multi-monitor behavior still require testing
+on GNOME Shell 50; synthetic checks do not measure GPU frame latency.
 
 ## Choose a Glass Material
 

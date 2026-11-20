@@ -31,14 +31,19 @@ remain in the GSettings schema for compatibility but are never read by the
 new wallpaper shader; legacy non-Original selections resolve to Milky White.
 
 WallpaperAtmosphereManager retains the established actor lifecycle:
-it observes actual loaded Meta.BackgroundActor sources in the desktop,
-shared glass mirror and App Grid wallpaper backgrounds, attaching one
-immutable shader to each. The shader performs a single premultiplied-alpha
-mix, preserving wallpaper crossfades. No color grading, vignette, grain,
-noise, dynamic uniforms, frame callback, new blur or application-window
-capture is introduced. Original detaches all tint effects. The wallpaper
-tint is managed by the GPU integration; the explicit Native CSS fallback
-continues to bypass custom GPU shader effects.
+it observes genuine Meta.BackgroundActor sources in the desktop, shared glass
+mirror and App Grid backgrounds. It allocates one native Clutter.Actor
+color quad per actor *before* the background image is loaded. A Cogl.Color
+sets the Milky shade (245, 249, 255, alpha 61/255), avoiding St CSS material
+resolution and GLSL shader compilation. Geometry follows the source via
+Clutter.BindConstraint; source opacity and visibility are mirrored by
+GObject property bindings during wallpaper fades. Original writes alpha=0
+to the same quad, while Milky restores the fixed shade synchronously in
+the GSettings callback. No actor hide/show, style reparse, or reallocation is
+needed on a mode toggle. Tint manager initialization precedes asynchronous
+Liquid Glass vendor loading. Cleanup destroys overlays and unbinds source
+properties. No noise, blur, extra shader, screenshot, frame callback or
+window capture is introduced. On-device first-paint timing is unverified.
 
 ## Renderer
 

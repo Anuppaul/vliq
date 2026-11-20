@@ -72,6 +72,10 @@ assert.equal(statusRow.title,'Tint attachment');
 assert.equal(settings.writes.length,0,'opening prefs must not rewrite GSettings');
 assert.doesNotMatch(uiSource,/SpinRow|Gtk\.Adjustment|set_int\(/);
 assert.doesNotMatch(uiSource,/Filmic|Vignette|Ambient|Grain|Contrast/);
+// The active wallpaper manager must not import or instantiate this shader.
+const managerSource=await readFile(new URL(base+'wallpaperAtmosphere.js',import.meta.url),'utf8');
+assert.doesNotMatch(managerSource,/getWallpaperTintEffectClass|add_effect_with_name/);
+assert.ok(managerSource.includes('insert_child_above(overlay, actor)'));
 assert.match(prefs,/addWallpaperAtmospherePreferences\(\s*wallpaperPage, settings, Adw, Gtk/);
 
 settings.set_string('wallpaper-runtime-status',
