@@ -626,6 +626,10 @@ vec3 sampleBackdrop(vec2 uvc, vec2 ext, vec2 texel, vec2 resolution) {
 // layer (not a CSS overlay). Applying it ahead of the user tint preserves
 // the tint color/strength and leaves the output alpha exactly unchanged.
 // It is sampled once per pixel, requires no extra texture or render pass.
+// Share the fixed Milky White RGB with VLIQ's native Milky material.
+// Only the color of existing Liquid/Frosted white BODY fills changes;
+// their blend strengths, alpha, blur, grain and optics are unchanged.
+const vec3 VLIQ_MILKY_WHITE_RGB = vec3(245.0, 249.0, 255.0) / 255.0;
 const float VLIQ_MILKY_WHITE_SHADE = 0.15;
 
 // VLIQ premium glass grain: fine, screen-static monochrome microtexture.
@@ -658,7 +662,7 @@ vec3 vliqCrystalBody(vec3 color) {
     vec3 desaturated = mix(color, vec3(lum), 0.64 * matte);
     vec3 crystalWhite = mix(
         vec3(0.885, 0.925, 0.968),
-        vec3(0.970, 0.983, 1.000),
+        VLIQ_MILKY_WHITE_RGB,
         0.28 * clamp(lum, 0.0, 1.0)
     );
     return mix(desaturated, crystalWhite, 0.87 * matte);
@@ -892,7 +896,7 @@ void main() {
         float a = insideMask * clamp(vliq_milky_opacity, 0.0, 1.0);
         float innerEdge = smoothstep(-1.6, -0.2, d) *
             (1.0 - smoothstep(0.1, 1.2, d));
-        vec3 fill = mix(vec3(245.0, 249.0, 255.0) / 255.0,
+        vec3 fill = mix(VLIQ_MILKY_WHITE_RGB,
                         vec3(1.0), clamp(vliq_milky_whiteness, 0.0, 1.0));
         // The rim is a tiny white-lit inset, never another opaque border.
         vec3 body = mix(fill, vec3(1.0),
@@ -975,7 +979,7 @@ void main() {
         flatRgb = mix(flatRgb, activeTint, activeBaseStrength);
         // Match the full refractive path: brighten only the glass body,
         // then apply the existing user-customizable tint on top.
-        flatRgb = mix(flatRgb, vec3(1.0), VLIQ_MILKY_WHITE_SHADE);
+        flatRgb = mix(flatRgb, VLIQ_MILKY_WHITE_RGB, VLIQ_MILKY_WHITE_SHADE);
         flatRgb = mix(flatRgb, vec3(tint_r, tint_g, tint_b), tint_strength);
         flatRgb = vliqCrystalBody(flatRgb);
 
@@ -1399,7 +1403,7 @@ void main() {
     vec3 insideBaseColor = mix(refracted, activeTint, activeBaseStrength);
     // Exactly the same white shade as the flat-interior early exit.
     // Keep the user's chosen tint on top and leave glass alpha untouched.
-    insideBaseColor = mix(insideBaseColor, vec3(1.0), VLIQ_MILKY_WHITE_SHADE);
+    insideBaseColor = mix(insideBaseColor, VLIQ_MILKY_WHITE_RGB, VLIQ_MILKY_WHITE_SHADE);
     insideBaseColor = mix(insideBaseColor, vec3(tint_r, tint_g, tint_b), tint_strength);
 
     // [FIX] Do NOT multiply by insideMask here. insideMask is the same
