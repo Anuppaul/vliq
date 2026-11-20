@@ -711,10 +711,39 @@ export class LiquidGlassIntegration {
         if (this._enabled)
             return;
 
-        this._vendor = await loadLiquidGlassVendorModules(
-            this._vliqSettings
-        );
-        validateVendorApi(this._vendor);
+        // Prepare the wallpaper tint before async vendor module loading.
+        // The old ordering could reveal un-tinted GNOME wallpaper while
+        // Liquid Glass modules were still loading on login/hot-swap.
+        try {
+            this._wallpaperAtmosphereManager =
+                new WallpaperAtmosphereManager(this._vliqSettings);
+            this._wallpaperAtmosphereManager.setup();
+            this._managerHealth.wallpaperAtmosphereManager = true;
+        } catch (error) {
+            try {
+                this._wallpaperAtmosphereManager?.cleanup?.();
+            } catch {}
+            this._wallpaperAtmosphereManager = null;
+            this._managerHealth.wallpaperAtmosphereManager = false;
+            console.warn(
+                '[VLIQ][Wallpaper] early native tint setup unavailable: ' +
+                error
+            );
+        }
+
+        try {
+            this._vendor = await loadLiquidGlassVendorModules(
+                this._vliqSettings
+            );
+            validateVendorApi(this._vendor);
+        } catch (error) {
+            // Backend fallback must not leave a tint overlay orphaned.
+            try {
+                this._wallpaperAtmosphereManager?.cleanup?.();
+            } catch {}
+            this._wallpaperAtmosphereManager = null;
+            throw error;
+        }
         this._settings = createLiquidGlassSettings();
         this._ensureFullGlassOpticsProfile();
         // Seed the user-selected mode BEFORE creating any glass effects so
@@ -741,25 +770,7 @@ export class LiquidGlassIntegration {
             this._vliqSettings?.get_string?.('glass-style') === 'milky'
         );
 
-        // Hook real GNOME wallpaper actors before creating the shared
-        // glass mirror. Milky White is the default fixed 24% tint;
-        // Original does not instantiate a shader or change the image.
-        try {
-            this._wallpaperAtmosphereManager =
-                new WallpaperAtmosphereManager(this._vliqSettings);
-            this._wallpaperAtmosphereManager.setup();
-            this._managerHealth.wallpaperAtmosphereManager = true;
-        } catch (error) {
-            try {
-                this._wallpaperAtmosphereManager?.cleanup?.();
-            } catch {}
-            this._wallpaperAtmosphereManager = null;
-            this._managerHealth.wallpaperAtmosphereManager = false;
-            console.warn(
-                '[VLIQ][Wallpaper] native wallpaper tint unavailable: ' +
-                error
-            );
-        }
+        // Wallpaper tint is already prepared before vendor loading.
 
         console.log(
             '[VLIQ][LiquidGlass] full upstream integration root: ' +
