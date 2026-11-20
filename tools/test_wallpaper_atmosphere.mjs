@@ -168,6 +168,13 @@ class Settings extends Emitter {
 const overlayCount=actor => actor.parent?.children.filter(child =>
     child.opts?.name === 'vliq-wallpaper-milky-tint' &&
     child.constraints.some(c=>c.source===actor)).length ?? 0;
+// GNOME Shell 50 supplies a Stage after-paint signal. Verify each
+// wallpaper toggle installs only a single one-shot handler and cleanup
+// disconnects it without polling or persistent frame callbacks.
+const stage=new Emitter();
+const oldStage=global.stage;
+global.stage=stage;
+
 const settings=new Settings();
 const manager=new Type(settings);
 manager.setup();
@@ -219,6 +226,9 @@ assert.ok(overlays.every(overlay=>overlay.opts.style === undefined),
     'native Clutter color quads must never use CSS stylesheet paint');
 const beforeStyleChange=overlayCreates;
 settings.change('wallpaper-style','original');
+assert.equal(stage._subs.size,1,'one pending after-paint callback');
+stage.emit('after-paint');
+assert.equal(stage._subs.size,0,'paint probe must disconnect after one frame');
 assert.ok(overlays.every(overlay=>overlay.background_color.alpha===0),
     'Original must remove tint in the synchronous callback');
 assert.ok(overlays.every(overlay=>overlay.visible===true),
@@ -231,6 +241,7 @@ assert.equal(settings.data.get('wallpaper-grain'),100);
 
 // Old saved presets map to Milky without modifying the GSettings value.
 settings.change('wallpaper-style','cinematic');
+assert.equal(stage._subs.size,1);
 assert.ok(overlays.every(overlay=>overlay.background_color.alpha===61),
     'Milky must use the fixed 24% native color in the synchronous callback');
 assert.ok(overlays.every(overlay=>overlay.visible===true),
@@ -289,7 +300,12 @@ assert.equal(overlayCount(mirror),0);
 manager.unwatchContainer(overview);
 assert.equal(overlayCount(grid),0);
 
+// The final probe stays pending until cleanup and must not leak.
+assert.equal(stage._subs.size,1);
 manager.cleanup();
+assert.equal(stage._subs.size,0);
+if(oldStage===undefined)delete global.stage;
+else global.stage=oldStage;
 assert.equal(manager._actors.size,0);
 assert.equal(manager._containers.size,0);
 assert.equal(overlayCount(replacement),0);
