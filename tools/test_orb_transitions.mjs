@@ -123,6 +123,10 @@ assert.equal(taskbarOrb._closeWasScheduled,true,
 assert.equal(taskbarOrb._taskbarOrbAnchor,startAnchor,
     'retain anchor while pointer crosses to a radial app button');
 taskbarOrb._liquidGlassIntegration.isBottomTaskbarActive=()=>false;
+taskbarOrb._liquidGlassIntegration.ownsBottomTaskbarChrome=()=>true;
+assert.equal(taskbarOrb._isBottomTaskbarMode(),true,
+    'transient panel relayout must not reveal duplicate floating Orb');
+taskbarOrb._liquidGlassIntegration.ownsBottomTaskbarChrome=()=>false;
 taskbarOrb._syncOrbTaskbarMode();
 assert.equal(taskbarOrb._taskbarOrbAnchor,null,
     'leaving Bottom Taskbar clears stale Start geometry');
