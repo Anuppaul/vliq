@@ -1624,16 +1624,9 @@ void main() {
             adjustedRefracted, litColor, vliq_frost_amount
         );
         float edgeCoverage = vliqAdaptiveCardEdgeCoverage(d);
-        // edgeLight's red channel already encodes the current luminance.
-        // Neutral charcoal on bright backgrounds; restrained slate-gray
-        // on dark ones, with no second screen/backdrop texture fetch.
+        // Keep the existing luminance signal, no second texture fetch.
         float brightEdge = clamp(
             (0.76 - edgeLight.r) / (0.76 - 0.54), 0.0, 1.0
-        );
-        vec3 edgeDark = mix(
-            vec3(0.36, 0.38, 0.41),
-            vec3(0.18, 0.20, 0.23),
-            brightEdge
         );
         // EXPERIMENT: irregular white/gray segments along the existing rim.
         // A static hash in local card coordinates makes W/G/W/G streaks
