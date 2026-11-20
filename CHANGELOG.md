@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Replaced the wallpaper tint's `St.Widget` CSS-paint surface with a native `Clutter.Actor` `Cogl.Color` quad. Original/Milky now update native background color alpha (0/24%) without hiding or remapping the overlay; native GNOME wallpaper opacity/visibility are property-bound during fades. This removes a potential CSS first-paint latency path but requires real GNOME 50 visual verification.
+
 - Addressed the remaining delayed Milky wallpaper toggles: apply GSettings style changes synchronously instead of queuing an idle callback, reuse already allocated wallpaper tint actors across Original/Milky switches, and track native source visibility separately from the user's selection. Initialize the wallpaper tint manager before asynchronous Liquid Glass vendor loading. Added lifecycle and no-idle regression assertions; live compositor paint still requires device verification.
 
 - Removed late first-paint wallpaper tint shader attachment: native compositor paint overlays now apply the fixed Milky White shade as soon as each GNOME wallpaper source is ready. No GLSL compilation or GPU shader warm-up is required for the tint; source geometry follows Mutter background actors and overlays are cleaned up on wallpaper changes.
