@@ -32,17 +32,18 @@ new wallpaper shader; legacy non-Original selections resolve to Milky White.
 
 WallpaperAtmosphereManager retains the established actor lifecycle:
 it observes genuine Meta.BackgroundActor sources in the desktop, shared glass
-mirror and App Grid backgrounds. It allocates one native St.Widget overlay
-sibling per actor *before* the actor's asynchronous background is loaded.
-Geometry follows the source via Clutter.BindConstraint and opacity follows
-the native source during wallpaper fades. Original hides the prepared
-overlay, while Milky enables it synchronously in the GSettings callback,
-without allocating a new paint actor or waiting for a low-priority idle
-queue. The tint manager initializes before asynchronous Liquid Glass vendor
-loading to reduce cold-start latency. Cleanup destroys overlays and disconnects
-native signals. No shader, grain, extra blur, frame callback, screenshot or
-window capture is introduced. The explicit Native CSS fallback remains
-independently supported. On-device paint timing still requires verification.
+mirror and App Grid backgrounds. It allocates one native Clutter.Actor
+color quad per actor *before* the background image is loaded. A Cogl.Color
+sets the Milky shade (245, 249, 255, alpha 61/255), avoiding St CSS material
+resolution and GLSL shader compilation. Geometry follows the source via
+Clutter.BindConstraint; source opacity and visibility are mirrored by
+GObject property bindings during wallpaper fades. Original writes alpha=0
+to the same quad, while Milky restores the fixed shade synchronously in
+the GSettings callback. No actor hide/show, style reparse, or reallocation is
+needed on a mode toggle. Tint manager initialization precedes asynchronous
+Liquid Glass vendor loading. Cleanup destroys overlays and unbinds source
+properties. No noise, blur, extra shader, screenshot, frame callback or
+window capture is introduced. On-device first-paint timing is unverified.
 
 ## Renderer
 
