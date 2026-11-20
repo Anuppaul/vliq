@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import St from 'gi://St';
+import Cogl from 'gi://Cogl';
 import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 
@@ -9,7 +9,15 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {readWallpaperProfile} from './wallpaperAtmosphereConfig.js';
 
 
-const TINT_COLOR = 'rgba(245,249,255,0.24)';
+// GNOME Shell 50: paint one fixed native Clutter color quad instead of
+// rasterizing St CSS on the first visible frame. Use 8-bit alpha parity
+// with the existing CSS rgba(245,249,255,0.24) Milky hover shade.
+const TINT_COLOR = new Cogl.Color({
+    red: 245, green: 249, blue: 255, alpha: Math.round(255 * 0.24),
+});
+const CLEAR_COLOR = new Cogl.Color({
+    red: 245, green: 249, blue: 255, alpha: 0,
+});
 const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
 
 /**
@@ -21,7 +29,7 @@ const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
  *
  * The three sources share the original Meta.Background image and stay
  * independent as actors; each gets one compositor-native paint-only tint
- * sibling, without a first-use GLSL shader compilation. We never tint
+ * sibling, without CSS theme resolution or first-use GLSL compilation. We never tint
  * uiGroup, OverviewGroup, popups, windows or the final glass output, so
  * Browser pages and native app icons are not recolored.
  */
@@ -128,8 +136,9 @@ export class WallpaperAtmosphereManager {
         const content = actor.content ?? actor.get_content?.();
         const record = {
             overlay: null,
+            tinted: null,
             bindings: [],
-            visibleId: 0,
+            fallbackSignalIds: [],
             destroyId: 0,
             backgroundId: 0,
             content,
@@ -167,19 +176,20 @@ export class WallpaperAtmosphereManager {
         }
     }
 
-    _syncOverlayVisibility(actor, record) {
+    _syncOverlayColor(record) {
         const overlay = record?.overlay;
         if (!overlay)
             return;
 
-        // Do not bind visibility directly: the user's Original choice
-        // must override the GNOME actor's own visible property. Keep
-        // the overlay allocated while Original is selected so a later
-        // Milky toggle cannot incur a fresh actor/style first paint.
-        const visible = this._enabled && this._profile.active &&
-            actor.visible !== false;
-        if (overlay.visible !== visible)
-            overlay.visible = visible;
+        // Original remains an exact transparent color quad. The
+        // actor stays allocated/mapped across mode changes, so switching
+        // to Milky changes only a native paint color, never CSS, shader
+        // compilation, actor visibility or compositor capture allocation.
+        const tinted = this._enabled && this._profile.active;
+        if (record.tinted === tinted)
+            return;
+        record.tinted = tinted;
+        overlay.set_background_color(tinted ? TINT_COLOR : CLEAR_COLOR);
     }
 
     _syncActor(actor) {
@@ -193,24 +203,23 @@ export class WallpaperAtmosphereManager {
         }
 
         if (record.overlay) {
-            this._syncOverlayVisibility(actor, record);
+            this._syncOverlayColor(record);
             return;
         }
 
-        // Allocate the fixed native tint only once per GNOME wallpaper
-        // actor, before its asynchronous background image is loaded.
-        // A hidden overlay for Original costs no paint and can be shown
-        // synchronously when switching back to Milky.
-        try {
-            const parent = actor.get_parent?.();
-            if (!parent)
-                return;
+        // Create native Cogl quad immediately on background actor discovery.
+        // Inactive Original still has a transparent cached layer, so a
+        // later Milky toggle cannot trigger CSS first-paint initialization.
+        const parent = actor.get_parent?.();
+        if (!parent)
+            return;
 
-            const overlay = new St.Widget({
+        try {
+            const overlay = new Clutter.Actor({
                 name: 'vliq-wallpaper-milky-tint',
                 reactive: false,
-                visible: false,
-                style: 'background-color: ' + TINT_COLOR + ';',
+                background_color: this._profile.active ?
+                    TINT_COLOR : CLEAR_COLOR,
             });
             overlay.add_constraint(new Clutter.BindConstraint({
                 source: actor,
@@ -218,24 +227,33 @@ export class WallpaperAtmosphereManager {
             }));
             parent.insert_child_above(overlay, actor);
             record.overlay = overlay;
+            record.tinted = this._profile.active;
 
-            try {
-                const binding = actor.bind_property(
-                    'opacity', overlay, 'opacity',
-                    GObject.BindingFlags.SYNC_CREATE
-                );
-                if (binding)
-                    record.bindings.push(binding);
-            } catch {}
+            // Mutter owns actor fades. Native GObject property bindings
+            // mirror those fades without JavaScript work on every frame.
+            for (const property of ['opacity', 'visible']) {
+                try {
+                    const binding = actor.bind_property(
+                        property, overlay, property,
+                        GObject.BindingFlags.SYNC_CREATE
+                    );
+                    if (binding) {
+                        record.bindings.push(binding);
+                        continue;
+                    }
+                } catch {}
 
-            try {
-                record.visibleId = actor.connect(
-                    'notify::visible',
-                    () => this._syncOverlayVisibility(actor, record)
-                );
-            } catch {}
-
-            this._syncOverlayVisibility(actor, record);
+                // A small fallback for a backend without native binding.
+                // Only attach a property-notify callback when necessary.
+                try {
+                    const sync = () => {
+                        overlay[property] = actor[property];
+                    };
+                    sync();
+                    const id = actor.connect('notify::' + property, sync);
+                    record.fallbackSignalIds.push(id);
+                } catch {}
+            }
         } catch (error) {
             this._warnOnce('native wallpaper tint unavailable', error);
             this._detachActor(actor, record);
@@ -248,10 +266,11 @@ export class WallpaperAtmosphereManager {
         if (!overlay)
             return;
         record.overlay = null;
-        if (record.visibleId) {
-            try { actor.disconnect(record.visibleId); } catch {}
-            record.visibleId = 0;
+        record.tinted = null;
+        for (const id of record.fallbackSignalIds) {
+            try { actor.disconnect(id); } catch {}
         }
+        record.fallbackSignalIds = [];
         for (const binding of record.bindings) {
             try { binding.unbind?.(); } catch {}
         }
