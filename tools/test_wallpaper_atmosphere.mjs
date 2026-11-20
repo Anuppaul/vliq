@@ -59,6 +59,10 @@ class BackgroundActor extends Emitter {
         this.effects=new Map();this.adds=0;this.removes=0;this.parent=null;
     }
     get_parent(){return this.parent;}
+    bind_property(property,overlay,targetProperty){
+        overlay[targetProperty]=this[property] ?? (property==='opacity'?255:true);
+        return {unbind(){}};
+    }
     add_effect_with_name(name,effect){
         assert.equal(name,'vliq-milky-wallpaper');
         assert.equal(this.effects.has(name),false,'one effect per wallpaper');
@@ -119,14 +123,15 @@ class NativeOverlay {
     destroy(){overlayDestroys++;this.parent?.remove_child(this);}
 }
 const St={Widget:NativeOverlay};
+const GObject={BindingFlags:{SYNC_CREATE:1}};
 const Clutter={BindConstraint:class {constructor(o){Object.assign(this,o);}},
     BindCoordinate:{ALL:0}};
-const Type=new Function('GLib','Meta','Main','Clutter','St',
+const Type=new Function('GLib','Meta','Main','Clutter','St','GObject',
     'readWallpaperProfile',
     managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
         .replace(/^export\s+/gm,'') +
         '\nreturn WallpaperAtmosphereManager;'
-)(GLib,Meta,Main,Clutter,St,config.readWallpaperProfile);
+)(GLib,Meta,Main,Clutter,St,GObject,config.readWallpaperProfile);
 class Settings extends Emitter {
     constructor(style='milky'){
         super();this.data=new Map([
