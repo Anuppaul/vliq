@@ -1,12 +1,14 @@
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
+import St from 'gi://St';
 import Meta from 'gi://Meta';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {readWallpaperProfile} from './wallpaperAtmosphereConfig.js';
-import {getWallpaperTintEffectClass} from './wallpaperAtmosphereEffect.js';
 
-const EFFECT_NAME = 'vliq-milky-wallpaper';
+
+const TINT_COLOR = 'rgba(245,249,255,0.24)';
 const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
 
 /**
@@ -17,7 +19,8 @@ const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
  * (3) the independent wallpaper actors of VLIQ's native App Grid blur.
  *
  * The three sources share the original Meta.Background image and stay
- * independent as actors; each has at most ONE tint shader. We never tint
+ * independent as actors; each gets one compositor-native paint-only tint
+ * sibling, without a first-use GLSL shader compilation. We never tint
  * uiGroup, OverviewGroup, popups, windows or the final glass output, so
  * Browser pages and native app icons are not recolored.
  */
@@ -113,7 +116,7 @@ export class WallpaperAtmosphereManager {
 
         const content = actor.content ?? actor.get_content?.();
         const record = {
-            effect: null,
+            overlay: null,
             destroyId: 0,
             backgroundId: 0,
             content,
@@ -156,42 +159,50 @@ export class WallpaperAtmosphereManager {
         if (!record)
             return;
 
-        const active = this._enabled &&
-            this._profile.active &&
+        const active = this._enabled && this._profile.active &&
             this._hasLoadedBackground(record);
-
         if (!active) {
             this._detachActor(actor, record);
             this._queueStatus();
             return;
         }
+        if (record.overlay)
+            return;
 
+        // A native St paint sibling is ready with the wallpaper's first
+        // visible frame. No GLSL compile, FBO warm-up or asynchronous
+        // shader attachment can expose a 500ms un-tinted interval.
+        // Bind geometry to Mutter's wallpaper actor, not the stage.
         try {
-            if (!record.effect) {
-                // Only attach after GNOME has provided a real background.
-                // The shader is immutable and has no per-frame uniforms.
-                const Effect = getWallpaperTintEffectClass();
-                const effect = new Effect();
-                actor.add_effect_with_name(EFFECT_NAME, effect);
-                record.effect = effect;
-            }
+            const parent = actor.get_parent?.();
+            if (!parent)
+                return;
+            const overlay = new St.Widget({
+                name: 'vliq-wallpaper-milky-tint',
+                reactive: false,
+                style: 'background-color: ' + TINT_COLOR + ';',
+            });
+            overlay.add_constraint(new Clutter.BindConstraint({
+                source: actor,
+                coordinate: Clutter.BindCoordinate.ALL,
+            }));
+            parent.insert_child_above(overlay, actor);
+            record.overlay = overlay;
         } catch (error) {
-            this._warnOnce('wallpaper tint unavailable for one actor', error);
+            this._warnOnce('native wallpaper tint unavailable', error);
             this._detachActor(actor, record);
         }
         this._queueStatus();
     }
 
     _detachActor(actor, record) {
-        const effect = record?.effect ?? null;
-        if (!effect)
+        const overlay = record?.overlay ?? null;
+        if (!overlay)
             return;
-        record.effect = null;
-        try {
-            actor.remove_effect?.(effect);
-        } catch {}
-        // The compositor owns the effect lifetime after removal. Do not
-        // destroy GNOME's source actor, background content or wallpaper.
+        record.overlay = null;
+        try { overlay.destroy?.(); } catch {}
+        // The wallpaper actor and its original Meta.BackgroundContent
+        // always remain owned by GNOME.
     }
 
     _untrack(actor) {
@@ -289,15 +300,15 @@ export class WallpaperAtmosphereManager {
         for (const record of this._actors.values()) {
             if (this._hasLoadedBackground(record))
                 loaded++;
-            if (record.effect)
+            if (record.overlay)
                 attached++;
         }
         // Attachment status is diagnostic; it cannot prove GPU pixel output.
         const message = !this._profile.active
             ? 'Original: no VLIQ wallpaper tint attached'
             : attached > 0
-                ? 'Milky White tint attached to ' + attached + '/' + loaded +
-                    ' loaded wallpaper sources (GPU pixels not verified)'
+                ? 'Native Milky White tint on ' + attached + '/' + loaded +
+                    ' loaded wallpaper sources (visual check required)'
                 : loaded === 0
                     ? 'Waiting for GNOME wallpaper background actors'
                     : 'Not attached: ' + loaded +
