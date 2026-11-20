@@ -145,7 +145,9 @@ export const VLIQ_GLASS_ADAPTERS = Object.freeze({
         // All pods use the same neutral glass material. Selection never
         // recolors the tile body; active state is expressed only through the
         // live Shell accent on foreground content.
-        neutralTint: Object.freeze([1.0, 1.0, 1.0]),
+        // Liquid/Frosted inner pods use the same cool Milky White RGB
+        // rather than pure white; native Milky opacity is unchanged.
+        neutralTint: Object.freeze([245 / 255, 249 / 255, 1.0]),
         neutralBaseStrength: 0.046,
         activeForegroundSource: 'shell-theme',
 
