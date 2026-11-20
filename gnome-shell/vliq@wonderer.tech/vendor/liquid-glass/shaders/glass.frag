@@ -1608,39 +1608,35 @@ void main() {
     // マイナス値への侵入を防ぐ
     litColor = max(litColor, 0.0);
 
-    // Single thin optical rim for native GNOME cards. Preserve the pale
-    // top-left/bottom-right glints, but use a neutral graphite/gray border
-    // for every other edge rather than leaving white light all around.
-    // Because surface_light_enabled is 0 for real application windows, those
-    // windows retain their original shadow-only appearance.
-    //
-    // No extra actor, new sampler or CSS border: tint only the *existing*
-    // glass body within ~1.65px of its signed-distance boundary. Composite
-    // later multiplies by insideMask ONCE, preventing exterior blue halos,
-    // opaque frames and the old fullscreen-darkening regression.
+    // VLIQ_EXPERIMENT_LARGE_WHITE_BLACK_RIM_V2:
+    // Large, clearly alternating W-B-W-B sections on *every* Liquid/Frosted
+    // card edge. These are deliberately NOT 6-14px dashes: each section is
+    // approximately 40-85 logical pixels, varying continuously with the
+    // local edge position. White has the old TL/BR intensity; charcoal is
+    // dark enough to remain identifiable under those legacy corner glints.
+    // Reuse the existing signed-distance glass edge, compositor alpha and
+    // source samples; no additional border actor, pass, clock or texture.
+    // Disabled on non-optical application windows as before.
     if (surface_light_enabled > 0.5 &&
-        d > -1.65 && d < edgeFeather) {
+        d > -2.15 && d < edgeFeather) {
         vec3 edgeLight = vliqAdaptiveCardEdgeColor(
             adjustedRefracted, litColor, vliq_frost_amount
         );
-        // The old <=0.46 optical blend hid most white/gray fragments,
-        // particularly under TL/BR specular. Keep the SAME thin SDF edge
-        // (no second stroke) but give alternating segments enough visual
-        // coverage to survive the existing rim lighting on bright glass.
-        float edgeDepth = max(-d, 0.0);
-        float edgeCoverage = min(0.88, max(
-            vliqAdaptiveCardEdgeCoverage(d) * 1.8,
-            0.82 * (1.0 - smoothstep(0.42, 1.48, edgeDepth))
-        ));
-        // Keep the existing luminance signal, no second texture fetch.
         float brightEdge = clamp(
             (0.76 - edgeLight.r) / (0.76 - 0.54), 0.0, 1.0
         );
-        // EXPERIMENT: irregular white/gray segments along the existing rim.
-        // A static hash in local card coordinates makes W/G/W/G streaks
-        // with irregular ~6–14px segment lengths. There is NO time uniform,
-        // flicker, new texture or second border. The current SDF contour
-        // and alpha still clip all pixels inside the native glass shape.
+
+        // The former 0.2-0.4 final edge blend was overwhelmed by TL/BR
+        // Fresnel and specular. Overwrite that SAME narrow rim locally
+        // with high-contrast W/B segments, still feathered at the inner
+        // boundary and once-masked by the existing final glass alpha.
+        float edgeDepth = max(-d, 0.0);
+        float edgeCoverage = 0.95 *
+            (1.0 - smoothstep(0.72, 2.10, edgeDepth));
+
+        // Use the closest straight side of the rounded-rectangle SDF to
+        // parameterize the edge. Position is local to the card, so the
+        // pattern remains stable when any window or workspace moves.
         vec2 edgeDistance = box_size - abs(local_pos);
         bool horizontalEdge = edgeDistance.y <= edgeDistance.x;
         float segmentPosition = horizontalEdge ?
@@ -1648,30 +1644,26 @@ void main() {
         float sideSeed = horizontalEdge ?
             (local_pos.y < 0.0 ? 0.0 : 1.0) :
             (local_pos.x < 0.0 ? 2.0 : 3.0);
+
+        // Static non-uniform boundaries: 56px base, smooth warp adjusts
+        // individual section lengths; parity GUARANTEES W/B alternation,
+        // instead of random hashing that could produce 3 gray cells in
+        // a row and make the border appear unchanged.
         float warpedPosition = segmentPosition +
-            4.0 * sin(segmentPosition * 0.075 + sideSeed * 1.7);
-        float segmentCell = floor(warpedPosition / 10.0);
-        float whiteOrGray = step(0.48,
-            fract(sin(segmentCell * 127.1 + sideSeed * 311.7) *
-                43758.5453));
-        // White = very pale Milky-white. Gray contrasts with the actual
-        // card/backdrop luminance without forcing an opaque border.
-        vec3 graySegment = mix(
-            vec3(0.54, 0.56, 0.59),
-            vec3(0.23, 0.25, 0.28),
+            12.0 * sin(segmentPosition * 0.027 + sideSeed * 1.7);
+        float segmentCell = floor(warpedPosition / 56.0);
+        float whiteOrBlack = mod(segmentCell + sideSeed, 2.0);
+
+        // White is pure TL/BR-style highlight. The black/graphite section
+        // adapts subtly to background brightness for legibility; both have
+        // identical coverage in Liquid and Frosted.
+        vec3 blackSegment = mix(
+            vec3(0.20, 0.22, 0.24),
+            vec3(0.065, 0.075, 0.085),
             brightEdge
         );
-        vec3 edgeColor = mix(graySegment,
-            VLIQ_MILKY_WHITE_RGB, whiteOrGray);
-        // Gray must remain legible on a light card; white should remain
-        // bright on a dark one. Do NOT dim this experimental contour to
-        // the old ~0.2 final coverage on bright/matte surfaces.
-        edgeCoverage *= mix(0.95, 1.0, whiteOrGray);
-        edgeCoverage *= mix(1.0, 0.92, brightEdge);
-        edgeCoverage *= mix(
-            1.0,
-            0.96,
-            clamp(vliq_frost_amount, 0.0, 1.0)
+        vec3 edgeColor = mix(
+            blackSegment, vec3(1.0), whiteOrBlack
         );
         litColor = mix(litColor, edgeColor, edgeCoverage);
     }
