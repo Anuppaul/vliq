@@ -35,7 +35,8 @@ class Combo extends Actor {
 const Adw={PreferencesGroup:Group,ComboRow:Combo,ActionRow:Actor};
 const Gtk={StringList:{new:items=>items}};
 class Settings {
-    constructor(style='milky'){
+    constructor(style='milky', userValue=style!=='milky'){
+        this.userValue=userValue;
         this.data=new Map([
             ['wallpaper-style',style],
             ['wallpaper-runtime-status','Not initialized'],
@@ -44,13 +45,16 @@ class Settings {
         this.listeners=new Map();this.writes=[];
     }
     get_string(k){return this.data.get(k);}
+    get_user_value(k){return k==='wallpaper-style' && this.userValue ? {} : null;}
     connect(event,fn){
         const list=this.listeners.get(event)??[];
         list.push(fn);this.listeners.set(event,list);
         return list.length;
     }
     set_string(k,v){
-        if(this.data.get(k)===v)return;
+        if(this.data.get(k)===v &&
+            !(k==='wallpaper-style' && !this.userValue))return;
+        if(k==='wallpaper-style')this.userValue=true;
         this.data.set(k,v);this.writes.push([k,v]);
         for(const fn of this.listeners.get('changed::'+k)??[])fn(this,k);
     }
@@ -83,6 +87,17 @@ assert.equal(settings.get_string('wallpaper-style'),'milky');
 assert.equal(config.readWallpaperProfile(settings).active,true);
 assert.equal(settings.writes.length,beforeStyleWrites+2);
 
+// An old running schema can still report Original as an unsaved default.
+// The UI must display Milky and persist a deliberate Original opt-out.
+const oldDefault=new Settings('original',false);
+const oldPage={groups:[],add(group){this.groups.push(group);}};
+const oldUI=ui(oldPage,oldDefault,Adw,Gtk);
+assert.equal(oldUI.presetRow.selected,0);
+assert.equal(oldDefault.writes.length,0);
+oldUI.presetRow.selected=1;
+assert.equal(oldDefault.get_string('wallpaper-style'),'original');
+assert.equal(oldDefault.userValue,true);
+assert.deepEqual(oldDefault.writes,[['wallpaper-style','original']]);
 // Legacy styles appear as Milky but are not rewritten until the user
 // explicitly chooses Original or Milky. Existing custom values are intact.
 const legacy=new Settings('atmosphere');
