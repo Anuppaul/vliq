@@ -613,6 +613,8 @@ export default class VLIQRuntime extends Extension {
             this._orb.remove_all_transitions?.();
             this._orb.hide?.();
         } else {
+            if (this._taskbarOrbAnchor)
+                this._closeMenu(true);
             this._taskbarOrbAnchor = null;
             this._orb.show?.();
             if (this._orbHidden)
