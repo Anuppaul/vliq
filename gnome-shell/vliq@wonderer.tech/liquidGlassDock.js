@@ -1158,7 +1158,7 @@ export class LiquidGlassIntegration {
                 }
             };
 
-            setStringIfUnset('dock-tint-color', '#ffffff');
+            setStringIfUnset('dock-tint-color', '#f5f9ff');
             setDoubleIfUnset('dock-tint-strength', 0.06);
             setIntIfUnset('dock-blur-radius', 8);
             setDoubleIfUnset('dock-corner-radius', 28.0);
@@ -1623,9 +1623,9 @@ export class LiquidGlassIntegration {
                 milky: false,
                 systemDarkTaskbar: false,
                 opacity: 0,
-                tint: '#ffffff',
-                r: 255,
-                g: 255,
+                tint: '#f5f9ff',
+                r: 245,
+                g: 249,
                 b: 255,
                 blur: 0,
                 filterOpacity: 0.05,

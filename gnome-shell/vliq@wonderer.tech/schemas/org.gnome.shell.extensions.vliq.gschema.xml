@@ -353,7 +353,9 @@
       <summary>System Liquid Glass tint strength percentage</summary>
     </key>
     <key name="glass-tint-color" type="s">
-      <default>'#ffffff'</default>
+      <!-- Default Liquid/Frosted tint uses Milky White; existing
+           user-customized colors are never overwritten. -->
+      <default>'#f5f9ff'</default>
       <summary>System Liquid Glass tint color</summary>
     </key>
     <key name="glass-blur" type="i">

@@ -132,6 +132,22 @@ Wallpaper source opacity and visibility stay bound during crossfades.
 Actual first-frame paint and multi-monitor behavior still require testing
 on GNOME Shell 50; synthetic checks do not measure GPU frame latency.
 
+### Shared Milky White tint for Liquid & Frosted
+
+Liquid Glass and Frosted Crystal now use the same cool-white RGB
+`#F5F9FF` (245, 249, 255) wherever VLIQ formerly applied **pure-white
+material body tint**. This applies to the shader's flat and refractive
+15% white body lift, Frosted's brighter crystal-matte endpoint, and
+neutral Quick Settings card tint. The default global/Dock tint also uses
+this shade on new settings profiles. Existing user-chosen tint colors
+remain intact.
+
+This changes **color, not opacity**: Liquid refraction, Frosted matte and
+grain, blur, rim lighting, specular highlights, glass alpha and
+user-customized optical settings are unchanged. The separate native Milky
+mode still uses 60% black headers and 92% white popup cards. No additional
+shader pass, CSS layer or full-screen renderer is introduced.
+
 ## Choose a Glass Material
 
 Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Material** and select **Liquid Glass**, **Frosted Crystal**, or **Milky Glass**. The mode changes live and persists after logout or restart. These are VLIQ material selections, not changes to GNOME's system color scheme.

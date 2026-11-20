@@ -68,6 +68,7 @@ jobs:
           node tools/test_preview_layout.mjs
           node tools/test_liquid_optics.mjs
           node tools/test_frosted_crystal.mjs
+          node tools/test_liquid_frosted_milky_white.mjs
           node tools/test_milky_glass.mjs
           node tools/test_milky_controls.mjs
           node tools/test_milky_grain_sync.mjs
