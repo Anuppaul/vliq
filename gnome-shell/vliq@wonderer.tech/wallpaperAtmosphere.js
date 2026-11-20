@@ -161,8 +161,11 @@ export class WallpaperAtmosphereManager {
         if (!record)
             return;
 
-        const active = this._enabled && this._profile.active &&
-            this._hasLoadedBackground(record);
+        // Unlike the retired GLSLEffect, the native paint sibling is
+        // safe before Meta.BackgroundContent has finished loading.
+        // Prepare it at actor discovery, rather than waiting hundreds
+        // of milliseconds for notify::background.
+        const active = this._enabled && this._profile.active;
         if (!active) {
             this._detachActor(actor, record);
             this._queueStatus();
@@ -171,9 +174,10 @@ export class WallpaperAtmosphereManager {
         if (record.overlay)
             return;
 
-        // A native St paint sibling is ready with the wallpaper's first
-        // visible frame. No GLSL compile, FBO warm-up or asynchronous
-        // shader attachment can expose a 500ms un-tinted interval.
+        // Attach at actor discovery, even before content.background exists:
+        // GNOME can resolve wallpaper images asynchronously. The previous
+        // loaded-background guard recreated the very delay we must avoid.
+        // This still cannot eliminate a cold GNOME extension startup delay.
         // Bind geometry to Mutter's wallpaper actor, not the stage.
         try {
             const parent = actor.get_parent?.();
@@ -326,12 +330,12 @@ export class WallpaperAtmosphereManager {
         const message = !this._profile.active
             ? 'Original: no VLIQ wallpaper tint attached'
             : attached > 0
-                ? 'Native Milky White tint on ' + attached + '/' + loaded +
-                    ' loaded wallpaper sources (visual check required)'
-                : loaded === 0
-                    ? 'Waiting for GNOME wallpaper background actors'
-                    : 'Not attached: ' + loaded +
-                        ' loaded wallpaper sources; inspect GNOME Shell logs';
+                ? 'Native Milky White tint prepared on ' + attached +
+                    '/' + this._actors.size + ' wallpaper actors (' +
+                    loaded + ' backgrounds loaded; visual check required)'
+                : this._actors.size === 0
+                    ? 'Waiting for GNOME wallpaper actors'
+                    : 'Tint not attached: inspect GNOME Shell logs';
 
         if (this._lastStatus === message)
             return;
