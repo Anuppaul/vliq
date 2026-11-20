@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Replaced the five wallpaper Atmosphere effects (Filmic, Vignette, Ambient, Grain, Contrast) with a fixed Milky White tint matching native hover cards: rgba(245,249,255,0.24). Wallpaper preferences now offer Milky White or Original only; retired keys remain for compatibility. The tint is scoped to real GNOME wallpaper actors and retains image transparency, with no grain, blur or animation.
 - Simplified **Milky Glass** into a fixed surface-scoped material: Full/3-Part/Bottom Headers are black at 60% opacity; Calendar and Quick Settings are hardcoded milky white at 92% opacity. All Milky-specific Preferences controls and Grain rendering are retired. Legacy GSettings keys remain only for profile compatibility.
 - Removed Milky-only styling from Orb, notifications, overview buttons, preview cards, OSD and floating Ubuntu Dock; Liquid/Frosted materials remain independently configured. GNOME Dark Style does not alter Milky's 60% header opacity.
 
