@@ -74,13 +74,14 @@ settings.set_string('wallpaper-runtime-status',
     'Milky White tint attached to 3/3 loaded wallpaper sources');
 assert.equal(statusRow.subtitle,
     'Milky White tint attached to 3/3 loaded wallpaper sources');
+const beforeStyleWrites=settings.writes.length;
 presetRow.selected=1;
 assert.equal(settings.get_string('wallpaper-style'),'original');
 assert.equal(config.readWallpaperProfile(settings).active,false);
 presetRow.selected=0;
 assert.equal(settings.get_string('wallpaper-style'),'milky');
 assert.equal(config.readWallpaperProfile(settings).active,true);
-assert.equal(settings.writes.length,2);
+assert.equal(settings.writes.length,beforeStyleWrites+2);
 
 // Legacy styles appear as Milky but are not rewritten until the user
 // explicitly chooses Original or Milky. Existing custom values are intact.
