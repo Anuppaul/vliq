@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Experimental Liquid/Frosted border:** the existing thin SDF rim now alternates deterministic irregular ~6–14px fragments of Milky White and backdrop-aware gray, rather than a continuous TL/BR blue/gray edge. No new actor, CSS border, texture, animation, or extra shader pass. Native Milky mode, application windows, glass alpha and material optics are unchanged. Kept isolated in a separate PR for easy reversal.
+- **Experimental Liquid/Frosted border, revised after device feedback:** replace imperceptible ~6–14px white/gray fragments with broad ~40–85px alternating bright-white/charcoal sections along every existing optical rim, strong enough to override TL/BR white highlights without a second border actor, new render pass, change to glass alpha or animated texture. Correct hot-swap stale-shader source path: keep process-global Liquid Glass GObject modules cached, but point all new VLIQ optical effects to canonical, installer-refreshed shader files. Both changes remain isolated from main for visual testing.
 
 - Replaced fixed pure-white **material-body tint** in Liquid Glass and Frosted Crystal with the existing Milky White RGB `#F5F9FF` (245,249,255). Both shader paths use the same 15% blend strength, Frosted's bright matte endpoint shares the tint, and Quick Settings neutral tiles/default global/Dock tint use the same cool white. User-picked tint colors, glass alpha, refraction, blur, grain, optical highlights and standalone Milky mode are unchanged.
 
