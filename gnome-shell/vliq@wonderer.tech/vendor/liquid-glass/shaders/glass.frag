@@ -1623,7 +1623,15 @@ void main() {
         vec3 edgeLight = vliqAdaptiveCardEdgeColor(
             adjustedRefracted, litColor, vliq_frost_amount
         );
-        float edgeCoverage = vliqAdaptiveCardEdgeCoverage(d);
+        // The old <=0.46 optical blend hid most white/gray fragments,
+        // particularly under TL/BR specular. Keep the SAME thin SDF edge
+        // (no second stroke) but give alternating segments enough visual
+        // coverage to survive the existing rim lighting on bright glass.
+        float edgeDepth = max(-d, 0.0);
+        float edgeCoverage = min(0.88, max(
+            vliqAdaptiveCardEdgeCoverage(d) * 1.8,
+            0.82 * (1.0 - smoothstep(0.42, 1.48, edgeDepth))
+        ));
         // Keep the existing luminance signal, no second texture fetch.
         float brightEdge = clamp(
             (0.76 - edgeLight.r) / (0.76 - 0.54), 0.0, 1.0
@@ -1655,12 +1663,14 @@ void main() {
         );
         vec3 edgeColor = mix(graySegment,
             VLIQ_MILKY_WHITE_RGB, whiteOrGray);
-        edgeCoverage *= mix(0.72, 1.0, whiteOrGray);
-        edgeCoverage *= mix(1.0, 0.58, brightEdge);
-        // Frosted retains a restrained contour, never another CSS stroke.
+        // Gray must remain legible on a light card; white should remain
+        // bright on a dark one. Do NOT dim this experimental contour to
+        // the old ~0.2 final coverage on bright/matte surfaces.
+        edgeCoverage *= mix(0.95, 1.0, whiteOrGray);
+        edgeCoverage *= mix(1.0, 0.92, brightEdge);
         edgeCoverage *= mix(
             1.0,
-            0.87,
+            0.96,
             clamp(vliq_frost_amount, 0.0, 1.0)
         );
         litColor = mix(litColor, edgeColor, edgeCoverage);
