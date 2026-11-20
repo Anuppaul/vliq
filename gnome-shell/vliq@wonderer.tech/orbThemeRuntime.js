@@ -555,9 +555,15 @@ export default class VLIQRuntime extends Extension {
     }
 
     _isBottomTaskbarMode() {
-        return this._settings?.get_string?.(
-            'top-header-layout') === 'bottom' &&
-            this._liquidGlassIntegration?.isBottomTaskbarActive?.() === true;
+        if (this._settings?.get_string?.('top-header-layout') !== 'bottom')
+            return false;
+        // Native workarea relayout can briefly move panelBox away from
+        // the bottom even while Bottom Taskbar still owns its input chrome.
+        // Use stable ownership so the floating Orb cannot flash back.
+        return this._liquidGlassIntegration
+            ?.ownsBottomTaskbarChrome?.() === true ||
+            this._liquidGlassIntegration
+                ?.isBottomTaskbarActive?.() === true;
     }
 
     // Native taskbar Start is also the Orb radial launcher on hover.
