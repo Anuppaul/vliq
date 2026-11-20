@@ -148,6 +148,18 @@ user-customized optical settings are unchanged. The separate native Milky
 mode still uses 60% black headers and 92% white popup cards. No additional
 shader pass, CSS layer or full-screen renderer is introduced.
 
+### Experimental White–Gray Rim (Liquid & Frosted)
+
+The current experiment replaces Liquid/Frosted's continuous blue/gray
+card border with an irregular alternating white and gray outline
+(`W-G-W-W-G-G-W` style) made of small segments along the **existing
+single thin optical rim**. Segment positions are deterministic rather
+than animated: no flashing, grain changes, shaders, textures, borders,
+or performance-heavy frame timer are added. The native Milky appearance
+mode, application windows, material opacity, blur and refraction remain
+unchanged. This experiment can be reverted independently if the appearance
+isn't suitable.
+
 ## Choose a Glass Material
 
 Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Material** and select **Liquid Glass**, **Frosted Crystal**, or **Milky Glass**. The mode changes live and persists after logout or restart. These are VLIQ material selections, not changes to GNOME's system color scheme.
