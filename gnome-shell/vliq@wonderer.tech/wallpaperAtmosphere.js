@@ -36,7 +36,6 @@ export class WallpaperAtmosphereManager {
         this._uiGroup = null;
         this._uiAddedId = 0;
         this._uiRemovedId = 0;
-        this._pendingUpdateId = 0;
         this._statusUpdateId = 0;
         this._lastStatus = null;
         this._warnings = new Set();
@@ -77,7 +76,18 @@ export class WallpaperAtmosphereManager {
         const onChange = (_settings, key) => {
             if (key !== 'wallpaper-style')
                 return;
-            this._scheduleApply();
+            // A wallpaper style toggle affects only a few lightweight
+            // paint actors. Apply in the GSettings callback, not a
+            // PRIORITY_DEFAULT_IDLE source that can run after a busy frame.
+            const started = GLib.get_monotonic_time();
+            this._applyNow();
+            const elapsedMs =
+                (GLib.get_monotonic_time() - started) / 1000;
+            console.log(
+                '[VLIQ][Wallpaper] style=' + this._profile.style +
+                ' applied in ' + elapsedMs.toFixed(2) +
+                ' ms (compositor paint not measured)'
+            );
         };
         this._settingsId = this._settings?.connect?.(
             'changed', onChange
@@ -119,6 +129,7 @@ export class WallpaperAtmosphereManager {
         const record = {
             overlay: null,
             bindings: [],
+            visibleId: 0,
             destroyId: 0,
             backgroundId: 0,
             content,
@@ -156,36 +167,49 @@ export class WallpaperAtmosphereManager {
         }
     }
 
+    _syncOverlayVisibility(actor, record) {
+        const overlay = record?.overlay;
+        if (!overlay)
+            return;
+
+        // Do not bind visibility directly: the user's Original choice
+        // must override the GNOME actor's own visible property. Keep
+        // the overlay allocated while Original is selected so a later
+        // Milky toggle cannot incur a fresh actor/style first paint.
+        const visible = this._enabled && this._profile.active &&
+            actor.visible !== false;
+        if (overlay.visible !== visible)
+            overlay.visible = visible;
+    }
+
     _syncActor(actor) {
         const record = this._actors.get(actor);
         if (!record)
             return;
 
-        // Unlike the retired GLSLEffect, the native paint sibling is
-        // safe before Meta.BackgroundContent has finished loading.
-        // Prepare it at actor discovery, rather than waiting hundreds
-        // of milliseconds for notify::background.
-        const active = this._enabled && this._profile.active;
-        if (!active) {
+        if (!this._enabled) {
             this._detachActor(actor, record);
-            this._queueStatus();
             return;
         }
-        if (record.overlay)
-            return;
 
-        // Attach at actor discovery, even before content.background exists:
-        // GNOME can resolve wallpaper images asynchronously. The previous
-        // loaded-background guard recreated the very delay we must avoid.
-        // This still cannot eliminate a cold GNOME extension startup delay.
-        // Bind geometry to Mutter's wallpaper actor, not the stage.
+        if (record.overlay) {
+            this._syncOverlayVisibility(actor, record);
+            return;
+        }
+
+        // Allocate the fixed native tint only once per GNOME wallpaper
+        // actor, before its asynchronous background image is loaded.
+        // A hidden overlay for Original costs no paint and can be shown
+        // synchronously when switching back to Milky.
         try {
             const parent = actor.get_parent?.();
             if (!parent)
                 return;
+
             const overlay = new St.Widget({
                 name: 'vliq-wallpaper-milky-tint',
                 reactive: false,
+                visible: false,
                 style: 'background-color: ' + TINT_COLOR + ';',
             });
             overlay.add_constraint(new Clutter.BindConstraint({
@@ -194,19 +218,24 @@ export class WallpaperAtmosphereManager {
             }));
             parent.insert_child_above(overlay, actor);
             record.overlay = overlay;
-            // Mutter can fade wallpaper actors during crossfades. Match
-            // native opacity/visibility to avoid a white sheet remaining
-            // after the underlying source has faded out.
-            for (const property of ['opacity', 'visible']) {
-                try {
-                    const binding = actor.bind_property(
-                        property, overlay, property,
-                        GObject.BindingFlags.SYNC_CREATE
-                    );
-                    if (binding)
-                        record.bindings.push(binding);
-                } catch {}
-            }
+
+            try {
+                const binding = actor.bind_property(
+                    'opacity', overlay, 'opacity',
+                    GObject.BindingFlags.SYNC_CREATE
+                );
+                if (binding)
+                    record.bindings.push(binding);
+            } catch {}
+
+            try {
+                record.visibleId = actor.connect(
+                    'notify::visible',
+                    () => this._syncOverlayVisibility(actor, record)
+                );
+            } catch {}
+
+            this._syncOverlayVisibility(actor, record);
         } catch (error) {
             this._warnOnce('native wallpaper tint unavailable', error);
             this._detachActor(actor, record);
@@ -219,6 +248,10 @@ export class WallpaperAtmosphereManager {
         if (!overlay)
             return;
         record.overlay = null;
+        if (record.visibleId) {
+            try { actor.disconnect(record.visibleId); } catch {}
+            record.visibleId = 0;
+        }
         for (const binding of record.bindings) {
             try { binding.unbind?.(); } catch {}
         }
@@ -330,7 +363,7 @@ export class WallpaperAtmosphereManager {
         const message = !this._profile.active
             ? 'Original: no VLIQ wallpaper tint attached'
             : attached > 0
-                ? 'Native Milky White tint prepared on ' + attached +
+                ? 'Native Milky White tint allocated on ' + attached +
                     '/' + this._actors.size + ' wallpaper actors (' +
                     loaded + ' backgrounds loaded; visual check required)'
                 : this._actors.size === 0
@@ -353,22 +386,11 @@ export class WallpaperAtmosphereManager {
         }
     }
 
-    _scheduleApply() {
-        if (!this._enabled || this._pendingUpdateId)
-            return;
-        this._pendingUpdateId = GLib.idle_add(
-            GLib.PRIORITY_DEFAULT_IDLE,
-            () => {
-                this._pendingUpdateId = 0;
-                if (this._enabled)
-                    this._applyNow();
-                return GLib.SOURCE_REMOVE;
-            }
-        );
-    }
-
     _applyNow() {
-        this._profile = readWallpaperProfile(this._settings);
+        const profile = readWallpaperProfile(this._settings);
+        if (this._profile.active === profile.active)
+            return;
+        this._profile = profile;
         for (const actor of this._actors.keys())
             this._syncActor(actor);
         this._queueStatus();
@@ -379,12 +401,6 @@ export class WallpaperAtmosphereManager {
             return;
         this._enabled = false;
 
-        if (this._pendingUpdateId) {
-            try {
-                GLib.source_remove(this._pendingUpdateId);
-            } catch {}
-            this._pendingUpdateId = 0;
-        }
         if (this._statusUpdateId) {
             try {
                 GLib.source_remove(this._statusUpdateId);
