@@ -1,32 +1,27 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-const base = '../gnome-shell/vliq@wonderer.tech/';
-const [uiSource,configSource,effectSource,prefs] = await Promise.all([
-    'wallpaperAtmospherePreferences.js',
-    'wallpaperAtmosphereConfig.js',
-    'wallpaperAtmosphereEffect.js',
-    'prefs.js',
-].map(path=>readFile(new URL(base+path,import.meta.url),'utf8')));
+const base='../gnome-shell/vliq@wonderer.tech/';
+const [uiSource,configSource,effectSource,prefs,css]=await Promise.all([
+    'wallpaperAtmospherePreferences.js','wallpaperAtmosphereConfig.js',
+    'wallpaperAtmosphereEffect.js','prefs.js','runtime.css',
+].map(name=>readFile(new URL(base+name,import.meta.url),'utf8')));
 
-const config = new Function(configSource.replace(/^export\s+/gm,'')+
-    '\nreturn {ATMOSPHERE_KEYS,ATMOSPHERE_PRESETS,readAtmosphereProfile};')();
-const ui = new Function('ATMOSPHERE_KEYS','ATMOSPHERE_PRESETS',
-    'readAtmosphereProfile',
+const config=new Function(configSource.replace(/^export\s+/gm,'')+
+    '\nreturn {WALLPAPER_STYLES,WALLPAPER_MILKY_TINT,readWallpaperProfile};')();
+const ui=new Function('WALLPAPER_STYLES','readWallpaperProfile',
     uiSource.replace(/^import[\s\S]*?;\s*$/gm,'')
         .replace(/^export\s+/gm,'')+
     '\nreturn addWallpaperAtmospherePreferences;'
-)(config.ATMOSPHERE_KEYS,config.ATMOSPHERE_PRESETS,
-    config.readAtmosphereProfile);
+)(config.WALLPAPER_STYLES,config.readWallpaperProfile);
 
 class Actor {
-    constructor(o={}) {Object.assign(this,o);this.listeners=new Map();}
-    connect(ev,fn) {
-        const fns=this.listeners.get(ev)??[];
-        fns.push(fn);this.listeners.set(ev,fns);
-        return fns.length;
+    constructor(opts={}){Object.assign(this,opts);this.listeners=new Map();}
+    connect(event,fn){
+        const list=this.listeners.get(event)??[];
+        list.push(fn);this.listeners.set(event,list);return list.length;
     }
-    emit(ev){for(const fn of this.listeners.get(ev)??[])fn();}
+    emit(event){for(const fn of this.listeners.get(event)??[])fn();}
 }
 class Group extends Actor {
     constructor(o){super(o);this.rows=[];}
@@ -37,238 +32,112 @@ class Combo extends Actor {
     get selected(){return this._selected;}
     set selected(v){this._selected=v;this.emit('notify::selected');}
 }
-class Spin extends Actor {
-    constructor(o){super(o);this._value=o.adjustment.value;}
-    get value(){return this._value;}
-    set value(v){this._value=v;this.emit('notify::value');}
-}
-class Row extends Actor {add_suffix(b){this.suffix=b;}}
-class Button extends Actor {click(){this.emit('clicked');}}
-const Adw={
-    PreferencesGroup:Group,ComboRow:Combo,SpinRow:Spin,
-    ActionRow:Row,
-};
-const Gtk={
-    StringList:{new:values=>values},
-    Adjustment:class{constructor(o){Object.assign(this,o);}},
-    Button,
-    Align:{CENTER:0},
-};
+const Adw={PreferencesGroup:Group,ComboRow:Combo,ActionRow:Actor};
+const Gtk={StringList:{new:items=>items}};
 class Settings {
-    constructor(){
+    constructor(style='milky'){
         this.data=new Map([
-            ['wallpaper-style','original'],
+            ['wallpaper-style',style],
             ['wallpaper-runtime-status','Not initialized'],
-            ...config.ATMOSPHERE_KEYS.map((k,i)=>
-                [k,[62,52,54,3,56][i]]),
+            ['wallpaper-filmic',62],['wallpaper-grain',3],
         ]);
-        this.listeners=new Map();
-        this.changes=[];
-        this.pending=new Set();
-        this.delayed=false;
+        this.listeners=new Map();this.writes=[];
     }
     get_string(k){return this.data.get(k);}
-    get_int(k){return this.data.get(k);}
-    connect(ev,fn){
-        const fns=this.listeners.get(ev)??[];
-        fns.push(fn);this.listeners.set(ev,fns);return fns.length;
+    connect(event,fn){
+        const list=this.listeners.get(event)??[];
+        list.push(fn);this.listeners.set(event,list);
+        return list.length;
     }
-    write(key,value){
-        if(this.data.get(key)===value)return;
-        this.data.set(key,value);
-        this.changes.push([key,value]);
-        if(this.delayed)this.pending.add(key);
-        else this._emit(key);
-    }
-    set_string(k,v){this.write(k,v);}
-    set_int(k,v){this.write(k,v);}
-    _emit(key){
-        for(const fn of this.listeners.get('changed::'+key)??[])
-            fn(this,key);
-    }
-    delay(){assert.equal(this.delayed,false);this.delayed=true;}
-    apply(){
-        assert.equal(this.delayed,true);this.delayed=false;
-        for(const key of this.pending)this._emit(key);
-        this.pending.clear();
+    set_string(k,v){
+        if(this.data.get(k)===v)return;
+        this.data.set(k,v);this.writes.push([k,v]);
+        for(const fn of this.listeners.get('changed::'+k)??[])fn(this,k);
     }
 }
 const settings=new Settings();
 const page={groups:[],add(group){this.groups.push(group);}};
-const {presetRow,controls,statusRow}=ui(page,settings,Adw,Gtk);
-assert.equal(settings.changes.length,0,
-    'opening Wallpaper Prefs NEVER changes wallpaper or style');
-assert.equal(settings.get_string('wallpaper-style'),'original');
+const {presetRow,statusRow}=ui(page,settings,Adw,Gtk);
+assert.equal(page.groups.length,2,'no old Fine Tune / Reset groups');
+assert.equal(page.groups[0].rows.length,1);
+assert.equal(page.groups[1].rows.length,1);
+assert.equal(presetRow.title,'Wallpaper style');
 assert.equal(presetRow.selected,0);
-assert.equal(controls.rows.length,5);
-assert.equal(statusRow.title,'Shader attachment');
-assert.equal(statusRow.subtitle,'Not initialized');
+assert.deepEqual(presetRow.model,['Milky White','Original']);
+assert.equal(statusRow.title,'Tint attachment');
+assert.equal(settings.writes.length,0,'opening prefs must not rewrite GSettings');
+assert.doesNotMatch(uiSource,/SpinRow|Gtk\.Adjustment|set_int\(/);
+assert.doesNotMatch(uiSource,/Filmic|Vignette|Ambient|Grain|Contrast/);
+assert.match(prefs,/addWallpaperAtmospherePreferences\(\s*wallpaperPage, settings, Adw, Gtk/);
+
 settings.set_string('wallpaper-runtime-status',
-    'Shader attached to 3/3 loaded wallpaper sources');
+    'Milky White tint attached to 3/3 loaded wallpaper sources');
 assert.equal(statusRow.subtitle,
-    'Shader attached to 3/3 loaded wallpaper sources',
-    'diagnostic reflects actual runtime status via GSettings');
-const values=()=>config.ATMOSPHERE_KEYS.map(k=>settings.get_int(k));
-
-// Presets are atomic native GSettings writes, not five fast GPU flashes.
-presetRow.selected=1; // Natural
-assert.equal(settings.get_string('wallpaper-style'),'natural');
-assert.deepEqual(values(),[38,24,22,2,34]);
-assert.equal(settings.delayed,false);
-assert.equal(presetRow.selected,1);
-assert.equal(page.groups.length,4);
-
-presetRow.selected=2; // Cinematic
-assert.equal(settings.get_string('wallpaper-style'),'cinematic');
-assert.deepEqual(values(),[78,70,34,4,72]);
-presetRow.selected=3; // Atmosphere
-assert.equal(settings.get_string('wallpaper-style'),'atmosphere');
-assert.deepEqual(values(),[62,52,54,3,56]);
-
-// A user's manual changes choose Custom, but external/native changes
-// reflect in spin rows and do not create a second GSettings write.
-const prior = settings.changes.length;
-controls.rows[2].value=17;
-assert.equal(settings.get_int('wallpaper-ambient'),17);
-assert.equal(settings.get_string('wallpaper-style'),'custom');
-assert.equal(presetRow.selected,4);
-assert.equal(settings.changes.length,prior+2);
-
-settings.set_int('wallpaper-grain',5);
-assert.equal(controls.rows[3].value,5);
-assert.equal(settings.get_string('wallpaper-style'),'custom');
-assert.ok(settings.changes.length===prior+3,
-    'programmatic sync must not rewrite an unchanged key');
-
-// Original detaches the shader but retains five last-used custom values.
-const saved=values();
+    'Milky White tint attached to 3/3 loaded wallpaper sources');
+presetRow.selected=1;
+assert.equal(settings.get_string('wallpaper-style'),'original');
+assert.equal(config.readWallpaperProfile(settings).active,false);
 presetRow.selected=0;
-assert.equal(settings.get_string('wallpaper-style'),'original');
-assert.deepEqual(values(),saved);
-assert.equal(config.readAtmosphereProfile(settings).active,false);
-const reset=page.groups[3].rows[0];
-assert.equal(reset.title,'Return to Original');
-assert.match(reset.subtitle,/without resetting saved Custom levels/);
+assert.equal(settings.get_string('wallpaper-style'),'milky');
+assert.equal(config.readWallpaperProfile(settings).active,true);
+assert.equal(settings.writes.length,2);
 
-// Selecting Custom from Original leaves saved knobs intact.
-presetRow.selected=4;
-assert.equal(settings.get_string('wallpaper-style'),'custom');
-assert.deepEqual(values(),saved);
-assert.equal(config.readAtmosphereProfile(settings).active,true);
-reset.suffix.click();
-assert.equal(settings.get_string('wallpaper-style'),'original');
-assert.deepEqual(values(),saved);
+// Legacy styles appear as Milky but are not rewritten until the user
+// explicitly chooses Original or Milky. Existing custom values are intact.
+const legacy=new Settings('atmosphere');
+const legacyPage={groups:[],add(group){this.groups.push(group);}};
+const legacyUI=ui(legacyPage,legacy,Adw,Gtk);
+assert.equal(legacyUI.presetRow.selected,0);
+assert.equal(legacy.get_string('wallpaper-style'),'atmosphere');
+assert.equal(legacy.writes.length,0);
+legacyUI.presetRow.selected=1;
+assert.equal(legacy.get_string('wallpaper-style'),'original');
+assert.equal(legacy.data.get('wallpaper-filmic'),62);
+assert.equal(legacy.data.get('wallpaper-grain'),3);
 
-// At zero intensity across all channels even Custom creates no shader.
-for(const key of config.ATMOSPHERE_KEYS) settings.set_int(key,0);
-settings.set_string('wallpaper-style','custom');
-assert.equal(config.readAtmosphereProfile(settings).active,false);
-settings.set_string('wallpaper-style','original');
+// The shader matches the exact accepted native Milky hover-card shade.
+assert.match(css,/\.panel-button:hover,[\s\S]*?rgba\(245,\s*249,\s*255,\s*0\.24\)/);
+assert.match(effectSource,/vec3\(245\.0 \/ 255\.0, 249\.0 \/ 255\.0, 255\.0 \/ 255\.0\)/);
+assert.match(effectSource,/mix\(sourceColor, milky, 0\.24\)/);
+assert.equal((effectSource.match(/texture2D\(cogl_sampler0, uv\)/g)??[]).length,1);
+assert.doesNotMatch(effectSource,/uniform\s+|va_grain|va_vignette|va_filmic/);
+assert.match(effectSource,
+    /vec4\(tinted \* original\.a, original\.a\) \* cogl_color_in/);
 
-// Existing users with PR #62's invisible numeric values still get the
-// new canonical Atmosphere strengths when the named preset is selected.
-// This must NOT rewrite previously saved Custom values by merely opening
-// the page, and manually adjusting a named profile must inherit all five
-// *visible* values rather than reverting to legacy stored intensities.
-const old = new Settings();
-const oldValues = [14,8,6,2,14];
-old.data.set('wallpaper-style','atmosphere');
-config.ATMOSPHERE_KEYS.forEach((key,i)=>
-    old.data.set(key,oldValues[i]));
-const oldPage={groups:[],add(group){this.groups.push(group);}};
-const oldUi=ui(oldPage,old,Adw,Gtk);
-assert.equal(old.changes.length,0,
-    'opening older named profile must not write/migrate user settings');
-assert.deepEqual(
-    oldUi.controls.rows.map(row=>row.value),[62,52,54,3,56],
-    'display and shader use calibrated named profile, not saved weak numbers');
-assert.deepEqual(config.readAtmosphereProfile(old).values,[62,52,54,3,56]);
-oldUi.controls.rows[1].value=61;
-assert.equal(old.get_string('wallpaper-style'),'custom');
-assert.deepEqual(config.ATMOSPHERE_KEYS.map(k=>old.get_int(k)),
-    [62,61,54,3,56],
-    'one manual tweak snapshots all canonical strengths before Custom');
-
-// Shader/source-level GPU contracts.
-const shaderDecl=effectSource.slice(
-    effectSource.indexOf('export const ATMOSPHERE_DECLARATIONS'),
-    effectSource.indexOf('const CACHE_KEY')
-);
-for(const uniform of ['va_resolution','va_filmic','va_vignette',
-    'va_ambient','va_grain','va_adaptive'])
-    assert.ok(shaderDecl.includes('uniform '+(
-        uniform==='va_resolution'?'vec2 ':'float ')+uniform+';'));
-assert.equal((shaderDecl.match(/texture2D\(cogl_sampler0, uv\)/g)??[]).length,1,
-    'one wallpaper texel per shader pixel, no second image sampler');
-assert.match(shaderDecl,/floor\(pixel\)/);
-assert.doesNotMatch(shaderDecl,
-    /uniform\s+(?:float|vec[234])\s+(?:va_time|time|frameId)\b|\bgl_FragCoord\b/,
-    'wallpaper grain cannot require a frame/time uniform or animated pixel source');
-assert.match(shaderDecl,/vec4\(color \* original\.a, original\.a\) \* cogl_color_in/,
-    'alpha must stay premultiplied during wallpaper crossfades');
-assert.match(shaderDecl,/color = filmic;/);
-assert.match(shaderDecl,/color = mix\(color, contrastColor, highlightGuard\);/);
-assert.match(shaderDecl,/smoothstep\(0\.38, 1\.25, length\(centered\)\)/);
-assert.match(shaderDecl,/0\.42 \* clamp\(va_vignette/);
-assert.match(shaderDecl,/0\.68 \* filmicStrength/);
-assert.match(shaderDecl,/0\.35 \* adaptive/);
-assert.match(shaderDecl,/0\.62 \* clamp\(va_ambient/);
-assert.match(shaderDecl,/color = max\(color, original\.rgb/,
-    'strong grading preserves dark wallpaper details');
-assert.match(shaderDecl,/float protectHighlights = smoothstep\(0\.86, 1\.0, luma\) \* 0\.72/,
-    'near-white wallpapers retain original highlight detail');
-assert.match(effectSource,/const CACHE_KEY = Symbol\.for\('vliq\.atmosphere\.effect\.class\.v2'\)/,
-    'fresh GObject shader type avoids V1 live-import cache');
-
-// GObject type is registered only ONCE across live runtime imports.
-let typeRegistrations=0;
-const units=[];
+// New GType avoids stale shader snippets when reloading GNOME Shell 50.
+let registered=0,fragment='',hookCalls=0;
 class Base {
     constructor(){this._init();}
-    _init(){this.locations=new Map();}
-    get_uniform_location(k){return k;}
-    set_uniform_float(name,n,val){units.push([name,n,[...val]]);}
-    queue_repaint(){}
-    get_texture(){return {get_width:()=>1920,get_height:()=>1080};}
-    vfunc_paint_target(){}
-    add_glsl_snippet(hook,decl,frag,replace){
-        assert.equal(hook,1);assert.equal(replace,true);
-        assert.ok(decl.includes('va_grain'));assert.ok(frag.includes('va_static_noise'));
+    _init(){}
+    add_glsl_snippet(hook,declarations,code,replace){
+        assert.equal(hook,1);assert.equal(declarations,'');
+        assert.equal(replace,true);fragment=code;hookCalls++;
     }
 }
 const Shell={GLSLEffect:Base};
 const Clutter={ShaderEffect:class{}};
 const Cogl={SnippetHook:{FRAGMENT:1}};
 const GObject={registerClass(options,klass){
-    assert.equal(options.GTypeName,'VLIQAtmosphereShaderEffectV2');
-    typeRegistrations++;return klass;
+    assert.equal(options.GTypeName,'VLIQWallpaperMilkyTintEffectV1');
+    registered++;return klass;
 }};
-const symbols=Object.getOwnPropertySymbols(globalThis);
-const cacheKey=Symbol.for('vliq.atmosphere.effect.class.v2');
-const oldType=globalThis[cacheKey];
+const cacheKey=Symbol.for('vliq.wallpaper.milky.effect.v1');
+const previous=globalThis[cacheKey];
 delete globalThis[cacheKey];
-try{
-    const module=new Function('Shell','Clutter','Cogl','GObject',
+try {
+    const factory=new Function('Clutter','Cogl','GObject','Shell',
         effectSource.replace(/^import[\s\S]*?;\s*$/gm,'')
             .replace(/^export\s+/gm,'')+
-        '\nreturn {getAtmosphereEffectClass, ATMOSPHERE_FRAGMENT};'
-    )(Shell,Clutter,Cogl,GObject);
-    const Effect=module.getAtmosphereEffectClass();
-    assert.equal(module.getAtmosphereEffectClass(),Effect);
-    assert.equal(typeRegistrations,1);
-    const instance=new Effect();
-    instance.configure([14,8,6,2,14]);
-    assert.deepEqual(units.find(x=>x[0]==='va_filmic')?.[2],[0]);
-    assert.deepEqual(units.findLast(x=>x[0]==='va_filmic')?.[2],[0.14]);
-    assert.deepEqual(units.findLast(x=>x[0]==='va_grain')?.[2],[0.02]);
-    instance.vfunc_build_pipeline();
-    instance.vfunc_paint_target(null,null);
-    assert.deepEqual(units.findLast(x=>x[0]==='va_resolution')?.[2],[1920,1080]);
+        '\nreturn getWallpaperTintEffectClass;'
+    )(Clutter,Cogl,GObject,Shell);
+    const Effect=factory();
+    assert.equal(factory(),Effect);
+    assert.equal(registered,1);
+    new Effect().vfunc_build_pipeline();
+    assert.equal(hookCalls,1);
+    assert.match(fragment,/mix\(sourceColor, milky, 0\.24\)/);
 } finally {
-    if(oldType) globalThis[cacheKey]=oldType;
+    if(previous)globalThis[cacheKey]=previous;
     else delete globalThis[cacheKey];
 }
-assert.match(prefs,/addWallpaperAtmospherePreferences\(\s*wallpaperPage, settings, Adw, Gtk/);
-assert.match(prefs,/\s'Wallpaper',\s*'preferences-desktop-wallpaper-symbolic'/);
-
-console.log('Atmosphere presets, no-write-on-open, Custom controls, Original safety, one static GPU shader, alpha and GObject hot reload PASS.');
+console.log('Wallpaper UI: two modes, no legacy sliders, zero write on open, live status, fixed shade and GType reload PASS.');
