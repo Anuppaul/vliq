@@ -77,6 +77,7 @@ jobs:
           node tools/test_milky_global_integration.mjs
           node tools/test_system_dark_bottom_taskbar.mjs
           node tools/test_adaptive_blue_edge.mjs
+          node tools/test_hot_swap_shader_root.mjs
           # Validate the modified vendored modules as well as VLIQ's own JS.
           node --input-type=module --check < gnome-shell/vliq@wonderer.tech/vendor/liquid-glass/dist/liquidEffect.js
           node --input-type=module --check < gnome-shell/vliq@wonderer.tech/vendor/liquid-glass/dist/rendering/material.js
