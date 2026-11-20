@@ -55,16 +55,17 @@ class VLIQBrandingTests(unittest.TestCase):
         self.assertIn('--title "VLIQ ${TAG}"'.replace("\\", ""), release)
         self.assertNotIn("VLIQ Desktop", release)
 
-    def test_preferences_runtime_and_wallpaper_preset_brand(self):
+    def test_preferences_runtime_and_fixed_wallpaper_brand(self):
         prefs = (EXT / "prefs.js").read_text()
         runtime = (EXT / "orbThemeRuntime.js").read_text()
         presets = (EXT / "wallpaperAtmosphereConfig.js").read_text()
         self.assertIn("Milky Glass", prefs)
         self.assertNotIn("terminal-backdrop-blur", prefs)
         self.assertIn("VLIQ", runtime)
-        for name in ("VLIQ Natural", "VLIQ Cinematic",
-                     "VLIQ Atmosphere"):
-            self.assertIn(name, presets)
+        self.assertIn("Milky White", presets)
+        self.assertIn("WALLPAPER_MILKY_TINT", presets)
+        for retired in ("VLIQ Natural", "VLIQ Cinematic", "VLIQ Atmosphere"):
+            self.assertNotIn(retired, presets)
         for source in (prefs, runtime, presets):
             self.assertNotIn("VLIQ Desktop", source)
 

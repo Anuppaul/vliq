@@ -94,8 +94,8 @@ Before uploading a version:
 - [ ] **GNOME 50 physical test PASS** on a regular user session: install the
       Store-built inner ZIP, verify that the extension loads and Preferences
       opens **without** running `gnome-shell/install.sh`.
-- [ ] On GNOME 50, verify Liquid Glass, Frosted Crystal, Atmosphere
-      Original/Atmosphere, Orb, Spotlight, Calendar, Quick Settings, Dock
+- [ ] On GNOME 50, verify Liquid Glass, Frosted Crystal, Wallpaper
+      Milky White/Original, Orb, Spotlight, Calendar, Quick Settings, Dock
       autohide, GNOME Overview and clean **disable/re-enable**.
 - [ ] Test wallpaper change, multi-monitor, app windows behind native
       popups, and rapid open/close transitions with no persistent black

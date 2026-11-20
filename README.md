@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  Bring a centered, Windows-style taskbar to GNOME without replacing the desktop. Add Liquid Glass, Frosted Crystal, Milky Glass, Spotlight and atmospheric wallpaper effects when you want them.
+  Bring a centered, Windows-style taskbar to GNOME without replacing the desktop. Add Liquid Glass, Frosted Crystal, Milky Glass, Spotlight and a soft Milky White wallpaper tint.
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ VLIQ does not place a second Dock over Ubuntu Dock, recreate Quick Settings, dup
 | | |
 | --- | --- |
 | **Three live-switchable materials** | **Liquid Glass** retains refractive optics, **Frosted Crystal** diffuses the backdrop with static grain, and **Milky Glass** uses the same GNOME card and popup surfaces as Liquid Glass, painting them milky white at 92% opacity; only Full/3-Part/Bottom Headers stay black at 60%. No Milky controls or grain. Glass modes retain the adaptive icy-blue contour. |
-| **VLIQ Atmosphere** | Five wallpaper styles including Original, Natural, Cinematic, Atmosphere and Custom. GPU-native filmic grading, vignette, subtle ambient color, static grain and adaptive contrast, applied to actual wallpaper sources—not browser windows. |
+| **Milky White wallpaper** | A fixed 24% whitish overlay matching VLIQ's native hover cards. Choose Milky White or Original; no filmic grading, vignette, grain, ambient effects or sliders. |
 | **VLIQ Orb** | Draggable, multi-monitor radial launcher with Dock Apps, Custom Apps and All Apps sources, paging, previews, tooltips and running indicators. |
 | **VLIQ Spotlight** | `Super+Space` opens a centered **deep-charcoal search bar and matching results list**, both with **16px rounded-rectangle corners**, white text and subtle focus/selection feedback in every VLIQ material mode. |
 | **Ubuntu Dock integration & settings** | Restyles the existing Ubuntu Dock and lets you manage its native autohide, intellihide, pressure, delays, position, panel mode, icons, application list and click actions inside VLIQ Preferences. |
@@ -96,58 +96,34 @@ Choose **GNOME Extensions → VLIQ → Preferences → Performance → Rendering
 
 The **Active backend** diagnostic row shows which mode is running. You can switch back to Auto at any time. VLIQ cannot automatically diagnose whether an iGPU is fast enough; a renderer may initialize correctly but still have low FPS. Choose Native CSS in that case. Real GNOME 50 compositor testing is required for software-renderer compatibility and performance claims.
 
-## VLIQ Atmosphere — Premium Wallpaper
+## Milky White Wallpaper
 
 Open **GNOME Extensions → VLIQ → Preferences → Wallpaper**.
 
-Atmosphere changes the wallpaper's material and depth without changing
-GNOME's wallpaper files, image URI or desktop color scheme. It is deliberately
-**opt-in**: a fresh installation starts at **Original**, with no Atmosphere
-shader attached. Existing desktops are unchanged until a preset is chosen.
+The old **Atmosphere** filmic, vignette, ambient, grain and adaptive
+contrast presets have been retired. VLIQ now offers two simple styles:
 
-| Wallpaper style | Look | Filmic · Vignette · Ambient · Grain · Contrast |
-| --- | --- | --- |
-| **Original** (default) | GNOME wallpaper exactly as provided, no extra GPU effect | Off |
-| **VLIQ Natural** | Visibly cleaner tones and light corner depth | 38 · 24 · 22 · 2 · 34 |
-| **VLIQ Cinematic** | Rich filmic contrast, noticeably deeper corners and tonal separation | 78 · 70 · 34 · 4 · 72 |
-| **VLIQ Atmosphere** | Premium filmic lighting, cool/warm ambiance and visible depth | 62 · 52 · 54 · 3 · 56 |
-| **Custom** | Adjust each of the five effects independently | Your saved intensities |
+- **Milky White (default):** a fixed rgba(245,249,255,0.24) tint,
+  exactly matching the soft white background of VLIQ's native hover cards.
+  The original wallpaper remains visible, with no extra blur or grain.
+- **Original:** no VLIQ wallpaper tint effect is attached.
 
-A manual slider change selects **Custom**. Returning to **Original**
-removes Atmosphere’s GPU effect without deleting your saved levels. The
-fine-grain texture is static, not animated. **Natural** is a light filmic
-refinement, **Atmosphere** adds noticeable color and depth, and **Cinematic**
-provides a deliberately stronger result. These modes never modify the
-wallpaper image file or GNOME’s own background settings.
+The tint is applied only to real GNOME/Mutter wallpaper actors: the desktop,
+the Liquid Glass shared wallpaper mirror and App Grid's independent wallpaper
+backgrounds. It never paints over application windows, GNOME icons, menus,
+or the entire compositor scene. GNOME still owns the wallpaper image, color
+scheme, per-monitor backgrounds and crossfades.
 
-**Visual check:** With your wallpaper in view, switch between **Original**
-and **VLIQ Atmosphere**, then between **Original** and **VLIQ Cinematic**.
-Look at the outer corners, shadow/midtone depth and warm/cool colors. In
-**Wallpaper → Live Wallpaper Renderer**, the *Shader attachment* status
-shows the number of actual wallpaper actors that received an effect. A
-message such as **Not initialized** or **Not attached** means you should
-reload the extension or check GNOME Shell logs, rather than assuming a
-shader rendered. **Attached** confirms actor attachment, not final GPU
-pixels; device-side visual verification remains required.
+Older Natural/Cinematic/Atmosphere/Custom settings are interpreted as
+Milky White without modifying their stored values. Explicitly saved Original
+remains respected. The five old numeric GSettings keys are retained only
+for compatibility and no longer affect rendering.
 
-### Wallpaper-first scene consistency
-
-GNOME keeps its own wallpaper actor, VLIQ's Liquid Glass uses a distinct
-shared wallpaper mirror, and App Grid has its own native blurred wallpaper
-actors. Atmosphere hooks **each of these real wallpaper actors once**. It
-does **not** tint live Browser windows, App Grid icons, the entire GNOME
-`uiGroup`, or the final glass composite. Therefore the same wallpaper
-treatment is present on the desktop, in glass wallpaper reflections and in
-the App Grid's existing native blur, without stacking Atmosphere twice on
-a single source. Native multi-monitor and GNOME wallpaper changes remain
-owned by GNOME.
-
-**Performance:** Each active wallpaper paint source receives one static
-GPU shader effect (one extra color pass on that source). No CPU screenshots,
-texture uploads, timers, frame-based grain or additional App Grid blur layers
-are used. It can increase GPU cost versus **Original**; the final GNOME 50
-GPU time and color fidelity must be validated on a real device. Previous
-Liquid/Frosted glass controls and native popup scene selection are untouched.
+**Status:** The Wallpaper page reports the number of loaded wallpaper
+actors with the tint attached. This confirms effect attachment, not
+verified GPU pixels. A fixed one-sample compositor pass adds no animation,
+CPU screenshots or per-frame timers, but GPU cost still needs testing on
+GNOME Shell 50. The existing Liquid/Frosted glass materials are unchanged.
 
 ## Choose a Glass Material
 

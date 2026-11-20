@@ -741,9 +741,9 @@ export class LiquidGlassIntegration {
             this._vliqSettings?.get_string?.('glass-style') === 'milky'
         );
 
-        // Hook GNOME's existing wallpaper actors before creating Orb/Popup
-        // glass and the shared BackgroundMirror. Original (default) does
-        // not instantiate a ShaderEffect or change the user's wallpaper.
+        // Hook real GNOME wallpaper actors before creating the shared
+        // glass mirror. Milky White is the default fixed 24% tint;
+        // Original does not instantiate a shader or change the image.
         try {
             this._wallpaperAtmosphereManager =
                 new WallpaperAtmosphereManager(this._vliqSettings);
@@ -756,7 +756,7 @@ export class LiquidGlassIntegration {
             this._wallpaperAtmosphereManager = null;
             this._managerHealth.wallpaperAtmosphereManager = false;
             console.warn(
-                '[VLIQ][Atmosphere] native wallpaper effects unavailable: ' +
+                '[VLIQ][Wallpaper] native wallpaper tint unavailable: ' +
                 error
             );
         }
