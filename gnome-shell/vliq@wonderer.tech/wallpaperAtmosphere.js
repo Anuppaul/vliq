@@ -1,6 +1,7 @@
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
+import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -117,6 +118,7 @@ export class WallpaperAtmosphereManager {
         const content = actor.content ?? actor.get_content?.();
         const record = {
             overlay: null,
+            bindings: [],
             destroyId: 0,
             backgroundId: 0,
             content,
@@ -188,6 +190,19 @@ export class WallpaperAtmosphereManager {
             }));
             parent.insert_child_above(overlay, actor);
             record.overlay = overlay;
+            // Mutter can fade wallpaper actors during crossfades. Match
+            // native opacity/visibility to avoid a white sheet remaining
+            // after the underlying source has faded out.
+            for (const property of ['opacity', 'visible']) {
+                try {
+                    const binding = actor.bind_property(
+                        property, overlay, property,
+                        GObject.BindingFlags.SYNC_CREATE
+                    );
+                    if (binding)
+                        record.bindings.push(binding);
+                } catch {}
+            }
         } catch (error) {
             this._warnOnce('native wallpaper tint unavailable', error);
             this._detachActor(actor, record);
@@ -200,6 +215,10 @@ export class WallpaperAtmosphereManager {
         if (!overlay)
             return;
         record.overlay = null;
+        for (const binding of record.bindings) {
+            try { binding.unbind?.(); } catch {}
+        }
+        record.bindings = [];
         try { overlay.destroy?.(); } catch {}
         // The wallpaper actor and its original Meta.BackgroundContent
         // always remain owned by GNOME.
