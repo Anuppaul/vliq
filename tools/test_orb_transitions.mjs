@@ -116,7 +116,10 @@ assert.equal(taskbarOrb._radialActors[0].translation_x,602-20-slots[0].x,
 assert.equal(taskbarOrb._radialActors[0].translation_y,702-20-slots[0].y);
 assert.equal(taskbarOrb._orb.hidden,true,
     'radial menu must not reveal hidden standalone Orb');
+taskbarOrb._scheduleClose=()=>{taskbarOrb._closeWasScheduled=true;};
 taskbarOrb._onTaskbarLauncherHover(startAnchor,false);
+assert.equal(taskbarOrb._closeWasScheduled,true,
+    'moving from Start toward an Orb app starts a delayed close');
 assert.equal(taskbarOrb._taskbarOrbAnchor,startAnchor,
     'retain anchor while pointer crosses to a radial app button');
 taskbarOrb._liquidGlassIntegration.isBottomTaskbarActive=()=>false;
