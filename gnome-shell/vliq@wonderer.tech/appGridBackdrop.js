@@ -33,9 +33,6 @@ export class AppGridBackdropManager {
         this._currentBlurRadius = BLUR_RADIUS;
         this._lastAppliedBlurRadius = null;
         this._lastAppliedBlurScale = null;
-        // Keep the existing wallpaper blur mapped throughout Overview
-        // transitions, even while GNOME temporarily reports mapped=false.
-        this._overviewTransition = null;
     }
 
     setup() {
@@ -314,27 +311,16 @@ export class AppGridBackdropManager {
         // GNOME Overview lifecycle: window picker, search and applications.
         // Keeping this independent of individual child-page visibility also
         // removes the gray/black base and prevents page-transition flashes.
-        if (phase === 'showing' || phase === 'shown')
-            this._overviewTransition = 'opening';
-        else if (phase === 'hiding')
-            this._overviewTransition = 'closing';
-        else if (phase === 'hidden')
-            this._overviewTransition = null;
-
-        // GNOME can report mapped=false for one or more intermediate
-        // frames. Keep our existing blur allocation/texture alive until
-        // the definitive hidden signal, rather than flashing the base.
-        const visible = phase === 'hidden'
-            ? false
-            : this._overviewTransition !== null || Boolean(
-                overview?.visible &&
-                overview?.mapped &&
-                Main.overview?.visible
-            );
+        const visible = Boolean(
+            overview?.visible &&
+            overview?.mapped &&
+            Main.overview?.visible
+        );
 
         if (visible) {
-            if (!overview?.has_style_class_name?.(OVERVIEW_WALLPAPER_CLASS))
-                overview?.add_style_class_name?.(OVERVIEW_WALLPAPER_CLASS);
+            overview.add_style_class_name?.(
+                OVERVIEW_WALLPAPER_CLASS
+            );
 
             // Keep the already-allocated native BlurEffect at one radius
             // throughout Showing → App Grid → Hiding. The former 0 → 36
@@ -343,8 +329,9 @@ export class AppGridBackdropManager {
             if (!this._layer.visible)
                 this._layer.show?.();
         } else {
-            if (overview?.has_style_class_name?.(OVERVIEW_WALLPAPER_CLASS))
-                overview?.remove_style_class_name?.(OVERVIEW_WALLPAPER_CLASS);
+            overview?.remove_style_class_name?.(
+                OVERVIEW_WALLPAPER_CLASS
+            );
             if (this._layer.visible)
                 this._layer.hide?.();
         }
@@ -360,7 +347,6 @@ export class AppGridBackdropManager {
         if (!this._enabled)
             return;
         this._enabled = false;
-        this._overviewTransition = null;
 
         for (const {object, id} of this._visibilitySignals) {
             try {
