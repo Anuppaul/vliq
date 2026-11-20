@@ -57,12 +57,15 @@ class BackgroundActor extends Emitter {
     constructor(loaded=true){
         super();this.content=new BackgroundContent(loaded);
         this.visible=true;
+        this.opacity=255;
         this.effects=new Map();this.adds=0;this.removes=0;this.parent=null;
     }
     get_parent(){return this.parent;}
     bind_property(property,overlay,targetProperty){
-        overlay[targetProperty]=this[property] ?? (property==='opacity'?255:true);
-        return {unbind(){}};
+        const sync=()=>{overlay[targetProperty]=this[property];};
+        sync();
+        const id=this.connect('notify::'+property,sync);
+        return {unbind:()=>this.disconnect(id)};
     }
     add_effect_with_name(name,effect){
         assert.equal(name,'vliq-milky-wallpaper');
@@ -120,20 +123,33 @@ function drainIdles() {
 let overlayCreates=0;
 let overlayDestroys=0;
 class NativeOverlay {
-    constructor(opts){this.opts=opts;this.constraints=[];this.parent=null;overlayCreates++;}
+    constructor(opts){
+        this.opts=opts;this.constraints=[];this.parent=null;
+        this.background_color=opts.background_color;
+        this.colorWrites=0;
+        this.visible=true;this.opacity=255;
+        overlayCreates++;
+    }
     add_constraint(constraint){this.constraints.push(constraint);}
+    set_background_color(color){
+        this.background_color=color;
+        this.colorWrites++;
+    }
     destroy(){overlayDestroys++;this.parent?.remove_child(this);}
 }
-const St={Widget:NativeOverlay};
 const GObject={BindingFlags:{SYNC_CREATE:1}};
-const Clutter={BindConstraint:class {constructor(o){Object.assign(this,o);}},
-    BindCoordinate:{ALL:0}};
-const Type=new Function('GLib','Meta','Main','Clutter','St','GObject',
+const Cogl={Color:class {constructor(o){Object.assign(this,o);}}};
+const Clutter={
+    Actor:NativeOverlay,
+    BindConstraint:class {constructor(o){Object.assign(this,o);}},
+    BindCoordinate:{ALL:0},
+};
+const Type=new Function('GLib','Meta','Main','Clutter','Cogl','GObject',
     'readWallpaperProfile',
     managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
         .replace(/^export\s+/gm,'') +
         '\nreturn WallpaperAtmosphereManager;'
-)(GLib,Meta,Main,Clutter,St,GObject,config.readWallpaperProfile);
+)(GLib,Meta,Main,Clutter,Cogl,GObject,config.readWallpaperProfile);
 class Settings extends Emitter {
     constructor(style='milky'){
         super();this.data=new Map([
@@ -197,10 +213,16 @@ const overlays=actors.map(actor => actor.parent.children.find(
     child=>child.opts?.name==='vliq-wallpaper-milky-tint' &&
         child.constraints.some(constraint=>constraint.source===actor)
 ));
+assert.deepEqual(overlays.map(overlay=>overlay.background_color.alpha),
+    [61,61,61,61]);
+assert.ok(overlays.every(overlay=>overlay.opts.style === undefined),
+    'native Clutter color quads must never use CSS stylesheet paint');
 const beforeStyleChange=overlayCreates;
 settings.change('wallpaper-style','original');
-assert.ok(overlays.every(overlay=>overlay.visible===false),
-    'Original hides every tint immediately without waiting for idle');
+assert.ok(overlays.every(overlay=>overlay.background_color.alpha===0),
+    'Original must remove tint in the synchronous callback');
+assert.ok(overlays.every(overlay=>overlay.visible===true),
+    'Original must not unmap the reusable native quad');
 assert.equal(overlayCreates,beforeStyleChange);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
@@ -209,8 +231,10 @@ assert.equal(settings.data.get('wallpaper-grain'),100);
 
 // Old saved presets map to Milky without modifying the GSettings value.
 settings.change('wallpaper-style','cinematic');
+assert.ok(overlays.every(overlay=>overlay.background_color.alpha===61),
+    'Milky must use the fixed 24% native color in the synchronous callback');
 assert.ok(overlays.every(overlay=>overlay.visible===true),
-    'Milky must be visibly enabled in synchronous GSettings callback');
+    'mode toggle must not unmap and remap a reusable paint quad');
 assert.equal(overlayCreates,beforeStyleChange,
     'style toggles reuse original allocated overlay actors');
 drainIdles();
@@ -227,12 +251,20 @@ assert.equal(overlays[0].visible,false);
 native.visible=true;
 native.emit('notify::visible');
 assert.equal(overlays[0].visible,true);
+native.opacity=128;
+native.emit('notify::opacity');
+assert.equal(overlays[0].opacity,128,
+    'GNOME fade opacity must be mirrored through a native binding');
+native.opacity=255;
+native.emit('notify::opacity');
 settings.change('wallpaper-style','original');
 native.emit('notify::visible');
-assert.equal(overlays[0].visible,false,
-    'GNOME visibility change cannot override Original');
+assert.equal(overlays[0].background_color.alpha,0,
+    'GNOME visibility change cannot override Original shade');
+assert.equal(overlays[0].visible,true,
+    'Original keeps compositor-native quad allocated and mapped');
 settings.change('wallpaper-style','milky');
-assert.equal(overlays[0].visible,true);
+assert.equal(overlays[0].background_color.alpha,61);
 
 // Background load changes must not detach or recreate a tint layer:
 // Mutter can paint an old or new background during async image loading.
@@ -284,6 +316,9 @@ for(const name of ['wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
     assert.ok(install.includes('"' + name + '"'));
 assert.match(managerSource,/insert_child_above\(overlay, actor\)/);
 assert.match(managerSource,/Clutter\.BindConstraint/);
+assert.match(managerSource,/new Clutter\.Actor\(/);
+assert.match(managerSource,/new Cogl\.Color\(/);
+assert.doesNotMatch(managerSource,/new St\.Widget|background-color:\s*'|overlay\.visible = visible/);
 assert.doesNotMatch(managerSource,/getWallpaperTintEffectClass|add_effect_with_name/);
 assert.match(managerSource,/this\._enabled && this\._profile\.active/);
 assert.match(managerSource,/this\._applyNow\(\);/);
@@ -292,4 +327,4 @@ assert.doesNotMatch(managerSource,/GLib\.idle_add\([\s\S]*?\(\) => \{[\s\S]*?thi
     'wallpaper style application may not be queued behind low priority idles');
 assert.doesNotMatch(managerSource,/this\._profile\.active &&\s*this\._hasLoadedBackground\(record\)/);
 assert.doesNotMatch(effectSource,/GLib\.timeout_add|Shell\.Screenshot|new Gio\.File/);
-console.log('Native Milky wallpaper tint: synchronous switch, reusable prepared overlays, native fades, cleanup and packaging PASS.');
+console.log('Native Milky wallpaper tint: no-CSS Cogl color quad, instant alpha switch, zero remaps, background fades, cleanup and packaging PASS.');
