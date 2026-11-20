@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Experimental Liquid/Frosted border:** the existing thin SDF rim now alternates deterministic irregular ~6–14px fragments of Milky White and backdrop-aware gray, rather than a continuous TL/BR blue/gray edge. No new actor, CSS border, texture, animation, or extra shader pass. Native Milky mode, application windows, glass alpha and material optics are unchanged. Kept isolated in a separate PR for easy reversal.
+### Changed
+
 - Replaced fixed pure-white **material-body tint** in Liquid Glass and Frosted Crystal with the existing Milky White RGB `#F5F9FF` (245,249,255). Both shader paths use the same 15% blend strength, Frosted's bright matte endpoint shares the tint, and Quick Settings neutral tiles/default global/Dock tint use the same cool white. User-picked tint colors, glass alpha, refraction, blur, grain, optical highlights and standalone Milky mode are unchanged.
 
 - Replaced the five wallpaper Atmosphere effects (Filmic, Vignette, Ambient, Grain, Contrast) with a fixed Milky White tint matching native hover cards: rgba(245,249,255,0.24). Wallpaper preferences now offer Milky White or Original only; retired keys remain for compatibility. The tint is scoped to real GNOME wallpaper actors and retains image transparency, with no grain, blur or animation.
