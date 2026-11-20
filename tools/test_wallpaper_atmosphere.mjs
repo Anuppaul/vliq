@@ -123,9 +123,9 @@ const Clutter={BindConstraint:class {constructor(o){Object.assign(this,o);}},
     BindCoordinate:{ALL:0}};
 const Type=new Function('GLib','Meta','Main','Clutter','St',
     'readWallpaperProfile',
-    managerSource.replace(/^import[\\s\\S]*?;\\s*$/gm,'')
-        .replace(/^export\\s+/gm,'') +
-        '\\nreturn WallpaperAtmosphereManager;'
+    managerSource.replace(/^import[\s\S]*?;\s*$/gm,'')
+        .replace(/^export\s+/gm,'') +
+        '\nreturn WallpaperAtmosphereManager;'
 )(GLib,Meta,Main,Clutter,St,config.readWallpaperProfile);
 class Settings extends Emitter {
     constructor(style='milky'){
