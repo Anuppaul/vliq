@@ -1608,43 +1608,72 @@ void main() {
     // マイナス値への侵入を防ぐ
     litColor = max(litColor, 0.0);
 
-    // Single thin optical rim for native GNOME cards. Preserve the pale
-    // top-left/bottom-right glints, but use a neutral graphite/gray border
-    // for every other edge rather than leaving white light all around.
-    // Because surface_light_enabled is 0 for real application windows, those
-    // windows retain their original shadow-only appearance.
+    // VLIQ_EXPERIMENT_SOFT_OPTICAL_RIM_V3:
+    // One narrow, translucent ~1.1px glass contour. White and slate-gray
+    // flow into one another through a smooth spatial gradient, rather than
+    // alternating as hard black/white stripes. The modulation follows the
+    // card's own coordinates, so the highlight is stable under motion.
     //
-    // No extra actor, new sampler or CSS border: tint only the *existing*
-    // glass body within ~1.65px of its signed-distance boundary. Composite
-    // later multiplies by insideMask ONCE, preventing exterior blue halos,
-    // opaque frames and the old fullscreen-darkening regression.
+    // Keep the original SDF clip, once-applied compositing alpha and the
+    // existing TL/BR Fresnel. No second outline, sampler or extra pass.
+    // Application windows retain their shadow-only treatment.
     if (surface_light_enabled > 0.5 &&
-        d > -1.65 && d < edgeFeather) {
+        d > -1.15 && d < edgeFeather) {
         vec3 edgeLight = vliqAdaptiveCardEdgeColor(
             adjustedRefracted, litColor, vliq_frost_amount
         );
-        float edgeCoverage = vliqAdaptiveCardEdgeCoverage(d);
-        // edgeLight's red channel already encodes the current luminance.
-        // Neutral charcoal on bright backgrounds; restrained slate-gray
-        // on dark ones, with no second screen/backdrop texture fetch.
         float brightEdge = clamp(
             (0.76 - edgeLight.r) / (0.76 - 0.54), 0.0, 1.0
         );
-        vec3 edgeDark = mix(
-            vec3(0.36, 0.38, 0.41),
-            vec3(0.18, 0.20, 0.23),
+
+        // SDF inward fade, with zero added rim beyond 1.15 logical pixels.
+        // Lower strength lets the original refractive glass show through.
+        float edgeDepth = max(-d, 0.0);
+        float edgeCoverage = 0.53 *
+            (1.0 - smoothstep(0.06, 1.15, edgeDepth));
+
+        vec2 edgeDistance = box_size - abs(local_pos);
+        bool horizontalEdge = edgeDistance.y <= edgeDistance.x;
+        float segmentPosition = horizontalEdge ?
+            local_pos.x : local_pos.y;
+        float sideSeed = horizontalEdge ?
+            (local_pos.y < 0.0 ? 0.0 : 1.0) :
+            (local_pos.x < 0.0 ? 2.0 : 3.0);
+
+        // Smooth, nonuniform highlights instead of hard W/B cutoffs.
+        // The slow warp varies the spacing; cosine is continuous across
+        // the entire edge. Never quantize to cells or sample a texture.
+        float warpedPosition = segmentPosition +
+            9.0 * sin(segmentPosition * 0.022 + sideSeed * 1.7);
+        float flowingLight = 0.5 + 0.5 * cos(
+            warpedPosition * 0.0476 + sideSeed * 1.3
+        );
+
+        // Even the dark end is optical slate, NOT a solid black stripe.
+        // Retain the original TL/BR highlights as a soft bias, with
+        // backdrop-aware contrast on pale Frosted and dark Liquid cards.
+        float highlightBlend = clamp(
+            0.24 + 0.59 * flowingLight + 0.10 * cornerGlint,
+            0.18, 0.93
+        );
+        vec3 edgeSlate = mix(
+            vec3(0.47, 0.52, 0.58),
+            vec3(0.34, 0.38, 0.43),
             brightEdge
         );
-        // Highlight color is restricted to the existing TL/BR masks.
-        // In between, retain a thinner gray outline instead of zero rim.
-        vec3 edgeColor = mix(edgeDark, edgeLight, cornerGlint);
-        edgeCoverage *= mix(0.52, 1.0, cornerGlint);
-        edgeCoverage *= mix(1.0, 0.58, brightEdge);
-        // Frosted retains a restrained contour, never another CSS stroke.
+        vec3 edgePearl = mix(
+            VLIQ_MILKY_WHITE_RGB,
+            edgeLight,
+            0.38
+        );
+        vec3 edgeColor = mix(
+            edgeSlate, edgePearl, highlightBlend
+        );
+
+        // Frosted diffuses the rim a little further; neither mode gets
+        // another opaque layer or an abrupt change in glass alpha.
         edgeCoverage *= mix(
-            1.0,
-            0.87,
-            clamp(vliq_frost_amount, 0.0, 1.0)
+            1.0, 0.90, clamp(vliq_frost_amount, 0.0, 1.0)
         );
         litColor = mix(litColor, edgeColor, edgeCoverage);
     }

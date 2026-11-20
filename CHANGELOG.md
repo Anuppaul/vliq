@@ -21,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Experimental Liquid/Frosted border, fine-tuned after device feedback:** reduced the optical rim to an inward fade of about 1.15px at 53% maximum coverage, and replaced distinct white/black segments with continuous, subtly varying pearl/slate gradients. Preserve original TL/BR optical glints and the unchanged alpha, blur, grain and refraction. Keep the safe hot-swap shader-source correction (cached GObject classes, current canonical shader files). The experiment remains isolated from main until visual approval.
+
 - Replaced fixed pure-white **material-body tint** in Liquid Glass and Frosted Crystal with the existing Milky White RGB `#F5F9FF` (245,249,255). Both shader paths use the same 15% blend strength, Frosted's bright matte endpoint shares the tint, and Quick Settings neutral tiles/default global/Dock tint use the same cool white. User-picked tint colors, glass alpha, refraction, blur, grain, optical highlights and standalone Milky mode are unchanged.
 
 - Replaced the five wallpaper Atmosphere effects (Filmic, Vignette, Ambient, Grain, Contrast) with a fixed Milky White tint matching native hover cards: rgba(245,249,255,0.24). Wallpaper preferences now offer Milky White or Original only; retired keys remain for compatibility. The tint is scoped to real GNOME wallpaper actors and retains image transparency, with no grain, blur or animation.

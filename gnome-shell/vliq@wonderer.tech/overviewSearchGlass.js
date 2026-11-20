@@ -257,7 +257,7 @@ export class OverviewSearchGlassManager {
         liquidBox.add_child(breaker);
 
         const effect = new this._vendor.LiquidEffect({
-            extensionPath: this._vendor.root,
+            extensionPath: this._vendor.shaderRoot ?? this._vendor.root,
             settings: this._settings,
             owner: 'vliq-overview-search',
         });

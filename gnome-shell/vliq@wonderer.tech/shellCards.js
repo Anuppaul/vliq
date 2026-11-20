@@ -116,7 +116,7 @@ class ShellCardSurface {
         material.add_child(breaker);
 
         const effect = new this._vendor.LiquidEffect({
-            extensionPath: this._vendor.root,
+            extensionPath: this._vendor.shaderRoot ?? this._vendor.root,
             settings: this._settings,
             owner: this._wallpaperOnly
                 ? 'vliq-app-grid-wallpaper'

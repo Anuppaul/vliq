@@ -148,6 +148,29 @@ user-customized optical settings are unchanged. The separate native Milky
 mode still uses 60% black headers and 92% white popup cards. No additional
 shader pass, CSS layer or full-screen renderer is introduced.
 
+### Experimental White–Gray Rim (Liquid & Frosted)
+
+The refined experiment produces a **very fine, approximately 1.1px
+optical contour**. White/pearl and subdued slate-gray flow into each
+other with a smooth, non-uniform highlight wave instead of appearing as
+separate black and white strips. Its lower contrast leaves the actual
+glass refraction and Frosted matte visible through the rim, including
+the retained soft TL/BR specular glints.
+
+The existing signed-distance glass edge is reused—no second CSS border,
+additional shader pass, texture, animation, or frame timer. The pattern
+remains stable in card-local coordinates during workspace changes. The
+native Milky mode, application windows, transparency, blur, frost and
+refraction remain unchanged.
+
+**Live reload fix:** GNOME caches the process-global Liquid Glass GObject
+classes across hot-swaps. Previous shader instances could keep reading an
+older vendor revision. Optical effects now load shader *data* from the
+installer-refreshed canonical vendor directory while still reusing the
+registered module graph. The live log
+`[VLIQ][GlassShader] moduleRoot=... shaderRoot=...` identifies both paths.
+These experimental changes remain isolated in a PR for easy reversal.
+
 ## Choose a Glass Material
 
 Open **GNOME Extensions → VLIQ → Preferences → Appearance → Glass Material** and select **Liquid Glass**, **Frosted Crystal**, or **Milky Glass**. The mode changes live and persists after logout or restart. These are VLIQ material selections, not changes to GNOME's system color scheme.
