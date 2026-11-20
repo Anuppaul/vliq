@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Addressed the remaining delayed Milky wallpaper toggles: apply GSettings style changes synchronously instead of queuing an idle callback, reuse already allocated wallpaper tint actors across Original/Milky switches, and track native source visibility separately from the user's selection. Initialize the wallpaper tint manager before asynchronous Liquid Glass vendor loading. Added lifecycle and no-idle regression assertions; live compositor paint still requires device verification.
+
 - Removed late first-paint wallpaper tint shader attachment: native compositor paint overlays now apply the fixed Milky White shade as soon as each GNOME wallpaper source is ready. No GLSL compilation or GPU shader warm-up is required for the tint; source geometry follows Mutter background actors and overlays are cleaned up on wallpaper changes.
 
 - Fixed the earlier Milky surface-scope regression: all existing Liquid Glass surfaces now receive the same hardcoded 92% Milky White (notifications dropping from the top, app/status menus, Shell dialogs, Alt+Tab, previews, Orb, Dock, Spotlight, OSD and Overview controls). Only the Full/3-Part/Bottom Header remains pure black at 60%. No Milky controls, grain, or new effect actors.
