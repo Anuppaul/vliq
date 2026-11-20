@@ -45,6 +45,7 @@ export class WallpaperAtmosphereManager {
         this._uiAddedId = 0;
         this._uiRemovedId = 0;
         this._statusUpdateId = 0;
+        this._paintProbeId = 0;
         this._lastStatus = null;
         this._warnings = new Set();
     }
@@ -89,6 +90,10 @@ export class WallpaperAtmosphereManager {
             // PRIORITY_DEFAULT_IDLE source that can run after a busy frame.
             const started = GLib.get_monotonic_time();
             this._applyNow();
+            // This measures actual compositor frame scheduling rather than
+            // only the JS setter. It is a one-shot GNOME Stage signal, never
+            // a permanent repaint hook or polling timer.
+            this._probeNextPaint(key, started);
             const elapsedMs =
                 (GLib.get_monotonic_time() - started) / 1000;
             console.log(
@@ -102,6 +107,58 @@ export class WallpaperAtmosphereManager {
         ) ?? 0;
         this._applyNow();
         this._queueStatus();
+    }
+
+    _disconnectPaintProbe() {
+        if (!this._paintProbeId)
+            return;
+        try {
+            global.stage?.disconnect?.(this._paintProbeId);
+        } catch {}
+        this._paintProbeId = 0;
+    }
+
+    _probeNextPaint(_key, startedUs) {
+        this._disconnectPaintProbe();
+        const stage = global.stage;
+        if (!stage?.connect)
+            return;
+        const style = this._profile.style;
+        try {
+            this._paintProbeId = stage.connect('after-paint', () => {
+                this._disconnectPaintProbe();
+                if (!this._enabled)
+                    return;
+
+                let attached = 0;
+                let mapped = 0;
+                let visible = 0;
+                for (const record of this._actors.values()) {
+                    const overlay = record.overlay;
+                    if (!overlay)
+                        continue;
+                    attached++;
+                    if (overlay.mapped)
+                        mapped++;
+                    if (overlay.visible)
+                        visible++;
+                }
+                const ms = (GLib.get_monotonic_time() - startedUs) / 1000;
+                // Stage after-paint means a compositor frame completed.
+                // It does NOT prove these overlay pixels were visible.
+                console.log(
+                    '[VLIQ][Wallpaper][PaintProbe] style=' + style +
+                    ' stage-after-paint=' + ms.toFixed(2) + ' ms' +
+                    ' overlay=' + attached +
+                    ' mapped=' + mapped +
+                    ' visible=' + visible +
+                    ' (pixel output unverified)'
+                );
+            });
+        } catch (error) {
+            this._paintProbeId = 0;
+            this._warnOnce('after-paint diagnostic unavailable', error);
+        }
     }
 
     _warnOnce(phase, error) {
@@ -419,6 +476,7 @@ export class WallpaperAtmosphereManager {
         if (!this._enabled)
             return;
         this._enabled = false;
+        this._disconnectPaintProbe();
 
         if (this._statusUpdateId) {
             try {
