@@ -1592,7 +1592,7 @@ export default class VLIQRuntime extends Extension {
             this._settings.get_int('ring-gap')
         );
         const animationMs = this._settings.get_int('animation-ms');
-        const [orbX, orbY] = this._orb.get_position();
+        const [orbX, orbY] = this._orbMenuOrigin();
         const centerX = orbX + orbSize / 2;
         const centerY = orbY + orbSize / 2;
         const monitor = this._monitorAt(centerX, centerY);
@@ -2184,7 +2184,7 @@ export default class VLIQRuntime extends Extension {
         );
         const orbSize = this._settings.get_int('orb-size');
         const iconSize = this._settings.get_int('icon-size');
-        const [orbX, orbY] = this._orb.get_position();
+        const [orbX, orbY] = this._orbMenuOrigin();
         const targetX = orbX + orbSize / 2 - iconSize / 2;
         const targetY = orbY + orbSize / 2 - iconSize / 2;
 
@@ -2270,7 +2270,7 @@ export default class VLIQRuntime extends Extension {
             `${this._orbPageIndex + 1} / ${this._orbPageCount} · scroll`;
 
         const [orbX, orbY] =
-            this._orb.get_position();
+            this._orbMenuOrigin();
         const orbSize =
             this._settings.get_int('orb-size');
         const monitor = this._monitorAt(
