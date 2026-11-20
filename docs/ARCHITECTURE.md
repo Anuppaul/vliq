@@ -33,12 +33,12 @@ new wallpaper shader; legacy non-Original selections resolve to Milky White.
 WallpaperAtmosphereManager retains the established actor lifecycle:
 it observes actual loaded Meta.BackgroundActor sources in the desktop,
 shared glass mirror and App Grid wallpaper backgrounds, attaching one
-immutable shader to each. The shader performs a single premultiplied-alpha
-mix, preserving wallpaper crossfades. No color grading, vignette, grain,
-noise, dynamic uniforms, frame callback, new blur or application-window
-capture is introduced. Original detaches all tint effects. The wallpaper
-tint is managed by the GPU integration; the explicit Native CSS fallback
-continues to bypass custom GPU shader effects.
+native St.Widget overlay sibling to each. Geometry follows its source via a
+Clutter.BindConstraint; the fixed CSS rgba(245,249,255,0.24) shade requires
+no GLSL compile or delayed first-frame effect attachment. No color grading,
+vignette, grain, dynamic uniforms, frame callback, new blur or window capture
+is introduced. Original destroys these overlays without changing wallpaper
+actors. The explicit Native CSS fallback remains independently supported.
 
 ## Renderer
 
