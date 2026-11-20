@@ -123,10 +123,14 @@ for compatibility and no longer affect rendering.
 GPU output. Wallpaper tint actors are prepared before asynchronous Liquid
 Glass vendor loading; native actor visibility is updated synchronously with
 wallpaper-style changes, without a low-priority idle queue or actor recreation.
-The 24% shade is painted by a lightweight St.Widget sibling of each real
-wallpaper actor (not a GLSL shader). Original hides the prepared layer without
-rebuilding it. Test actual first-frame paint, transitions and multiple monitors
-on GNOME Shell 50; synthetic tests do not measure real compositor latency.
+The 24% shade is painted by a lightweight Clutter.Actor native color
+quad (Cogl.Color, alpha 61/255) alongside each real wallpaper actor. Original
+sets that color alpha to zero, rather than hiding/unmapping the actor.
+Milky restores 24% alpha with one native property update; no St CSS
+resolution, actor re-creation, GLSL shader, or new compositor capture path.
+Wallpaper source opacity and visibility stay bound during crossfades.
+Actual first-frame paint and multi-monitor behavior still require testing
+on GNOME Shell 50; synthetic checks do not measure GPU frame latency.
 
 ## Choose a Glass Material
 
