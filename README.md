@@ -150,15 +150,18 @@ shader pass, CSS layer or full-screen renderer is introduced.
 
 ### Experimental White–Gray Rim (Liquid & Frosted)
 
-The experiment now displays **large, unmistakable white–black
-alternating sections**, `W–B–W–B`, around the full Liquid/Frosted rim.
-Each section is roughly **40–85px long** along the contour, not tiny
-6–14px specks. Solid white matches the existing top-left/bottom-right
-highlight; near-black graphite remains visible under the corner lighting.
-The existing thin SDF rim is reused—no second CSS border, added shader
-pass, texture, animation, or frame timer. The pattern is static in each
-card's local coordinates. The native Milky mode, application windows,
-transparency, blur, frost and refraction remain unchanged.
+The refined experiment produces a **very fine, approximately 1.1px
+optical contour**. White/pearl and subdued slate-gray flow into each
+other with a smooth, non-uniform highlight wave instead of appearing as
+separate black and white strips. Its lower contrast leaves the actual
+glass refraction and Frosted matte visible through the rim, including
+the retained soft TL/BR specular glints.
+
+The existing signed-distance glass edge is reused—no second CSS border,
+additional shader pass, texture, animation, or frame timer. The pattern
+remains stable in card-local coordinates during workspace changes. The
+native Milky mode, application windows, transparency, blur, frost and
+refraction remain unchanged.
 
 **Live reload fix:** GNOME caches the process-global Liquid Glass GObject
 classes across hot-swaps. Previous shader instances could keep reading an
