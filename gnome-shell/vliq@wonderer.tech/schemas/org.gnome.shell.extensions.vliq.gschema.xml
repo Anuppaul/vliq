@@ -222,50 +222,51 @@
       <description>Vertical paint offset in pixels. Positive values move the floating dock upward; negative values move it downward. Panel mode ignores this setting.</description>
     </key>
 
-    <!-- VLIQ Atmosphere is opt-in. Original disables the wallpaper GPU
-         shader completely. Slider defaults are the Atmosphere profile and
-         remain saved across preset changes and Original toggles. -->
+    <!-- One fixed Milky White wallpaper tint replaces the retired Atmosphere
+         effects. Original remains an opt-out. Legacy choices/keys are retained
+         for existing GSettings profiles but never used by the new renderer. -->
     <key name="wallpaper-runtime-status" type="s">
       <default>'Not initialized — install or reload VLIQ'</default>
-      <summary>Diagnostic status of attached Atmosphere wallpaper shader effects</summary>
+      <summary>Diagnostic status of the fixed Milky White wallpaper tint</summary>
       <description>Updated by the running GNOME Shell extension only; not a user setting. Reports source effects attached, not measured pixel output.</description>
     </key>
     <key name="wallpaper-style" type="s">
-      <default>'original'</default>
+      <default>'milky'</default>
       <choices>
+        <choice value="milky"/>
         <choice value="original"/>
         <choice value="natural"/>
         <choice value="cinematic"/>
         <choice value="atmosphere"/>
         <choice value="custom"/>
       </choices>
-      <summary>VLIQ Atmosphere wallpaper treatment</summary>
-      <description>Original leaves GNOME wallpaper rendering unchanged. Other profiles apply static GPU-native visual grading to wallpaper sources.</description>
+      <summary>VLIQ wallpaper appearance</summary>
+      <description>Milky applies the same fixed 24% whitish tint as VLIQ hover cards. Original leaves wallpaper unchanged. Retired Atmosphere values remain accepted for profile migration and map to Milky without rewriting them.</description>
     </key>
     <key name="wallpaper-filmic" type="i">
       <default>62</default>
       <range min="0" max="100"/>
-      <summary>Wallpaper filmic color intensity</summary>
+      <summary>Legacy wallpaper filmic intensity (unused)</summary>
     </key>
     <key name="wallpaper-vignette" type="i">
       <default>52</default>
       <range min="0" max="100"/>
-      <summary>Wallpaper soft vignette intensity</summary>
+      <summary>Legacy wallpaper vignette intensity (unused)</summary>
     </key>
     <key name="wallpaper-ambient" type="i">
       <default>54</default>
       <range min="0" max="100"/>
-      <summary>Wallpaper ambient light intensity</summary>
+      <summary>Legacy wallpaper ambient intensity (unused)</summary>
     </key>
     <key name="wallpaper-grain" type="i">
       <default>3</default>
       <range min="0" max="100"/>
-      <summary>Wallpaper static micro-grain intensity</summary>
+      <summary>Legacy wallpaper grain intensity (unused)</summary>
     </key>
     <key name="wallpaper-adaptive-contrast" type="i">
       <default>56</default>
       <range min="0" max="100"/>
-      <summary>Wallpaper adaptive contrast intensity</summary>
+      <summary>Legacy wallpaper contrast intensity (unused)</summary>
     </key>
 
     <!-- VLIQ material picker. Liquid remains the installed default. The
