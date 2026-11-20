@@ -397,13 +397,13 @@ export default class VLIQPreferences extends ExtensionPreferences {
         );
 
         // -----------------------------------------------------------------
-        // Wallpaper — VLIQ Atmosphere
+        // Wallpaper — fixed Milky White tint
         // -----------------------------------------------------------------
         const wallpaperPage = addPage(
             window,
             'Wallpaper',
             'preferences-desktop-wallpaper-symbolic',
-            'Premium native wallpaper grading; Original keeps GNOME intact.'
+            'Soft Milky hover shade on wallpaper, or untouched Original.'
         );
         addWallpaperAtmospherePreferences(
             wallpaperPage, settings, Adw, Gtk
