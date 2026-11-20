@@ -133,7 +133,7 @@ export class WallpaperAtmosphereManager {
                 let attached = 0;
                 let mapped = 0;
                 let visible = 0;
-                for (const record of this._actors.values()) {
+                for (const [source, record] of this._actors) {
                     const overlay = record.overlay;
                     if (!overlay)
                         continue;
@@ -142,6 +142,57 @@ export class WallpaperAtmosphereManager {
                         mapped++;
                     if (overlay.visible)
                         visible++;
+
+                    // One-shot per-source diagnostics distinguish a
+                    // legitimately hidden App Grid actor from a desktop
+                    // or glass mirror that is unexpectedly unmapped.
+                    // Never poll paint or touch rendering state here.
+                    try {
+                        const parent = source.get_parent?.() ?? null;
+                        const parentName = parent?.get_name?.() ?? 'unnamed';
+                        const scope =
+                            parent === Main.layoutManager?._backgroundGroup
+                                ? 'desktop'
+                                : parentName === VENDOR_MIRROR_NAME
+                                    ? 'glass-mirror'
+                                    : 'overview-or-other';
+                        const siblings = parent?.get_children?.() ?? [];
+                        const indexSource = siblings.indexOf(source);
+                        const indexOverlay = siblings.indexOf(overlay);
+                        const sourceWidth = source.get_width?.() ??
+                            source.width ?? 0;
+                        const sourceHeight = source.get_height?.() ??
+                            source.height ?? 0;
+                        const overlayWidth = overlay.get_width?.() ??
+                            overlay.width ?? 0;
+                        const overlayHeight = overlay.get_height?.() ??
+                            overlay.height ?? 0;
+                        const alpha = overlay.background_color?.alpha ?? '?';
+                        console.log(
+                            '[VLIQ][Wallpaper][PaintProbeSource] style=' +
+                            style + ' scope=' + scope +
+                            ' sourceMapped=' + Boolean(source.mapped) +
+                            ' tintMapped=' + Boolean(overlay.mapped) +
+                            ' tintVisible=' + Boolean(overlay.visible) +
+                            ' sourceOpacity=' +
+                            (source.get_paint_opacity?.() ??
+                                source.opacity ?? '?') +
+                            ' tintOpacity=' +
+                            (overlay.get_paint_opacity?.() ??
+                                overlay.opacity ?? '?') +
+                            ' colorAlpha=' + alpha +
+                            ' sourceSize=' + sourceWidth + 'x' +
+                                sourceHeight +
+                            ' tintSize=' + overlayWidth + 'x' +
+                                overlayHeight +
+                            ' stacking=' + indexSource + '->' +
+                                indexOverlay +
+                            ' siblings=' + siblings.length
+                        );
+                    } catch (error) {
+                        this._warnOnce('paint probe source inspection',
+                            error);
+                    }
                 }
                 const ms = (GLib.get_monotonic_time() - startedUs) / 1000;
                 // Stage after-paint means a compositor frame completed.
