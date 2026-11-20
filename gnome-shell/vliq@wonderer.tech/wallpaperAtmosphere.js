@@ -334,7 +334,13 @@ export class WallpaperAtmosphereManager {
     }
 
     _applyNow() {
-        this._profile = readWallpaperProfile(this._settings);
+        const next = readWallpaperProfile(this._settings);
+        // The tint shader is immutable: do not walk every full-screen
+        // wallpaper or request repaints on equivalent GSettings updates.
+        // Background load/unload is managed by the actor signals separately.
+        if (next.active === this._profile.active)
+            return;
+        this._profile = next;
         for (const actor of this._actors.keys())
             this._syncActor(actor);
         this._queueStatus();
