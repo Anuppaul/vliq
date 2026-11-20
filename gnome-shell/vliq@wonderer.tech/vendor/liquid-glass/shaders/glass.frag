@@ -1635,10 +1635,34 @@ void main() {
             vec3(0.18, 0.20, 0.23),
             brightEdge
         );
-        // Highlight color is restricted to the existing TL/BR masks.
-        // In between, retain a thinner gray outline instead of zero rim.
-        vec3 edgeColor = mix(edgeDark, edgeLight, cornerGlint);
-        edgeCoverage *= mix(0.52, 1.0, cornerGlint);
+        // EXPERIMENT: irregular white/gray segments along the existing rim.
+        // A static hash in local card coordinates makes W/G/W/G streaks
+        // with irregular ~6–14px segment lengths. There is NO time uniform,
+        // flicker, new texture or second border. The current SDF contour
+        // and alpha still clip all pixels inside the native glass shape.
+        vec2 edgeDistance = box_size - abs(local_pos);
+        bool horizontalEdge = edgeDistance.y <= edgeDistance.x;
+        float segmentPosition = horizontalEdge ?
+            local_pos.x : local_pos.y;
+        float sideSeed = horizontalEdge ?
+            (local_pos.y < 0.0 ? 0.0 : 1.0) :
+            (local_pos.x < 0.0 ? 2.0 : 3.0);
+        float warpedPosition = segmentPosition +
+            4.0 * sin(segmentPosition * 0.075 + sideSeed * 1.7);
+        float segmentCell = floor(warpedPosition / 10.0);
+        float whiteOrGray = step(0.48,
+            fract(sin(segmentCell * 127.1 + sideSeed * 311.7) *
+                43758.5453));
+        // White = very pale Milky-white. Gray contrasts with the actual
+        // card/backdrop luminance without forcing an opaque border.
+        vec3 graySegment = mix(
+            vec3(0.54, 0.56, 0.59),
+            vec3(0.23, 0.25, 0.28),
+            brightEdge
+        );
+        vec3 edgeColor = mix(graySegment,
+            VLIQ_MILKY_WHITE_RGB, whiteOrGray);
+        edgeCoverage *= mix(0.72, 1.0, whiteOrGray);
         edgeCoverage *= mix(1.0, 0.58, brightEdge);
         // Frosted retains a restrained contour, never another CSS stroke.
         edgeCoverage *= mix(
