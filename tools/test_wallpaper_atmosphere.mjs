@@ -267,6 +267,14 @@ assert.match(settings.get_string('wallpaper-runtime-status'),
 
 // Real integration, packaging and compositor class contracts.
 assert.match(integration,/new WallpaperAtmosphereManager\(this\._vliqSettings\)/);
+const earlyStart=integration.indexOf(
+    'new WallpaperAtmosphereManager(this._vliqSettings)');
+const vendorLoad=integration.indexOf(
+    'this._vendor = await loadLiquidGlassVendorModules(');
+assert.ok(earlyStart >= 0 && vendorLoad >= 0 && earlyStart < vendorLoad,
+    'wallpaper tint must initialize before async vendor load');
+assert.equal((integration.match(/new WallpaperAtmosphereManager\(/g)??[]).length,1,
+    'only one wallpaper manager can own the same native actors');
 assert.match(integration,/new AppGridBackdropManager\(\{\s*atmosphereManager:/);
 assert.match(integration,/cleanup\(\s*'wallpaperAtmosphereManager'/);
 assert.match(appGrid,/this\._atmosphereManager\?\.watchContainer\(widget\)/);
