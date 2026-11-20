@@ -21,6 +21,25 @@ VLIQ has two independently selected render paths. **Auto** attempts the vendored
 
 Backend switch and disable clean up fullscreen guards, panel/taskbar actors, CSS classes, GSettings subscriptions and any staged shader health observer. Native popups are painted through GNOME CSS selectors without changing their content/interaction ownership. Fixed Milky uses the existing **Liquid Glass surface inventory** as its target list, replacing the optical material with native 92% milky white while retaining GNOME Header/Taskbar black at 60%. GPU-backed notifications require an additional lifecycle-safe native `St.Widget.set_style()` override because their original transparent inline paint outranks any stylesheet; Liquid/Frosted restore that prior style and adaptive text. The Native CSS backend uses equivalent native menu/banner/dialog/OSD/Dock class rules and no new compositor shader. The CSS-only Bottom Taskbar still has its native anti-flicker/position guard. The automatic failure monitor acts only on explicit shader-load errors or repeated Cogl initialization failures; it does not infer GPU speed from missing paint samples.
 
+## Fixed wallpaper tint
+
+The previous VLIQ Atmosphere five-channel shader and its preset/sliders
+are retired. The Wallpaper page now exposes **Milky White** (default) and
+**Original**. The fixed color is rgba(245,249,255,0.24), matching
+native panel/taskbar hover cards. Legacy preset choices and numeric keys
+remain in the GSettings schema for compatibility but are never read by the
+new wallpaper shader; legacy non-Original selections resolve to Milky White.
+
+WallpaperAtmosphereManager retains the established actor lifecycle:
+it observes actual loaded Meta.BackgroundActor sources in the desktop,
+shared glass mirror and App Grid wallpaper backgrounds, attaching one
+immutable shader to each. The shader performs a single premultiplied-alpha
+mix, preserving wallpaper crossfades. No color grading, vignette, grain,
+noise, dynamic uniforms, frame callback, new blur or application-window
+capture is introduced. Original detaches all tint effects. The wallpaper
+tint is managed by the GPU integration; the explicit Native CSS fallback
+continues to bypass custom GPU shader effects.
+
 ## Renderer
 
 The vendored production renderer provides:
