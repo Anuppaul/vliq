@@ -155,11 +155,11 @@ const manager=new Type(settings);
 manager.setup();
 assert.equal(manager._actors.size,2);
 assert.equal(overlayCount(native),1,'Milky is default on loaded wallpaper');
-assert.equal(overlayCount(unloaded),0,'never shade unloaded Mutter background');
-assert.equal(overlayCreates,1);
+assert.equal(overlayCount(unloaded),1,'tint is armed before async background image loading');
+assert.equal(overlayCreates,2);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Native Milky White tint on 1\/1 loaded wallpaper sources/);
+    /Native Milky White tint prepared on 2\/2 wallpaper actors \(1 backgrounds loaded/);
 
 // The shared mirror is created lazily, while App Grid has independent
 // per-monitor wallpaper actors. Neither may tint the UI above the wallpaper.
@@ -177,7 +177,7 @@ assert.equal(overlayCount(grid),1);
 assert.equal(panelIcon.effects,undefined);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Native Milky White tint on 3\/3 loaded wallpaper sources/);
+    /Native Milky White tint prepared on 4\/4 wallpaper actors \(3 backgrounds loaded/);
 
 // Retired settings must not reconfigure, repaint, or add effects.
 const oldCount=overlayCreates;
@@ -205,13 +205,17 @@ assert.equal(overlayCount(native),1);
 assert.equal(overlayCount(mirror),1);
 assert.equal(overlayCount(grid),1);
 
-// Background load changes detach/attach safely, including null background.
+// Background load changes must not detach or recreate a tint layer:
+// Mutter can paint an old or new background during async image loading.
+const beforeBackgroundChange=overlayCreates;
 native.content.setLoaded(false);
-assert.equal(overlayCount(native),0);
+assert.equal(overlayCount(native),1);
 native.content.setLoaded(true);
 assert.equal(overlayCount(native),1);
 unloaded.content.setLoaded(true);
 assert.equal(overlayCount(unloaded),1);
+assert.equal(overlayCreates,beforeBackgroundChange,
+    'no late tint recreation during wallpaper load/crossfade');
 
 // Real wallpaper replacement and mirror removal must release effects.
 desktop.remove_child(native);
@@ -244,5 +248,7 @@ for(const name of ['wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
 assert.match(managerSource,/insert_child_above\(overlay, actor\)/);
 assert.match(managerSource,/Clutter\.BindConstraint/);
 assert.doesNotMatch(managerSource,/getWallpaperTintEffectClass|add_effect_with_name/);
+assert.match(managerSource,/const active = this\._enabled && this\._profile\.active;/);
+assert.doesNotMatch(managerSource,/this\._profile\.active &&\s*this\._hasLoadedBackground\(record\)/);
 assert.doesNotMatch(effectSource,/GLib\.timeout_add|Shell\.Screenshot|new Gio\.File/);
 console.log('Native Milky wallpaper tint: first-paint overlay, source scoping, legacy migration, Original opt-out, lifecycle and packaging PASS.');
