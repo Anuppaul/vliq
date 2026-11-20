@@ -732,10 +732,23 @@ export class LiquidGlassIntegration {
         }
 
         try {
-            this._vendor = await loadLiquidGlassVendorModules(
+            const vendorModules = await loadLiquidGlassVendorModules(
                 this._vliqSettings
             );
+            // The reused module graph may originate from an older runtime
+            // revision. Its GObject types must NOT be re-imported, but
+            // shader files must always come from the canonical installation
+            // updated by install.sh before every live runtime swap.
+            // Make a per-integration view: vendorModules.root stays stable.
+            this._vendor = {
+                ...vendorModules,
+                shaderRoot: canonicalVendorRoot(),
+            };
             validateVendorApi(this._vendor);
+            console.log(
+                '[VLIQ][GlassShader] moduleRoot=' + this._vendor.root +
+                ' shaderRoot=' + this._vendor.shaderRoot
+            );
         } catch (error) {
             // Backend fallback must not leave a tint overlay orphaned.
             try {
@@ -962,7 +975,7 @@ export class LiquidGlassIntegration {
 
         start('osdManager', () => {
             this._osdManager = new this._vendor.OsdManager(
-                this._vendor.root,
+                this._vendor.shaderRoot,
                 this._settings,
                 this._logger,
                 VLIQ_GLASS_ROLES.osdCard
@@ -5444,7 +5457,7 @@ export class LiquidGlassIntegration {
         try {
             entry.manager =
                 new this._vendor.DashManager(
-                    this._vendor.root,
+                    this._vendor.shaderRoot,
                     entry.container,
                     this._settings,
                     this._logger
