@@ -150,15 +150,23 @@ shader pass, CSS layer or full-screen renderer is introduced.
 
 ### Experimental White–Gray Rim (Liquid & Frosted)
 
-The current experiment replaces Liquid/Frosted's continuous blue/gray
-card border with an irregular alternating white and gray outline
-(`W-G-W-W-G-G-W` style) made of small segments along the **existing
-single thin optical rim**. Segment positions are deterministic rather
-than animated: no flashing, grain changes, shaders, textures, borders,
-or performance-heavy frame timer are added. The native Milky appearance
-mode, application windows, material opacity, blur and refraction remain
-unchanged. This experiment can be reverted independently if the appearance
-isn't suitable.
+The experiment now displays **large, unmistakable white–black
+alternating sections**, `W–B–W–B`, around the full Liquid/Frosted rim.
+Each section is roughly **40–85px long** along the contour, not tiny
+6–14px specks. Solid white matches the existing top-left/bottom-right
+highlight; near-black graphite remains visible under the corner lighting.
+The existing thin SDF rim is reused—no second CSS border, added shader
+pass, texture, animation, or frame timer. The pattern is static in each
+card's local coordinates. The native Milky mode, application windows,
+transparency, blur, frost and refraction remain unchanged.
+
+**Live reload fix:** GNOME caches the process-global Liquid Glass GObject
+classes across hot-swaps. Previous shader instances could keep reading an
+older vendor revision. Optical effects now load shader *data* from the
+installer-refreshed canonical vendor directory while still reusing the
+registered module graph. The live log
+`[VLIQ][GlassShader] moduleRoot=... shaderRoot=...` identifies both paths.
+These experimental changes remain isolated in a PR for easy reversal.
 
 ## Choose a Glass Material
 
