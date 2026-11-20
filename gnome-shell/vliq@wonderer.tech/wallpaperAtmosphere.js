@@ -271,9 +271,9 @@ export class WallpaperAtmosphereManager {
             } catch {}
         }
 
-        // Each monitored wallpaper is parented to exactly one source
-        // container, so dropping it cannot detach a different source.
-        for (const actor of container.get_children?.() ?? [])
+        // A wallpaper may have an overlay sibling; use the tracked actor
+        // registry rather than relying on an array mutated by destroy().
+        for (const actor of [...(container.get_children?.() ?? [])])
             this._untrack(actor);
         return true;
     }
