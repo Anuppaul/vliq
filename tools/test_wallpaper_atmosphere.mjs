@@ -56,6 +56,7 @@ class BackgroundContent extends Emitter {
 class BackgroundActor extends Emitter {
     constructor(loaded=true){
         super();this.content=new BackgroundContent(loaded);
+        this.visible=true;
         this.effects=new Map();this.adds=0;this.removes=0;this.parent=null;
     }
     get_parent(){return this.parent;}
@@ -159,7 +160,7 @@ assert.equal(overlayCount(unloaded),1,'tint is armed before async background ima
 assert.equal(overlayCreates,2);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Native Milky White tint prepared on 2\/2 wallpaper actors \(1 backgrounds loaded/);
+    /Native Milky White tint allocated on 2\/2 wallpaper actors \(1 backgrounds loaded/);
 
 // The shared mirror is created lazily, while App Grid has independent
 // per-monitor wallpaper actors. Neither may tint the UI above the wallpaper.
@@ -177,7 +178,7 @@ assert.equal(overlayCount(grid),1);
 assert.equal(panelIcon.effects,undefined);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
-    /Native Milky White tint prepared on 4\/4 wallpaper actors \(3 backgrounds loaded/);
+    /Native Milky White tint allocated on 4\/4 wallpaper actors \(3 backgrounds loaded/);
 
 // Retired settings must not reconfigure, repaint, or add effects.
 const oldCount=overlayCreates;
@@ -188,22 +189,49 @@ drainIdles();
 assert.equal(overlayCreates,oldNativeAdds);
 assert.equal(overlayCreates,oldCount);
 
-// Switching to Original detaches the pass and preserves saved legacy data.
+// Style changes happen before the idle queue runs and never recreate paint
+// actors. A busy shell must not delay a wallpaper tint by ~500ms.
+const actors=[native,unloaded,mirror,grid];
+const overlays=actors.map(actor => actor.parent.children.find(
+    child=>child.opts?.name==='vliq-wallpaper-milky-tint' &&
+        child.constraints.some(constraint=>constraint.source===actor)
+));
+const beforeStyleChange=overlayCreates;
 settings.change('wallpaper-style','original');
+assert.ok(overlays.every(overlay=>overlay.visible===false),
+    'Original hides every tint immediately without waiting for idle');
+assert.equal(overlayCreates,beforeStyleChange);
 drainIdles();
-for(const actor of [native,unloaded,mirror,grid])
-    assert.equal(actor.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
 assert.match(settings.get_string('wallpaper-runtime-status'),
     /Original: no VLIQ wallpaper tint attached/);
 assert.equal(settings.data.get('wallpaper-grain'),100);
 
 // Old saved presets map to Milky without modifying the GSettings value.
 settings.change('wallpaper-style','cinematic');
+assert.ok(overlays.every(overlay=>overlay.visible===true),
+    'Milky must be visibly enabled in synchronous GSettings callback');
+assert.equal(overlayCreates,beforeStyleChange,
+    'style toggles reuse original allocated overlay actors');
 drainIdles();
 assert.equal(settings.get_string('wallpaper-style'),'cinematic');
 assert.equal(overlayCount(native),1);
 assert.equal(overlayCount(mirror),1);
 assert.equal(overlayCount(grid),1);
+
+// GNOME native background fade visibility and Original must combine;
+// an actor going invisible must not re-enable a disabled tint layer.
+native.visible=false;
+native.emit('notify::visible');
+assert.equal(overlays[0].visible,false);
+native.visible=true;
+native.emit('notify::visible');
+assert.equal(overlays[0].visible,true);
+settings.change('wallpaper-style','original');
+native.emit('notify::visible');
+assert.equal(overlays[0].visible,false,
+    'GNOME visibility change cannot override Original');
+settings.change('wallpaper-style','milky');
+assert.equal(overlays[0].visible,true);
 
 // Background load changes must not detach or recreate a tint layer:
 // Mutter can paint an old or new background during async image loading.
@@ -248,7 +276,11 @@ for(const name of ['wallpaperAtmosphere.js','wallpaperAtmosphereEffect.js',
 assert.match(managerSource,/insert_child_above\(overlay, actor\)/);
 assert.match(managerSource,/Clutter\.BindConstraint/);
 assert.doesNotMatch(managerSource,/getWallpaperTintEffectClass|add_effect_with_name/);
-assert.match(managerSource,/const active = this\._enabled && this\._profile\.active;/);
+assert.match(managerSource,/this\._enabled && this\._profile\.active/);
+assert.match(managerSource,/this\._applyNow\(\);/);
+assert.doesNotMatch(managerSource,/this\._scheduleApply\(\)/);
+assert.doesNotMatch(managerSource,/GLib\.idle_add\([\s\S]*?\(\) => \{[\s\S]*?this\._applyNow\(\)/,
+    'wallpaper style application may not be queued behind low priority idles');
 assert.doesNotMatch(managerSource,/this\._profile\.active &&\s*this\._hasLoadedBackground\(record\)/);
 assert.doesNotMatch(effectSource,/GLib\.timeout_add|Shell\.Screenshot|new Gio\.File/);
-console.log('Native Milky wallpaper tint: first-paint overlay, source scoping, legacy migration, Original opt-out, lifecycle and packaging PASS.');
+console.log('Native Milky wallpaper tint: synchronous switch, reusable prepared overlays, native fades, cleanup and packaging PASS.');
