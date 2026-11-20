@@ -102,6 +102,7 @@ const Main={layoutManager:{_backgroundGroup:desktop,uiGroup}};
 const idles=new Map();
 let idleId=0;
 const GLib={
+    get_monotonic_time:()=>1000000,
     PRIORITY_DEFAULT_IDLE:200,
     SOURCE_REMOVE:false,
     idle_add(_priority,fn){const id=++idleId;idles.set(id,fn);return id;},
