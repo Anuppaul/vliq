@@ -35,6 +35,7 @@ export class NativeCssIntegration {
         this._host = null;
         this._enabled = false;
         this._launcher = null;
+        this._launcherHover = null;
     }
 
     _dockEntries() {
@@ -250,6 +251,7 @@ export class NativeCssIntegration {
                 forceCssOnly: true,
                 getDockEntries: () => this._dockEntries(),
                 onLauncherClick: this._launcher,
+                onLauncherHover: this._launcherHover,
                 readAppearance: () => this._readMilkyAppearance(),
                 onLayoutChanged: () => this._syncMilkyNativeActors(
                     this._readMilkyAppearance()),
@@ -273,9 +275,13 @@ export class NativeCssIntegration {
         }
     }
 
-    setBottomTaskbarLauncher(callback) {
+    setBottomTaskbarLauncher(callback, hoverCallback = null) {
         this._launcher = typeof callback === 'function' ? callback : null;
+        this._launcherHover = typeof hoverCallback === 'function'
+            ? hoverCallback : null;
         this._topPanelIslands?.setLauncherCallback?.(this._launcher);
+        this._topPanelIslands?.setLauncherHoverCallback?.(
+            this._launcherHover);
     }
 
     isBottomTaskbarActive() {
