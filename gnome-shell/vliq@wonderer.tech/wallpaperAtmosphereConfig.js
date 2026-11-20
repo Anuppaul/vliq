@@ -26,9 +26,18 @@ export function readWallpaperProfile(settings) {
         savedStyle = settings?.get_string('wallpaper-style') ?? 'milky';
     } catch {}
 
+    // A live GNOME Shell may still hold the previous schema's Original
+    // default until session restart. Distinguish that old unset default
+    // from a user who explicitly saved Original as an opt-out.
+    if (savedStyle === 'original') {
+        try {
+            if (settings?.get_user_value?.('wallpaper-style') === null)
+                savedStyle = 'milky';
+        } catch {}
+    }
+
     // Old Natural/Cinematic/Atmosphere/Custom values are intentionally
     // treated as Milky White without rewriting the user's GSettings.
-    // An explicitly saved Original still remains an opt-out.
     const style = savedStyle === 'original' ? 'original' : 'milky';
     return {style, active: style === 'milky'};
 }
