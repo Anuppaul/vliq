@@ -3,26 +3,23 @@ import Meta from 'gi://Meta';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {
-    ATMOSPHERE_KEYS,
-    readAtmosphereProfile,
-} from './wallpaperAtmosphereConfig.js';
-import {getAtmosphereEffectClass} from './wallpaperAtmosphereEffect.js';
+import {readWallpaperProfile} from './wallpaperAtmosphereConfig.js';
+import {getWallpaperTintEffectClass} from './wallpaperAtmosphereEffect.js';
 
-const EFFECT_NAME = 'vliq-atmosphere-wallpaper';
+const EFFECT_NAME = 'vliq-milky-wallpaper';
 const VENDOR_MIRROR_NAME = 'lg-bg-mirror-source';
 
 /**
- * One Atmosphere treatment on each physical wallpaper paint source:
+ * One fixed Milky White tint on each physical wallpaper paint source:
  *
  * (1) original GNOME desktop Meta.BackgroundActors;
  * (2) Meta.BackgroundActors in Liquid Glass's SHARED wallpaper mirror;
  * (3) the independent wallpaper actors of VLIQ's native App Grid blur.
  *
  * The three sources share the original Meta.Background image and stay
- * independent as actors; each has at most ONE Atmosphere shader. We never
- * grade a whole uiGroup, OverviewGroup, popup, window or glass output, so
- * Browser pages, native app icons and glass reflections are not recolored.
+ * independent as actors; each has at most ONE tint shader. We never tint
+ * uiGroup, OverviewGroup, popups, windows or the final glass output, so
+ * Browser pages and native app icons are not recolored.
  */
 export class WallpaperAtmosphereManager {
     constructor(settings) {
@@ -30,7 +27,7 @@ export class WallpaperAtmosphereManager {
         this._enabled = false;
         this._containers = new Map();
         this._actors = new Map();
-        this._profile = readAtmosphereProfile(settings);
+        this._profile = readWallpaperProfile(settings);
         this._settingsId = 0;
         this._uiGroup = null;
         this._uiAddedId = 0;
@@ -74,8 +71,7 @@ export class WallpaperAtmosphereManager {
         }
 
         const onChange = (_settings, key) => {
-            if (key !== 'wallpaper-style' &&
-                !ATMOSPHERE_KEYS.includes(key))
+            if (key !== 'wallpaper-style')
                 return;
             this._scheduleApply();
         };
@@ -91,7 +87,7 @@ export class WallpaperAtmosphereManager {
             return;
         this._warnings.add(phase);
         console.warn(
-            '[VLIQ][Atmosphere] ' + phase + ': ' + error
+            '[VLIQ][Wallpaper] ' + phase + ': ' + error
         );
     }
 
@@ -172,18 +168,15 @@ export class WallpaperAtmosphereManager {
 
         try {
             if (!record.effect) {
-                // Construct only after user opts into a non-Original preset
-                // AND GNOME has provided a non-null Meta.Background.
-                const Effect = getAtmosphereEffectClass();
+                // Only attach after GNOME has provided a real background.
+                // The shader is immutable and has no per-frame uniforms.
+                const Effect = getWallpaperTintEffectClass();
                 const effect = new Effect();
-                effect.configure(this._profile.values);
                 actor.add_effect_with_name(EFFECT_NAME, effect);
                 record.effect = effect;
-            } else {
-                record.effect.configure(this._profile.values);
             }
         } catch (error) {
-            this._warnOnce('wallpaper shader disabled for one actor', error);
+            this._warnOnce('wallpaper tint unavailable for one actor', error);
             this._detachActor(actor, record);
         }
         this._queueStatus();
@@ -299,14 +292,11 @@ export class WallpaperAtmosphereManager {
             if (record.effect)
                 attached++;
         }
-        // Report the real state of Clutter actor attachments, NOT that
-        // shader pixels are known-good. A machine that has the style
-        // selected but no effect will say so instead of silently claiming
-        // a successful visual treatment.
+        // Attachment status is diagnostic; it cannot prove GPU pixel output.
         const message = !this._profile.active
-            ? 'Original: no Atmosphere GPU effect attached'
+            ? 'Original: no VLIQ wallpaper tint attached'
             : attached > 0
-                ? 'Shader attached to ' + attached + '/' + loaded +
+                ? 'Milky White tint attached to ' + attached + '/' + loaded +
                     ' loaded wallpaper sources (GPU pixels not verified)'
                 : loaded === 0
                     ? 'Waiting for GNOME wallpaper background actors'
@@ -323,7 +313,7 @@ export class WallpaperAtmosphereManager {
                     'wallpaper-runtime-status', message
                 );
             }
-            console.log('[VLIQ][Atmosphere] ' + message);
+            console.log('[VLIQ][Wallpaper] ' + message);
         } catch (error) {
             this._warnOnce('runtime status unavailable', error);
         }
@@ -344,7 +334,7 @@ export class WallpaperAtmosphereManager {
     }
 
     _applyNow() {
-        this._profile = readAtmosphereProfile(this._settings);
+        this._profile = readWallpaperProfile(this._settings);
         for (const actor of this._actors.keys())
             this._syncActor(actor);
         this._queueStatus();
@@ -395,7 +385,7 @@ export class WallpaperAtmosphereManager {
         try {
             this._settings?.set_string?.(
                 'wallpaper-runtime-status',
-                'Inactive: VLIQ Atmosphere runtime stopped'
+                'Inactive: VLIQ wallpaper tint stopped'
             );
         } catch {}
         this._settings = null;
