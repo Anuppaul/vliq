@@ -21,6 +21,12 @@ const config = new Function(
 assert.deepEqual(config.WALLPAPER_STYLES.map(x => x.id), ['milky','original']);
 assert.deepEqual(config.WALLPAPER_MILKY_TINT,
     {red:245,green:249,blue:255,opacity:0.24});
+assert.equal(config.readWallpaperProfile({
+    get_string:()=> 'original',get_user_value:()=>null,
+}).style,'milky','old unsaved default migrates without session restart');
+assert.equal(config.readWallpaperProfile({
+    get_string:()=> 'original',get_user_value:()=>({}),
+}).style,'original','explicit Original remains an opt-out');
 assert.match(schema,
     /<key name="wallpaper-style" type="s">\s*<default>'milky'<\/default>/);
 for (const key of ['wallpaper-filmic','wallpaper-vignette',
