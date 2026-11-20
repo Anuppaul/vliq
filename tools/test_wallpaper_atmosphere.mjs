@@ -142,12 +142,15 @@ class Settings extends Emitter {
     set_string(key,value){this.change(key,value);}
     change(key,value){this.data.set(key,value);this.emit('changed',key);}
 }
+const overlayCount=actor => actor.parent?.children.filter(child =>
+    child.opts?.name === 'vliq-wallpaper-milky-tint' &&
+    child.constraints.some(c=>c.source===actor)).length ?? 0;
 const settings=new Settings();
 const manager=new Type(settings);
 manager.setup();
 assert.equal(manager._actors.size,2);
-assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1,'Milky is default on loaded wallpaper');
-assert.equal(unloaded.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0,'never shade unloaded Mutter background');
+assert.equal(overlayCount(native),1,'Milky is default on loaded wallpaper');
+assert.equal(overlayCount(unloaded),0,'never shade unloaded Mutter background');
 assert.equal(overlayCreates,1);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
@@ -164,8 +167,8 @@ const grid=new BackgroundActor();
 overview.add_child(grid);
 assert.equal(manager.watchContainer(overview),true);
 assert.equal(manager.watchContainer(overview),false);
-assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
-assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(overlayCount(mirror),1);
+assert.equal(overlayCount(grid),1);
 assert.equal(panelIcon.effects,undefined);
 drainIdles();
 assert.match(settings.get_string('wallpaper-runtime-status'),
@@ -193,33 +196,33 @@ assert.equal(settings.data.get('wallpaper-grain'),100);
 settings.change('wallpaper-style','cinematic');
 drainIdles();
 assert.equal(settings.get_string('wallpaper-style'),'cinematic');
-assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
-assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
-assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(overlayCount(native),1);
+assert.equal(overlayCount(mirror),1);
+assert.equal(overlayCount(grid),1);
 
 // Background load changes detach/attach safely, including null background.
 native.content.setLoaded(false);
-assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
+assert.equal(overlayCount(native),0);
 native.content.setLoaded(true);
-assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(overlayCount(native),1);
 unloaded.content.setLoaded(true);
-assert.equal(unloaded.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(overlayCount(unloaded),1);
 
 // Real wallpaper replacement and mirror removal must release effects.
 desktop.remove_child(native);
-assert.equal(native.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
+assert.equal(overlayCount(native),0);
 const replacement=new BackgroundActor();
 desktop.add_child(replacement);
-assert.equal(replacement.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,1);
+assert.equal(overlayCount(replacement),1);
 uiGroup.remove_child(mirrorGroup);
-assert.equal(mirror.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
+assert.equal(overlayCount(mirror),0);
 manager.unwatchContainer(overview);
-assert.equal(grid.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
+assert.equal(overlayCount(grid),0);
 
 manager.cleanup();
 assert.equal(manager._actors.size,0);
 assert.equal(manager._containers.size,0);
-assert.equal(replacement.parent?.children.filter(x=>x.opts?.name==='vliq-wallpaper-milky-tint').length ?? 0,0);
+assert.equal(overlayCount(replacement),0);
 assert.equal(desktop.get_children().length,3);
 assert.match(settings.get_string('wallpaper-runtime-status'),
     /Inactive: VLIQ wallpaper tint stopped/);
