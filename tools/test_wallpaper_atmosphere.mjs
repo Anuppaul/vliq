@@ -98,6 +98,7 @@ function drainIdles() {
     }
 }
 let registrations=0;
+let cachedEffectClass=null;
 class FakeEffect {}
 const Type=new Function('GLib','Meta','Main',
     'readWallpaperProfile','getWallpaperTintEffectClass',
@@ -105,7 +106,11 @@ const Type=new Function('GLib','Meta','Main',
         .replace(/^export\s+/gm,'') +
         '\nreturn WallpaperAtmosphereManager;'
 )(GLib,Meta,Main,config.readWallpaperProfile,()=>{
-    registrations++;return FakeEffect;
+    if (!cachedEffectClass) {
+        cachedEffectClass=FakeEffect;
+        registrations++;
+    }
+    return cachedEffectClass;
 });
 class Settings extends Emitter {
     constructor(style='milky'){
