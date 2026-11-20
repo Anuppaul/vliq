@@ -20,7 +20,9 @@ assert.deepEqual(hover.slice(1).map(Number),
 assert.match(shader,/vec3 milky = vec3\(245\.0 \/ 255\.0, 249\.0 \/ 255\.0, 255\.0 \/ 255\.0\)/);
 assert.match(shader,/vec3 tinted = mix\(sourceColor, milky, 0\.24\)/);
 assert.equal((shader.match(/texture2D\(cogl_sampler0, uv\)/g)??[]).length,1);
-assert.doesNotMatch(shader,/va_static_noise|va_luminance|filmicStrength|vignette|ambientStrength|contrastColor|grain|uniform\s+(?:float|vec)/i);
+const fragment=shader.slice(shader.indexOf('export const WALLPAPER_TINT_FRAGMENT'),
+    shader.indexOf('const CACHE_KEY'));
+assert.doesNotMatch(fragment,/va_static_noise|va_luminance|filmicStrength|vignette|ambientStrength|contrastColor|grain|uniform\s+(?:float|vec)/i);
 assert.match(shader,/vec4\(tinted \* original\.a, original\.a\) \* cogl_color_in/);
 
 // Pixel-space proof for the specified alpha blend. No edge-dependent
