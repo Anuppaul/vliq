@@ -226,10 +226,13 @@ const BottomTaskbar = new Function(
 )(St,Clutter,{Settings: class extends Actor {}},glib,
     {AppSystem: {get_default: () => appSystem}},Main,
     {stage, display}, {warn() {}, log() {}}, MockTaskbarPreview);
+const launcherHovers=[];
 const taskbar = new BottomTaskbar({
     panel, layout, appSystem, shellSettings,
     getDockEntries: () => dockEntries,
     onLauncherClick: () => launches++,
+    onLauncherHover: (actor, hovered) =>
+        launcherHovers.push([actor, hovered]),
 });
 assert.equal(taskbar.setup(), true);
 assert.ok(taskbar._previewManager instanceof MockTaskbarPreview,
@@ -305,6 +308,21 @@ assert.equal(taskbar._centerGroup.get_children()[1], taskbar._appStrip);
 assert.equal(taskbar._centerGroup.reactive, false,
     'center group must not swallow native child input');
 assert.equal(taskbar._start.reactive, true);
+taskbar._start.set_hover(true);
+taskbar._start.set_hover(false);
+assert.deepEqual(launcherHovers, [
+    [taskbar._start, true], [taskbar._start, false],
+], 'native Start hover routes to the existing Orb radial launcher');
+const lateHover=[];
+taskbar.setLauncherHoverCallback((actor, hovered) =>
+    lateHover.push([actor, hovered]));
+taskbar._start.set_hover(true);
+taskbar._start.set_hover(false);
+assert.deepEqual(lateHover, [
+    [taskbar._start, true], [taskbar._start, false],
+], 'hot-loaded Orb callback reaches the original Start without rebuilding it');
+assert.equal(launcherHovers.length,2,
+    'the replaced Orb hover callback must be retired');
 assert.equal(taskbar._appStrip.get_children()[0].reactive, true);
 const firstPreviewButton = taskbar._appStrip.get_children()[1];
 firstPreviewButton.set_hover(true);

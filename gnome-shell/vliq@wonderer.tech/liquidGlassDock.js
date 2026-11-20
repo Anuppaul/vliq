@@ -2257,11 +2257,16 @@ export class LiquidGlassIntegration {
         return this._topPanelIslands?.ownsBottomTaskbarChrome?.() === true;
     }
 
-    setBottomTaskbarLauncher(callback) {
+    setBottomTaskbarLauncher(callback, hoverCallback = null) {
         this._bottomLauncherCallback =
             typeof callback === 'function' ? callback : null;
+        this._bottomLauncherHover =
+            typeof hoverCallback === 'function' ? hoverCallback : null;
         this._topPanelIslands?.setLauncherCallback?.(
             this._bottomLauncherCallback
+        );
+        this._topPanelIslands?.setLauncherHoverCallback?.(
+            this._bottomLauncherHover
         );
     }
 
@@ -2280,6 +2285,7 @@ export class LiquidGlassIntegration {
                 layoutSettings: this._vliqSettings,
                 getDockEntries: () => this._nativeDashEntries,
                 onLauncherClick: this._bottomLauncherCallback,
+                onLauncherHover: this._bottomLauncherHover,
                 onLayoutChanged: () => {
                     this._syncMilkyNativeActors(
                         this._readSharedCardAppearance());

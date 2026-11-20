@@ -83,6 +83,56 @@ function createRuntime() {
     return runtime;
 }
 
+// Bottom Taskbar should provide exactly the same Orb radial launcher
+// through its native Start hitbox, without revealing a second floating Orb.
+const taskbarOrb = createRuntime();
+const originalGetString=taskbarOrb._settings.get_string;
+taskbarOrb._settings.get_string=key =>
+    key==='top-header-layout' ? 'bottom' : originalGetString(key);
+taskbarOrb._settings.get_boolean=key => key==='orb-enabled';
+taskbarOrb._liquidGlassIntegration={
+    isBottomTaskbarActive:()=>true,
+};
+taskbarOrb._orb={
+    get_position:()=>[100,100],
+    hide(){this.hidden=true;},
+    show(){this.hidden=false;},
+};
+taskbarOrb._syncOrbTaskbarMode();
+assert.equal(taskbarOrb._orb.hidden,true,
+    'bottom layout retains one Start, not an extra standalone Orb');
+const startAnchor={
+    hover:true,
+    get_hover(){return this.hover;},
+    get_transformed_position:()=>[580,680],
+    get_transformed_size:()=>[44,44],
+};
+taskbarOrb._onTaskbarLauncherHover(startAnchor,true);
+assert.equal(taskbarOrb._menuOpen,true,
+    'hovering native Start opens VLIQ radial Orb');
+assert.equal(taskbarOrb._radialActors.length,3);
+assert.equal(taskbarOrb._radialActors[0].translation_x,602-20-slots[0].x,
+    'radial entrance originates from the actual taskbar Start');
+assert.equal(taskbarOrb._radialActors[0].translation_y,702-20-slots[0].y);
+assert.equal(taskbarOrb._orb.hidden,true,
+    'radial menu must not reveal hidden standalone Orb');
+taskbarOrb._scheduleClose=()=>{taskbarOrb._closeWasScheduled=true;};
+taskbarOrb._onTaskbarLauncherHover(startAnchor,false);
+assert.equal(taskbarOrb._closeWasScheduled,true,
+    'moving from Start toward an Orb app starts a delayed close');
+assert.equal(taskbarOrb._taskbarOrbAnchor,startAnchor,
+    'retain anchor while pointer crosses to a radial app button');
+taskbarOrb._liquidGlassIntegration.isBottomTaskbarActive=()=>false;
+taskbarOrb._liquidGlassIntegration.ownsBottomTaskbarChrome=()=>true;
+assert.equal(taskbarOrb._isBottomTaskbarMode(),true,
+    'transient panel relayout must not reveal duplicate floating Orb');
+taskbarOrb._liquidGlassIntegration.ownsBottomTaskbarChrome=()=>false;
+taskbarOrb._syncOrbTaskbarMode();
+assert.equal(taskbarOrb._taskbarOrbAnchor,null,
+    'leaving Bottom Taskbar clears stale Start geometry');
+assert.equal(taskbarOrb._orb.hidden,false,
+    'standalone Orb returns in regular GNOME header layouts');
+
 const runtime = createRuntime();
 runtime._openMenu();
 assert.equal(runtime._radialActors.length, 3);

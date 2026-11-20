@@ -266,6 +266,7 @@ export default class VLIQRuntime extends Extension {
         this._dragPointerOrigin = null;
         this._dragGrab = null;
         this._liquidGlassIntegration = null;
+        this._taskbarOrbAnchor = null;
         this._rendererGeneration = 0;
         this._rendererSwitchPromise = Promise.resolve();
         this._rendererFailureReason = '';
@@ -341,7 +342,8 @@ export default class VLIQRuntime extends Extension {
         // The bottom taskbar's VLIQ Start control opens the exact same
         // native GNOME Apps view as the standalone Orb.
         this._liquidGlassIntegration?.setBottomTaskbarLauncher?.(
-            () => this._showAllApps()
+            () => this._showAllApps(),
+            (actor, hovered) => this._onTaskbarLauncherHover(actor, hovered)
         );
         this._syncOrbTaskbarMode();
         this._connectSignals();
@@ -426,7 +428,10 @@ export default class VLIQRuntime extends Extension {
                 return;
             }
             this._liquidGlassIntegration = backend;
-            backend?.setBottomTaskbarLauncher?.(() => this._showAllApps());
+            backend?.setBottomTaskbarLauncher?.(
+                () => this._showAllApps(),
+                (actor, hovered) => this._onTaskbarLauncherHover(actor, hovered)
+            );
             this._publishRendererStatus(status);
             this._syncOrbTaskbarMode();
         };
@@ -549,12 +554,61 @@ export default class VLIQRuntime extends Extension {
         this._syncLayerSize();
     }
 
+    _isBottomTaskbarMode() {
+        if (this._settings?.get_string?.('top-header-layout') !== 'bottom')
+            return false;
+        // Native workarea relayout can briefly move panelBox away from
+        // the bottom even while Bottom Taskbar still owns its input chrome.
+        // Use stable ownership so the floating Orb cannot flash back.
+        return this._liquidGlassIntegration
+            ?.ownsBottomTaskbarChrome?.() === true ||
+            this._liquidGlassIntegration
+                ?.isBottomTaskbarActive?.() === true;
+    }
+
+    // Native taskbar Start is also the Orb radial launcher on hover.
+    // No second floating Orb is mapped in this Windows-style layout.
+    _onTaskbarLauncherHover(actor, hovered) {
+        if (!this._isBottomTaskbarMode() ||
+            !this._orb ||
+            this._settings?.get_boolean?.('orb-enabled') !== true)
+            return;
+
+        if (hovered) {
+            this._taskbarOrbAnchor = actor;
+            this._cancelCloseTimer();
+            this._scheduleOpen();
+        } else {
+            this._cancelOpenTimer();
+            this._scheduleClose();
+            if (!this._menuOpen)
+                this._taskbarOrbAnchor = null;
+        }
+    }
+
+    _orbMenuOrigin() {
+        const anchor = this._isBottomTaskbarMode()
+            ? this._taskbarOrbAnchor : null;
+        if (anchor?.get_transformed_position &&
+            anchor?.get_transformed_size) {
+            const [x, y] = anchor.get_transformed_position();
+            const [width, height] = anchor.get_transformed_size();
+            const orbSize = this._settings.get_int('orb-size');
+            if ([x, y, width, height].every(Number.isFinite) &&
+                width > 0 && height > 0) {
+                return [
+                    x + width / 2 - orbSize / 2,
+                    y + height / 2 - orbSize / 2,
+                ];
+            }
+        }
+        return this._orb?.get_position?.() ?? [0, 0];
+    }
+
     _syncOrbTaskbarMode() {
         if (!this._orb)
             return;
-        const bottom = this._settings?.get_string?.(
-            'top-header-layout') === 'bottom' &&
-            this._liquidGlassIntegration?.isBottomTaskbarActive?.() === true;
+        const bottom = this._isBottomTaskbarMode();
         if (bottom) {
             this._cancelOpenTimer();
             this._cancelCloseTimer();
@@ -565,6 +619,9 @@ export default class VLIQRuntime extends Extension {
             this._orb.remove_all_transitions?.();
             this._orb.hide?.();
         } else {
+            if (this._taskbarOrbAnchor)
+                this._closeMenu(true);
+            this._taskbarOrbAnchor = null;
             this._orb.show?.();
             if (this._orbHidden)
                 this._revealOrb();
@@ -1442,7 +1499,9 @@ export default class VLIQRuntime extends Extension {
             delay,
             () => {
                 this._openTimeoutId = 0;
-                if (!this._dragging && this._orb?.get_hover())
+                if (!this._dragging &&
+                    (this._orb?.get_hover() ||
+                        this._taskbarOrbAnchor?.get_hover?.()))
                     this._openMenu();
                 return GLib.SOURCE_REMOVE;
             }
@@ -1484,8 +1543,10 @@ export default class VLIQRuntime extends Extension {
         this._cancelCloseTimer();
         this._cancelOrbAutoHideTimer();
         this._cancelOrbAutoFadeTimer();
-        this._restoreOrbOpacity(true);
-        this._revealOrb();
+        if (!this._isBottomTaskbarMode()) {
+            this._restoreOrbOpacity(true);
+            this._revealOrb();
+        }
 
         if (this._menuOpen || this._dragging)
             return;
@@ -1539,7 +1600,7 @@ export default class VLIQRuntime extends Extension {
             this._settings.get_int('ring-gap')
         );
         const animationMs = this._settings.get_int('animation-ms');
-        const [orbX, orbY] = this._orb.get_position();
+        const [orbX, orbY] = this._orbMenuOrigin();
         const centerX = orbX + orbSize / 2;
         const centerY = orbY + orbSize / 2;
         const monitor = this._monitorAt(centerX, centerY);
@@ -2131,7 +2192,7 @@ export default class VLIQRuntime extends Extension {
         );
         const orbSize = this._settings.get_int('orb-size');
         const iconSize = this._settings.get_int('icon-size');
-        const [orbX, orbY] = this._orb.get_position();
+        const [orbX, orbY] = this._orbMenuOrigin();
         const targetX = orbX + orbSize / 2 - iconSize / 2;
         const targetY = orbY + orbSize / 2 - iconSize / 2;
 
@@ -2217,7 +2278,7 @@ export default class VLIQRuntime extends Extension {
             `${this._orbPageIndex + 1} / ${this._orbPageCount} · scroll`;
 
         const [orbX, orbY] =
-            this._orb.get_position();
+            this._orbMenuOrigin();
         const orbSize =
             this._settings.get_int('orb-size');
         const monitor = this._monitorAt(

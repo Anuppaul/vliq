@@ -37,7 +37,8 @@ export class TopBarIslands {
     constructor({vendor, settings, readAppearance, layoutSettings = null,
         bottomTaskbarFactory = null, getDockEntries = null,
         forceCssOnly = false,
-        onLauncherClick = null, onLayoutChanged = null,
+        onLauncherClick = null, onLauncherHover = null,
+        onLayoutChanged = null,
         panel = Main.panel,
         layout = Main.layoutManager, display = global.display}) {
         this._vendor = vendor;
@@ -51,6 +52,7 @@ export class TopBarIslands {
             (options => new BottomTaskbar(options));
         this._getDockEntries = getDockEntries;
         this._onLauncherClick = onLauncherClick;
+        this._onLauncherHover = onLauncherHover;
         this._onLayoutChanged = onLayoutChanged;
         this._bottomTaskbar = null;
         this._readAppearance = readAppearance;
@@ -93,6 +95,13 @@ export class TopBarIslands {
         this._onLauncherClick = typeof callback === 'function'
             ? callback : null;
         this._bottomTaskbar?.setLauncherCallback?.(callback);
+    }
+
+    setLauncherHoverCallback(callback) {
+        this._onLauncherHover = typeof callback === 'function'
+            ? callback : null;
+        this._bottomTaskbar?.setLauncherHoverCallback?.(
+            this._onLauncherHover);
     }
 
     _publishLayoutStatus(message) {
@@ -334,6 +343,7 @@ export class TopBarIslands {
                     display: this._display,
                     getDockEntries: this._getDockEntries,
                     onLauncherClick: this._onLauncherClick,
+                    onLauncherHover: this._onLauncherHover,
                 });
                 if (!this._bottomTaskbar?.setup?.())
                     throw new Error('native bottom taskbar unavailable');

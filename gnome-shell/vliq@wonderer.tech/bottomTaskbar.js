@@ -26,7 +26,7 @@ export class BottomTaskbar {
     constructor({panel = Main.panel, layout = Main.layoutManager,
         display = global.display, appSystem = Shell.AppSystem.get_default(),
         shellSettings = null, getDockEntries = null,
-        onLauncherClick = null}) {
+        onLauncherClick = null, onLauncherHover = null}) {
         this._panel = panel;
         this._layout = layout;
         this._display = display;
@@ -35,6 +35,7 @@ export class BottomTaskbar {
         this._ownsShellSettings = !shellSettings;
         this._getDockEntries = getDockEntries;
         this._onLauncherClick = onLauncherClick;
+        this._onLauncherHover = onLauncherHover;
         this._enabled = false;
         this._start = null;
         this._appStrip = null;
@@ -106,6 +107,11 @@ export class BottomTaskbar {
 
     setLauncherCallback(callback) {
         this._onLauncherClick = typeof callback === 'function'
+            ? callback : null;
+    }
+
+    setLauncherHoverCallback(callback) {
+        this._onLauncherHover = typeof callback === 'function'
             ? callback : null;
     }
 
@@ -234,6 +240,16 @@ export class BottomTaskbar {
                         this._onLauncherClick();
                     else
                         Main.overview?.showApps?.();
+                });
+                // The standalone VLIQ Orb is deliberately hidden when the
+                // bottom taskbar owns GNOME chrome. Forward native Start
+                // hover to the same Orb radial launcher instead of leaving
+                // that feature inaccessible in Windows-style layout.
+                this._start.connect('notify::hover', () => {
+                    this._onLauncherHover?.(
+                        this._start,
+                        this._start.get_hover?.() ?? this._start.hover === true
+                    );
                 });
                 (this._centerGroup ?? panel._centerBox)
                     .insert_child_at_index(this._start, 0);
