@@ -413,11 +413,12 @@ export class SharedAdaptiveTextManager {
                     actor.style ??
                     null,
                 useDarkText: null,
+                destroyId: 0,
             };
             this._styledActors.set(actor, state);
 
             try {
-                actor.connect('destroy', () => {
+                state.destroyId = actor.connect('destroy', () => {
                     this._styledActors.delete(actor);
                 });
             } catch {}
@@ -487,27 +488,24 @@ export class SharedAdaptiveTextManager {
             );
     }
 
+    _restoreTextActor(actor, state) {
+        this._styledActors.delete(actor);
+        if (state.destroyId) {
+            try { actor.disconnect(state.destroyId); } catch {}
+        }
+
+        try {
+            actor.remove_style_class_name?.(TEXT_LIGHT_CLASS);
+            actor.remove_style_class_name?.(TEXT_DARK_CLASS);
+        } catch {}
+
+        try { actor.set_style?.(state.originalStyle ?? null); } catch {}
+    }
+
     _restoreRoot(root) {
-        for (const [actor, state] of [...this._styledActors]) {
-            if (state.root !== root)
-                continue;
-
-            try {
-                actor.remove_style_class_name?.(
-                    TEXT_LIGHT_CLASS
-                );
-                actor.remove_style_class_name?.(
-                    TEXT_DARK_CLASS
-                );
-            } catch {}
-
-            try {
-                actor.set_style?.(
-                    state.originalStyle ?? null
-                );
-            } catch {}
-
-            this._styledActors.delete(actor);
+        for (const [actor, state] of this._styledActors) {
+            if (state.root === root)
+                this._restoreTextActor(actor, state);
         }
     }
 
@@ -642,21 +640,19 @@ export class SharedAdaptiveTextManager {
 
         const sampleWidth = right - left;
         const sampleHeight = bottom - top;
-        const step = Math.max(
-            1,
-            Math.floor(
-                Math.min(sampleWidth, sampleHeight) /
-                SAMPLE_GRID
-            )
-        );
+        const columns = Math.min(sampleWidth, SAMPLE_GRID);
+        const rows = Math.min(sampleHeight, SAMPLE_GRID);
+        const stepX = sampleWidth / columns;
+        const stepY = sampleHeight / rows;
 
         const values = [];
         const {data, stride, channels} = frame;
 
-        for (let py = top; py < bottom; py += step) {
-            const row = py * stride;
+        for (let y = 0; y < rows; y++) {
+            const row = (top + Math.floor((y + 0.5) * stepY)) * stride;
 
-            for (let px = left; px < right; px += step) {
+            for (let x = 0; x < columns; x++) {
+                const px = left + Math.floor((x + 0.5) * stepX);
                 const offset = row + px * channels;
                 let r = data[offset] ?? 0;
                 let g = data[offset + 1] ?? 0;
@@ -944,28 +940,9 @@ export class SharedAdaptiveTextManager {
         this._surfaceGeneration++;
         this._panelGeneration++;
 
-        for (const root of this._targets.keys())
-            this._restoreRoot(root);
-
+        for (const [actor, state] of this._styledActors)
+            this._restoreTextActor(actor, state);
         this._targets.clear();
-
-        for (const [actor, state] of this._styledActors) {
-            try {
-                actor.remove_style_class_name?.(
-                    TEXT_LIGHT_CLASS
-                );
-                actor.remove_style_class_name?.(
-                    TEXT_DARK_CLASS
-                );
-            } catch {}
-
-            try {
-                actor.set_style?.(
-                    state.originalStyle ?? null
-                );
-            } catch {}
-        }
-        this._styledActors.clear();
 
         this._screenshot = null;
         this._surfaceSamplePending = false;

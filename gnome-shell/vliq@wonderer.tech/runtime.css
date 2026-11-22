@@ -1526,16 +1526,6 @@
     color: rgba(23, 25, 31, 0.90) !important;
 }
 
-/* Semantic calendar state: today follows the GNOME Appearance accent,
- * not the adaptive black/white palette and not the Liquid Glass tint color.
- * Keep the day bead itself neutral; only the meaning-bearing text is accented. */
-.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today,
-.vliq-liquid-popup-content.datemenu-popover .vliq-date-card-text-light .calendar-day.calendar-today,
-.vliq-liquid-popup-content.datemenu-popover .vliq-date-card-text-dark .calendar-day.calendar-today {
-    color: -st-accent-color !important;
-    font-weight: 700;
-}
-
 .vliq-liquid-popup-content.datemenu-popover .calendar-day:hover,
 .vliq-liquid-popup-content.datemenu-popover .calendar-day:focus {
     background-color: rgba(255, 255, 255, 0.12) !important;
@@ -1609,24 +1599,19 @@
 .vliq-liquid-popup-content.datemenu-popover .message-list-clear-button:focus,
 .vliq-liquid-popup-content.datemenu-popover .calendar-month-label:focus,
 .vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button:focus {
-    border-color: -st-accent-color !important;
+    border-color: #547cae !important;
     box-shadow: none !important;
 }
 
-/* Preserve the user's accent for today; it is the one intentional solid state
- * in the calendar and therefore remains immediately scannable. */
-.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today {
-    background-color: -st-accent-color !important;
-    color: -st-accent-fg-color !important;
-    border-color: rgba(255, 255, 255, 0.34) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+/* Keep today legible over both light and dark glass. */
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today,
+.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day.calendar-today,
+.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day.calendar-today:hover,
+.vliq-liquid-popup-content.datemenu-popover .calendar .calendar-day.calendar-today:focus {
+    background-color: #315a86 !important;
+    color: #ffffff !important;
+    font-weight: 700;
     opacity: 1;
-}
-
-.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:hover,
-.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus {
-    border-color: rgba(255, 255, 255, 0.54) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
 }
 
 /* Media controls remain crisp over their newly-glassed message card. */
@@ -1685,7 +1670,7 @@
     box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.24) !important;
 }
 /* The calendar grid remains visually integrated into the OUTER glass.
- * Keep month/day controls, current-day GNOME accent, and keyboard input. */
+ * Keep month/day controls and keyboard input. */
 .vliq-liquid-popup-content.datemenu-popover .calendar,
 .vliq-liquid-popup-content.datemenu-popover .calendar:hover,
 .vliq-liquid-popup-content.datemenu-popover .calendar:focus {
@@ -1707,6 +1692,15 @@
 .vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus {
     border: 0 !important;
     box-shadow: none !important;
+}
+.vliq-liquid-popup-content.datemenu-popover .calendar-day-heading {
+    font-weight: 600;
+}
+.vliq-liquid-popup-content.datemenu-popover .calendar-day:focus,
+.vliq-liquid-popup-content.datemenu-popover .calendar-day.calendar-today:focus,
+.vliq-liquid-popup-content.datemenu-popover .calendar-month-header .pager-button:focus,
+.vliq-liquid-popup-content.datemenu-popover .datemenu-today-button:focus {
+    box-shadow: inset 0 0 0 2px #547cae !important;
 }
 
 /* Quick Settings --------------------------------------------------------- */
@@ -1757,15 +1751,6 @@
     box-shadow: none !important;
 }
 
-/* Active state carries color only in text. Tile body, border and icon remain
- * the same neutral glass as inactive tiles. The token follows Ubuntu/GNOME's
- * current Appearance accent automatically. */
-.vliq-liquid-popup-content.quick-settings .vliq-quick-active StLabel,
-.vliq-liquid-popup-content.quick-settings .vliq-quick-active .quick-toggle-title,
-.vliq-liquid-popup-content.quick-settings .vliq-quick-active .quick-toggle-subtitle {
-    color: -st-accent-color !important;
-}
-
 /* Premium hierarchy: foreground stays native/adaptive, weight matches Date. */
 .vliq-liquid-popup-content.quick-settings .quick-toggle-title,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-menu .header .title {
@@ -1777,7 +1762,7 @@
 .vliq-liquid-popup-content.quick-settings .quick-toggle-menu .header .subtitle,
 .vliq-liquid-popup-content.quick-settings .device-subtitle {
     font-weight: normal;
-    opacity: 0.68;
+    opacity: 0.84;
 }
 
 .vliq-liquid-popup-content.quick-settings .quick-toggle-icon,
@@ -1851,7 +1836,7 @@
 /* Slider track is a control painted on top of the glass pod. */
 .vliq-liquid-popup-content.quick-settings .quick-slider .slider {
     -barlevel-background-color: rgba(255, 255, 255, 0.18);
-    -barlevel-active-background-color: -st-accent-color;
+    -barlevel-active-background-color: #547cae;
 }
 
 /* Expanded Wi-Fi/Bluetooth/device menu is itself a nested-glass region now. */
@@ -1874,6 +1859,18 @@
 
 .vliq-liquid-popup-content.quick-settings .quick-toggle-separator {
     background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Selected labels and icons share a cool accent on light glass. */
+.vliq-liquid-popup-content.quick-settings .vliq-quick-active StLabel,
+.vliq-liquid-popup-content.quick-settings .vliq-quick-active StIcon,
+.vliq-liquid-popup-content.quick-settings .vliq-quick-active .quick-toggle-title {
+    color: #234f7d !important;
+}
+.vliq-liquid-popup-content.quick-settings .vliq-quick-card-text-light.vliq-quick-active StLabel,
+.vliq-liquid-popup-content.quick-settings .vliq-quick-card-text-light.vliq-quick-active StIcon,
+.vliq-liquid-popup-content.quick-settings .vliq-quick-card-text-light.vliq-quick-active .quick-toggle-title {
+    color: #bbd8ff !important;
 }
 
 /* Quick Settings expanded overlay ---------------------------------------- */
@@ -1953,19 +1950,22 @@
     color: rgba(23, 25, 31, 0.66) !important;
 }
 
-/* Active Quick tiles use the theme accent on text only, including standalone
- * toggles such as Dark Style / Night Light / Do Not Disturb. */
+/* Match the expanded list to the Quick Settings tile palette. */
 .vliq-liquid-quick-menu-root .vliq-quick-active StLabel,
-.vliq-liquid-quick-menu-root .vliq-quick-active .quick-toggle-title,
-.vliq-liquid-quick-menu-root .vliq-quick-active .quick-toggle-subtitle {
-    color: -st-accent-color !important;
+.vliq-liquid-quick-menu-root .vliq-quick-active StIcon,
+.vliq-liquid-quick-menu-root .vliq-quick-active .popup-menu-ornament {
+    color: #234f7d !important;
 }
-
+.vliq-liquid-quick-menu-root .vliq-quick-card-text-light .vliq-quick-active StLabel,
+.vliq-liquid-quick-menu-root .vliq-quick-card-text-light .vliq-quick-active StIcon,
+.vliq-liquid-quick-menu-root .vliq-quick-card-text-light .vliq-quick-active .popup-menu-ornament {
+    color: #bbd8ff !important;
+}
 
 /* Quick Settings inner cards: same always-visible cool gray-white paint as
  * the accepted Calendar inner cards. Hover/focus/checked remain visually
- * neutral, while pressed is slightly stronger. GNOME's selected-state
- * accent is preserved on labels/icons. Never tint the main popup itself.
+ * neutral, while pressed is slightly stronger. The selected state is
+ * shown through the foreground. Never tint the main popup itself.
  * The nested Quick LiquidEffect remains the underlying optical material. */
 .vliq-liquid-popup-content.quick-settings .quick-toggle,
 .vliq-liquid-popup-content.quick-settings .quick-slider,
@@ -2023,15 +2023,14 @@
 .vliq-liquid-popup-content.quick-settings .quick-slider,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
 .vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button {
-    border-radius: 11px !important;
+    border-radius: 14px !important;
 }
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,
-.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:hover,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:focus,
 .vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:checked {
     background-color: rgba(219, 223, 229, 0.18) !important;
     border: 0 !important;
-    border-radius: 11px !important;
+    border-radius: 14px !important;
     box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.15) !important;
 }
 /* Split toggle inner action is not a second card. Preserve click/toggle. */
@@ -2055,7 +2054,7 @@
     box-shadow: none !important;
 }
 .vliq-liquid-popup-content.quick-settings .quick-slider {
-    padding: 9px 11px;
+    padding: 10px 12px;
 }
 .vliq-liquid-popup-content.quick-settings .quick-settings-grid .quick-settings-system-item {
     margin-top: 3px;
@@ -2075,8 +2074,8 @@
 }
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {
     margin: 3px 6px;
-    padding: 9px 12px;
-    border-radius: 9px !important;
+    padding: 10px 12px;
+    border-radius: 12px !important;
 }
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item,
 .vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item-separator,
@@ -2085,7 +2084,31 @@
     border: 0 !important;
     box-shadow: none !important;
 }
-/* Keep the active slider bar and GNOME accent text; only decorative lines
+/* Interaction paint stays on the existing controls and submenu rows. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle:hover,
+.vliq-liquid-popup-content.quick-settings .quick-slider:hover,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:hover,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:hover,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:hover {
+    background-color: rgba(219, 223, 229, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 225, 232, 0.26) !important;
+}
+
+/* Show which half of a split toggle owns keyboard focus. */
+.vliq-liquid-popup-content.quick-settings .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-slider .slider:focus,
+.vliq-liquid-popup-content.quick-settings .quick-settings-system-item .icon-button:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle:focus,
+.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:focus,
+.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {
+    box-shadow: inset 0 0 0 2px #547cae !important;
+}
+
+.vliq-liquid-quick-menu-root .quick-toggle-menu .header .title {
+    font-weight: 600;
+}
+
+/* Keep the active slider bar and selected-state text; only decorative lines
  * disappear. Calendar and Bottom Taskbar selectors are untouched. */
 
 /* VLIQ Spotlight ------------------------------------------------------- */
@@ -2255,7 +2278,7 @@
 /* Preserve GNOME's active/accent identification, list focus and click flow. */
 .vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .vliq-quick-active StLabel,
 .vliq-global-milky .vliq-liquid-quick-menu-root .quick-toggle-menu .vliq-quick-active StIcon {
-    color: -st-accent-color !important;
+    color: #234f7d !important;
 }
 
 /* Milky material parity with VLIQ's existing Liquid Glass surfaces.
@@ -2298,11 +2321,10 @@
 .vliq-global-milky .vliq-liquid-popup-content StIcon {
     color: #20252e !important;
 }
-/* Accent marks state: never remove the selected accent of Quick Settings
- * or the active app indicator. */
-.vliq-global-milky .vliq-liquid-quick-menu-root .vliq-quick-active StLabel,
-.vliq-global-milky .vliq-liquid-popup-content .vliq-quick-active StLabel {
-    color: -st-accent-color !important;
+/* The fixed white Milky background always uses the dark selected color. */
+.vliq-global-milky .vliq-liquid-popup-content.quick-settings .vliq-quick-active StLabel,
+.vliq-global-milky .vliq-liquid-popup-content.quick-settings .vliq-quick-active StIcon {
+    color: #234f7d !important;
 }
 
 /* VLIQ app icon consistency -----------------------------------------------
