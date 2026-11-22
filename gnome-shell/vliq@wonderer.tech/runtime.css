@@ -2594,6 +2594,14 @@
 .vliq-native-css.vliq-native-css-dark .modal-dialog StLabel {
     color: #f5f7fb !important;
 }
+/* Checked native tiles use GNOME's accent background, so their labels
+ * and icons need the paired foreground in Light, Dark and Milky. */
+.vliq-native-css .popup-menu-content.quick-settings .quick-toggle:checked StLabel,
+.vliq-native-css .popup-menu-content.quick-settings .quick-toggle:checked StIcon,
+.vliq-native-css .popup-menu-content.quick-settings .quick-toggle-menu-button:checked StIcon {
+    color: -st-accent-fg-color !important;
+}
+
 /* The native GNOME panel's existing indicators are always click targets.
  * In Bottom mode the taskbar is already the one full-width panel owner. */
 .vliq-native-css #panel.vliq-bottom-taskbar.vliq-system-dark-taskbar {
