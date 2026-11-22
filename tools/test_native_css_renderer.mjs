@@ -37,6 +37,20 @@ assert.match(runtime, /onRendererFailure: error =>/);
 assert.match(css, /\.vliq-native-css \.popup-menu-content/);
 assert.match(css, /\.vliq-native-css\.vliq-native-css-dark/);
 
+// Active Quick Settings controls pair the theme's accent background
+// with its accent foreground, even over the fixed light Milky popup.
+for (const selector of [
+    '.quick-toggle:checked StLabel',
+    '.quick-toggle:checked StIcon',
+    '.quick-toggle-menu-button:checked StIcon',
+]) {
+    const scoped = '.vliq-native-css .popup-menu-content.quick-settings ' + selector;
+    const start = css.indexOf(scoped);
+    assert.ok(start >= 0, 'missing checked Quick Settings color: ' + selector);
+    const rule = css.slice(start, css.indexOf('}', start));
+    assert.match(rule, /color:\s*-st-accent-fg-color\s*!important/);
+}
+
 // Execute the shipped native integration, not a copy of its logic.
 const nativeClass = native
     .replace(/^import[\s\S]*?;\s*$/gm, '')
