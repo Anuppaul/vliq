@@ -946,6 +946,7 @@ let oldGlassSyncs = 0;
 let nativeReady = false;
 let panelSourceX = 0;
 let panelOpacity = 255;
+let panelTransformReads = 0;
 const oldDockGlass = {
     ready: true,
     hide() {oldGlassHides++;},
@@ -955,7 +956,10 @@ const oldDockGlass = {
 const nativeBackdropEntry = {
     panelLiquidSurface: oldDockGlass,
     panelBackdropSource: {
-        get_transformed_position: () => [panelSourceX, 1044],
+        get_transformed_position() {
+            panelTransformReads++;
+            return [panelSourceX, 1044];
+        },
         get_transformed_size: () => [1920, 36],
         get_stage: () => stage,
         mapped: true, visible: true,
@@ -1007,6 +1011,19 @@ isBottom = false;
 drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
 assert.equal(oldGlassDraws, 4,
     'old Dock glass repaints immediately after Bottom mode exits');
+
+const transformReadsBeforeHide = panelTransformReads;
+nativeBackdropEntry.panelBackdropSource.mapped = false;
+for (let i = 0; i < 120; i++)
+    drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(nativeReady, false, 'an unmapped Dock drops glass readiness');
+assert.equal(oldGlassDraws, 4, 'an unmapped Dock never updates glass bounds');
+assert.equal(panelTransformReads, transformReadsBeforeHide,
+    'an unmapped Dock skips native transform reads on every frame');
+nativeBackdropEntry.panelBackdropSource.mapped = true;
+drawNativeBackdrop.call(nativeDockContext, nativeBackdropEntry);
+assert.equal(oldGlassDraws, 5,
+    'the remapped Dock restores glass on the first frame');
 
 // The Ubuntu Dock panel-background style watcher must NOT resurrect
 // native paint while Bottom owns the panel, even if Ubuntu Panel Mode

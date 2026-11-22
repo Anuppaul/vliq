@@ -8,6 +8,27 @@ import {readFile} from 'node:fs/promises';
 const popup = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/popupGlass.js', import.meta.url
 ), 'utf8');
+// Exercise the production luminance loop with a wide slider-shaped card.
+const samplerStart = popup.indexOf('    _dateCardLuminance(frame, actor) {');
+const samplerEnd = popup.indexOf('    _chooseDateCardDarkText(', samplerStart);
+const helpersStart = popup.indexOf('function clampNumber(');
+const helpersEnd = popup.indexOf('function contrastRatio(', helpersStart);
+assert.ok(samplerStart >= 0 && samplerEnd > samplerStart);
+assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
+const luminance = new Function('finiteRect', 'dateCardClass',
+    popup.match(/^const DATE_CARD_SAMPLE_GRID = .*;$/m)[0] + '\n' +
+    popup.slice(helpersStart, helpersEnd) +
+    'return ({' + popup.slice(samplerStart, samplerEnd) + '})._dateCardLuminance;'
+)(() => true, () => 'quick-slider');
+let cardReads = 0;
+const card = {x: 0, y: 0, width: 420, height: 38, stride: 420 * 3,
+    channels: 3, data: new Proxy({}, {get() {cardReads++; return 0;}})};
+assert.equal(luminance.call({
+    _vendor: {getTransformedRect: () => [0, 0, 420, 38]},
+}, card, {}), 0);
+assert.ok(cardReads <= 28 * 28 * 3,
+    `popup contrast sampling exceeded its pixel budget: ${cardReads} reads`);
+
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url
 ), 'utf8');
@@ -97,6 +118,27 @@ for (const klass of ['datemenu-today-button', 'events-button',
     'message-list-clear-button'])
     assert.ok(flatCss.includes('.' + klass),
         'missing gray-white inner card ' + klass);
+const stackStart = popup.indexOf('    _syncDateNotificationStack(actor, state) {');
+const stackEnd = popup.indexOf('    _updateDateNotificationStack(', stackStart);
+assert.ok(stackStart >= 0 && stackEnd > stackStart,
+    'Date Menu manages collapsed notification actor opacity');
+const stack = new Function('return ({' + popup.slice(stackStart, stackEnd) + '});')();
+let pseudoClass = 'second-in-stack';
+const notification = {
+    opacity: 231,
+    has_style_pseudo_class: name => name === pseudoClass,
+};
+const stackState = {opacity: null};
+stack._syncDateNotificationStack(notification, stackState);
+assert.equal(notification.opacity, 0, 'rear cards cannot show through glass');
+stack._syncDateNotificationStack(notification, stackState);
+pseudoClass = '';
+stack._syncDateNotificationStack(notification, stackState);
+assert.equal(notification.opacity, 231, 'expansion restores the native opacity');
+pseudoClass = 'lower-in-stack';
+stack._syncDateNotificationStack(notification, stackState);
+assert.equal(notification.opacity, 0, 'deeper stack cards also stay hidden');
+
 const calendarGrid = flatCss.match(
     /\.vliq-liquid-popup-content\.datemenu-popover \.calendar,\n[\s\S]*?\{([^}]+)\}/)?.[1];
 assert.ok(calendarGrid, 'native calendar grid must have explicit no-card rule');

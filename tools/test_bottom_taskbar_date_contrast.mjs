@@ -23,6 +23,8 @@ class Actor {
         this.style = null;
         this.children = [];
         this.parent = null;
+        this.handlers = new Map();
+        this.nextSignalId = 0;
     }
     add_child(actor) {this.children.push(actor); actor.parent = this;}
     get_children() {return this.children;}
@@ -34,7 +36,12 @@ class Actor {
     get_style() {return this.style;}
     set_style(style) {this.style = style;}
     get_paint_opacity() {return 255;}
-    connect() {return 1;}
+    connect(_signal, handler) {
+        const id = ++this.nextSignalId;
+        this.handlers.set(id, handler);
+        return id;
+    }
+    disconnect(id) {assert.ok(this.handlers.delete(id));}
     has_style_pseudo_class() {return false;}
 }
 class Label extends Actor {}
@@ -98,6 +105,18 @@ assert.ok(!manager._visibleEntries('surface')
 assert.match(clock.style, /color: #ffffff;/,
     'clock is pure white immediately when Bottom Taskbar becomes active');
 
+// A thin 1920px panel should not sample every column just because the
+// height is small. A uniform background must retain its exact polarity.
+const panelPixels = {
+    x: 0, y: 1040, width: 1920, height: 40, stride: 1920 * 3,
+    channels: 3,
+};
+let panelReads = 0;
+panelPixels.data = new Proxy({}, {get() {panelReads++; return 255;}});
+assert.equal(manager._luminance(panelPixels, panel.rect), 1);
+assert.ok(panelReads <= 24 * 24 * 3,
+    `panel contrast sampling exceeded its pixel budget: ${panelReads} reads`);
+
 manager._applyRootPolarity(panel, false);
 assert.match(otherLabel.style, /color: #f7f8fc;/);
 assert.match(clock.style, /color: #ffffff;/,
@@ -119,12 +138,18 @@ manager._scan(true);
 assert.ok(!manager._targets.has(clock));
 assert.equal(clock.style, null,
     'leaving Bottom mode restores original GNOME clock style');
+assert.equal(clock.handlers.size, 0,
+    'restored actors release their destroy listeners');
 assert.ok(!clock.classes.has('vliq-shared-text-light'));
 assert.deepEqual(manager._textActors(panel), [otherLabel, clock]);
 manager._applyRootPolarity(panel, true);
 assert.match(clock.style, /color: #17191f;/,
     'normal header returns to full-panel adaptive text');
+assert.equal(clock.handlers.size, 1,
+    'restyling the same actor owns exactly one destroy listener');
 manager.cleanup();
+assert.equal(clock.handlers.size, 0);
+assert.equal(otherLabel.handlers.size, 0);
 
 const css = await readFile(new URL(
     '../gnome-shell/vliq@wonderer.tech/runtime.css', import.meta.url

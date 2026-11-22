@@ -4633,34 +4633,28 @@ export class LiquidGlassIntegration {
         if (!surface || !source || !this._dockIsPanelMode())
             return;
 
-        // Bottom Taskbar owns the one bounded glass strip. Ubuntu Dock
-        // Panel Mode's independent uiGroup sibling can stay painted after
-        // its container/icons are hidden, making a second stripe or gap.
-        // Suppress the producer each frame; otherwise its own compositor
-        // callback would re-show the old glass immediately.
-        if (this.ownsBottomTaskbarChrome()) {
-            surface.hide();
-            entry.panelBackdropLastBounds = null;
-            this._setPanelLiquidReady(entry, false);
-            return;
-        }
-
         try {
+            // Bottom Taskbar owns the only visible strip in Bottom mode.
+            // A detached or hidden Dock also has no geometry to capture.
+            if (this.ownsBottomTaskbarChrome() ||
+                source.mapped === false ||
+                source.visible === false ||
+                source.get_stage?.() !== global.stage) {
+                surface.hide();
+                entry.panelBackdropLastBounds = null;
+                this._setPanelLiquidReady(entry, false);
+                return;
+            }
+
             const [x, y] = source.get_transformed_position();
             const [w, h] = source.get_transformed_size();
             const index = Main.layoutManager.findIndexForActor(source);
             const monitor = Main.layoutManager.monitors[
                 index >= 0 ? index : Main.layoutManager.primaryIndex
             ] ?? Main.layoutManager.primaryMonitor;
-            const valid = source.get_stage?.() === global.stage &&
-                source.mapped !== false &&
-                source.visible !== false &&
-                // The native Ubuntu Dock controls real hide/reveal. Its
-                // independent glass backdrop must NEVER remain painted
-                // on top of a fullscreen application while the native
-                // dock's own fullscreen state is settling.
-                monitor?.inFullscreen !== true &&
-                monitor &&
+            // Its independent backdrop must stay hidden while the native
+            // Dock's fullscreen state is settling.
+            const valid = monitor?.inFullscreen !== true && monitor &&
                 [x, y, w, h].every(Number.isFinite) &&
                 w > 1 && h > 1 &&
                 // Guard all four edges and constrain *thickness*. Never

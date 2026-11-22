@@ -294,6 +294,7 @@ class PopupGlassSurface {
         this._dateInnerClone = null;
         this._dateInnerEffect = null;
         this._dateCardActors = [];
+        this._dateNotificationStack = new Map();
         this._dateCardResponses = new Map();
         this._dateCardTextState = new Map();
         this._quickSelectedState = new Map();
@@ -707,6 +708,7 @@ class PopupGlassSurface {
                     this._manager?._ensureStageSync?.();
 
                     const needsCardRescan =
+                        this._isDateMenu ||
                         this._dateCardActors.length === 0 ||
                         (
                             this._isQuickSettings &&
@@ -988,6 +990,44 @@ class PopupGlassSurface {
             this._watchQuickActor(actor);
     }
 
+    _syncDateNotificationStack(actor, state) {
+        const rear = actor.has_style_pseudo_class('second-in-stack') ||
+            actor.has_style_pseudo_class('lower-in-stack');
+        if (rear && state.opacity === null) {
+            state.opacity = actor.opacity;
+            actor.opacity = 0;
+        } else if (!rear && state.opacity !== null) {
+            actor.opacity = state.opacity;
+            state.opacity = null;
+        }
+    }
+
+    _updateDateNotificationStack(messages) {
+        for (const [actor, state] of this._dateNotificationStack) {
+            if (messages.has(actor))
+                continue;
+            this._dateNotificationStack.delete(actor);
+            try {
+                actor.disconnect(state.signalId);
+                if (state.opacity !== null)
+                    actor.opacity = state.opacity;
+            } catch {
+                // The notification may already have been destroyed.
+            }
+        }
+
+        for (const actor of messages) {
+            if (this._dateNotificationStack.has(actor))
+                continue;
+            const state = {opacity: null, signalId: 0};
+            state.signalId = actor.connect('style-changed', () =>
+                this._syncDateNotificationStack(actor, state)
+            );
+            this._dateNotificationStack.set(actor, state);
+            this._syncDateNotificationStack(actor, state);
+        }
+    }
+
     _scanDateCardActors(force = false) {
         if (
             (!this._isDateMenu && !this._isQuickSettings) ||
@@ -1058,6 +1098,9 @@ class PopupGlassSurface {
         }
 
         if (this._isDateMenu) {
+            this._updateDateNotificationStack(new Set(found
+                .filter(item => item.klass === 'message')
+                .map(item => item.actor)));
             found.sort((a, b) =>
                 (DATE_INNER_CARD_PRIORITY.get(a.klass) ?? 99) -
                 (DATE_INNER_CARD_PRIORITY.get(b.klass) ?? 99)
@@ -1605,21 +1648,19 @@ class PopupGlassSurface {
 
         const sampleWidth = right - left;
         const sampleHeight = bottom - top;
-        const step = Math.max(
-            1,
-            Math.floor(
-                Math.min(sampleWidth, sampleHeight) /
-                DATE_CARD_SAMPLE_GRID
-            )
-        );
+        const columns = Math.min(sampleWidth, DATE_CARD_SAMPLE_GRID);
+        const rows = Math.min(sampleHeight, DATE_CARD_SAMPLE_GRID);
+        const stepX = sampleWidth / columns;
+        const stepY = sampleHeight / rows;
 
         const values = [];
         const {data, stride, channels} = frame;
 
-        for (let py = top; py < bottom; py += step) {
-            const row = py * stride;
+        for (let y = 0; y < rows; y++) {
+            const row = (top + Math.floor((y + 0.5) * stepY)) * stride;
 
-            for (let px = left; px < right; px += step) {
+            for (let x = 0; x < columns; x++) {
+                const px = left + Math.floor((x + 0.5) * stepX);
                 const index = row + px * channels;
                 let r = data[index];
                 let g = data[index + 1];
@@ -2788,6 +2829,8 @@ class PopupGlassSurface {
         this._clearQuickSignalEntries();
         this._cleanupQuickThemeSync();
         this._restoreQuickOverlayMenuCloses();
+        if (this._isDateMenu)
+            this._updateDateNotificationStack(new Set());
 
         try {
             this._effect?.setLiveGeometryHook?.(null);

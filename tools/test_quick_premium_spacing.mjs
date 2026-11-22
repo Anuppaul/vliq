@@ -34,7 +34,7 @@ assert.match(quick,
 const parent = declarations(
     '.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu,');
 assert.equal(parent['background-color'], 'rgba(219, 223, 229, 0.18) !important');
-assert.equal(parent['border-radius'], '11px !important');
+assert.equal(parent['border-radius'], '14px !important');
 const nested = declarations(
     '.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle,');
 assert.equal(nested['background-color'], 'transparent !important');
@@ -45,10 +45,22 @@ assert.match(quick, /\.quick-toggle-has-menu \.quick-toggle-menu-button:active/,
 const divider = declarations('.vliq-liquid-popup-content.quick-settings .quick-toggle-separator {');
 assert.equal(divider['background-color'], 'transparent !important');
 const slider = declarations('.vliq-liquid-popup-content.quick-settings .quick-slider {');
-assert.equal(slider.padding, '9px 11px');
+assert.equal(slider.padding, '10px 12px');
 const rows = declarations('.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item {');
 assert.equal(rows.margin, '3px 6px');
-assert.equal(rows.padding, '9px 12px');
+assert.equal(rows.padding, '10px 12px');
+assert.equal(rows['border-radius'], '12px !important');
+const hover = declarations(
+    '.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu:hover {');
+assert.notEqual(hover['background-color'], parent['background-color']);
+const splitFocus = declarations(
+    '.vliq-liquid-popup-content.quick-settings .quick-toggle-has-menu .quick-toggle-menu-button:focus,');
+assert.match(splitFocus['box-shadow'], /inset .* #547cae/);
+assert.equal(splitFocus['background-color'], undefined,
+    'keyboard focus adds an indicator without another split card fill');
+const rowFocus = declarations(
+    '.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-menu-item:focus {');
+assert.match(rowFocus['box-shadow'], /inset .* #547cae/);
 const separators = declarations(
     '.vliq-liquid-quick-menu-root .quick-toggle-menu .popup-separator-menu-item,');
 assert.equal(separators['background-color'], 'transparent !important');

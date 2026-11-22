@@ -238,16 +238,15 @@ export class PanelGlassSurface {
             this._material.opacity === 0)
             return;
 
-        const [width, height] = this._material.get_size?.() ?? [0, 0];
-        if (width <= 1 || height <= 1)
-            return;
-
-        // The common stationary-panel path runs on every stage frame.
-        // Avoid a GObject transformed-position query until the next actual
-        // clone-sync deadline. A moving panel bypasses the budget immediately.
+        // Stationary panels only need Clutter geometry at the next clone
+        // sync deadline. Changed bounds bypass the budget immediately.
         const nowUs = GLib.get_monotonic_time();
         if (!this._boundsDirty &&
             !frameDue(nowUs, this._lastSceneUs, SCENE_FPS))
+            return;
+
+        const [width, height] = this._material.get_size?.() ?? [0, 0];
+        if (width <= 1 || height <= 1)
             return;
 
         const [absX, absY] =
@@ -258,10 +257,6 @@ export class PanelGlassSurface {
         const rectangle = [absX, absY, width, height];
         const changed = !this._lastCapture ||
             rectangle.some((v, i) => this._lastCapture[i] !== v);
-        // A hide/reveal at identical bounds still needs a fresh capture.
-        if (!changed && !this._boundsDirty &&
-            !frameDue(nowUs, this._lastSceneUs, SCENE_FPS))
-            return;
 
         // Same scene mapping as ShellCardSurface: screen-coordinate window
         // clones become local capture coordinates by translating the scene.
